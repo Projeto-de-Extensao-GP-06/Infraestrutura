@@ -1,0 +1,17 @@
+# Provisionamento de politica de notificacao do Grafana Unified Alerting
+# Define agrupamento, tempo de espera e intervalo de repeticao.
+apiVersion: 1
+
+policies:
+  - orgId: 1
+    receiver: email-sgpj
+    group_by:
+      - alertname
+      - severity
+    matchers: []
+    group_wait: 30s
+    group_interval: 5m
+    repeat_interval: 10m
+    routes: []
+
+resetPolicies: []

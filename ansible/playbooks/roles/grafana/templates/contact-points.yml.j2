@@ -1,0 +1,15 @@
+# Provisionamento de contact points do Grafana Unified Alerting
+# Aplicado automaticamente ao subir o container. Nao editar manualmente.
+apiVersion: 1
+
+contactPoints:
+  - orgId: 1
+    name: email-sgpj
+    receivers:
+      - uid: email-sgpj-receiver
+        type: email
+        disableResolveMessage: false
+        settings:
+          addresses: "{{ grafana_alert_email }}"
+
+deleteContactPoints: []

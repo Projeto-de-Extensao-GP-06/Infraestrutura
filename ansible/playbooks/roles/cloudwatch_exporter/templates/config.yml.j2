@@ -1,0 +1,74 @@
+region: {{ cloudwatch_exporter_region }}
+
+discovery:
+  exportedTagsOnMetrics:
+    AWS/ApplicationELB:
+      - Name
+    AWS/RDS:
+      - Name
+    AWS/EFS:
+      - Name
+
+metrics:
+  - aws_namespace: AWS/ApplicationELB
+    aws_metric_name: HealthyHostCount
+    aws_dimensions: [LoadBalancer]
+    aws_dimension_select_regex:
+      LoadBalancer: ["{{ cloudwatch_exporter_alb_dimension_regex }}"]
+    aws_statistics: [Minimum]
+
+  - aws_namespace: AWS/ApplicationELB
+    aws_metric_name: HTTPCode_Target_5XX_Count
+    aws_dimensions: [LoadBalancer]
+    aws_dimension_select_regex:
+      LoadBalancer: ["{{ cloudwatch_exporter_alb_dimension_regex }}"]
+    aws_statistics: [Sum]
+
+  - aws_namespace: AWS/ApplicationELB
+    aws_metric_name: RequestCount
+    aws_dimensions: [LoadBalancer]
+    aws_dimension_select_regex:
+      LoadBalancer: ["{{ cloudwatch_exporter_alb_dimension_regex }}"]
+    aws_statistics: [Sum]
+
+  - aws_namespace: AWS/ApplicationELB
+    aws_metric_name: TargetResponseTime
+    aws_dimensions: [LoadBalancer]
+    aws_dimension_select_regex:
+      LoadBalancer: ["{{ cloudwatch_exporter_alb_dimension_regex }}"]
+    aws_statistics: [Average]
+
+  - aws_namespace: AWS/RDS
+    aws_metric_name: DatabaseConnections
+    aws_dimensions: [DBInstanceIdentifier]
+    aws_dimension_select:
+      DBInstanceIdentifier: ["{{ cloudwatch_exporter_rds_identifier }}"]
+    aws_statistics: [Average]
+
+  - aws_namespace: AWS/RDS
+    aws_metric_name: FreeStorageSpace
+    aws_dimensions: [DBInstanceIdentifier]
+    aws_dimension_select:
+      DBInstanceIdentifier: ["{{ cloudwatch_exporter_rds_identifier }}"]
+    aws_statistics: [Average]
+
+  - aws_namespace: AWS/RDS
+    aws_metric_name: CPUUtilization
+    aws_dimensions: [DBInstanceIdentifier]
+    aws_dimension_select:
+      DBInstanceIdentifier: ["{{ cloudwatch_exporter_rds_identifier }}"]
+    aws_statistics: [Average]
+
+  - aws_namespace: AWS/RDS
+    aws_metric_name: FreeableMemory
+    aws_dimensions: [DBInstanceIdentifier]
+    aws_dimension_select:
+      DBInstanceIdentifier: ["{{ cloudwatch_exporter_rds_identifier }}"]
+    aws_statistics: [Average]
+
+  - aws_namespace: AWS/EFS
+    aws_metric_name: PercentIOLimit
+    aws_dimensions: [FileSystemId]
+    aws_dimension_select:
+      FileSystemId: ["{{ efs_dns.split('.')[0] }}"]
+    aws_statistics: [Average]

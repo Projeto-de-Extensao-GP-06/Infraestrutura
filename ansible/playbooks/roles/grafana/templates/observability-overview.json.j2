@@ -1,0 +1,76 @@
+{
+  "id": null,
+  "uid": "obs-overview",
+  "title": "Observability Overview",
+  "tags": ["observability", "prometheus", "loki"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "10s",
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Targets UP",
+      "gridPos": {"h": 4, "w": 6, "x": 0, "y": 0},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {"expr": "sum(up)", "refId": "A"}
+      ]
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "Prometheus Active Series",
+      "gridPos": {"h": 8, "w": 12, "x": 6, "y": 0},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {"expr": "prometheus_tsdb_head_series", "refId": "A"}
+      ]
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Prometheus Memory (bytes)",
+      "gridPos": {"h": 8, "w": 6, "x": 18, "y": 0},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {"expr": "process_resident_memory_bytes", "refId": "A"}
+      ]
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "Scrape Duration (max 5m)",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {"expr": "max_over_time(scrape_duration_seconds[5m])", "refId": "A"}
+      ]
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Loki Log Lines / 5m",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+      "datasource": {"type": "loki", "uid": "loki"},
+      "targets": [
+        {"expr": "sum(count_over_time({job=\"docker\"}[5m]))", "refId": "A"}
+      ]
+    },
+    {
+      "id": 6,
+      "type": "logs",
+      "title": "Nginx Logs (Loki)",
+      "gridPos": {"h": 10, "w": 24, "x": 0, "y": 16},
+      "datasource": {"type": "loki", "uid": "loki"},
+      "targets": [
+        {"expr": "{job=\"docker\"} |= \"nginx\"", "refId": "A"}
+      ]
+    }
+  ]
+}

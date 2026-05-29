@@ -1,0 +1,31 @@
+---
+- name: Deploy de coletores base (Node Exporter + Alloy)
+  hosts: all
+  become: true
+  vars:
+    observability_primary_host: "{{ groups['observability'][0] }}"
+    alloy_loki_url: "{{ 'http://loki:3100/loki/api/v1/push' if inventory_hostname == observability_primary_host else 'http://' ~ (hostvars[observability_primary_host].ansible_default_ipv4.address | default(hostvars[observability_primary_host].ansible_host)) ~ ':3100/loki/api/v1/push' }}"
+
+  roles:
+    - role: node_exporter
+    - role: alloy
+
+- name: Deploy de observabilidade com Prometheus, Loki, Alloy e Grafana
+  hosts: observability
+  become: true
+  vars:
+    observability_primary_host: "{{ groups['observability'][0] }}"
+
+  roles:
+    - role: loki
+      when: inventory_hostname == observability_primary_host
+    - role: alertmanager
+      when: inventory_hostname == observability_primary_host
+    - role: prometheus
+      when: inventory_hostname == observability_primary_host
+    - role: cloudwatch_exporter
+      when:
+        - inventory_hostname == observability_primary_host
+        - observability_aws_auth_enabled | default(false) | bool
+    - role: grafana
+      when: inventory_hostname == observability_primary_host

@@ -1,0 +1,38 @@
+---
+- name: Criar rede de observabilidade
+  community.docker.docker_network:
+    name: "{{ prometheus_network }}"
+
+- name: Criar diretorio do Prometheus
+  ansible.builtin.file:
+    path: "{{ prometheus_config_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: Renderizar configuracao do Prometheus
+  ansible.builtin.template:
+    src: prometheus.yml.j2
+    dest: "{{ prometheus_config_dir }}/prometheus.yml"
+    mode: "0644"
+
+- name: Renderizar regras de alerta do Prometheus
+  ansible.builtin.template:
+    src: alert-rules.yml.j2
+    dest: "{{ prometheus_config_dir }}/alert-rules.yml"
+    mode: "0644"
+
+- name: Subir container do Prometheus
+  community.docker.docker_container:
+    name: "{{ prometheus_container_name }}"
+    image: "{{ prometheus_image }}"
+    state: started
+    restart_policy: unless-stopped
+    recreate: true
+    pull: always
+    networks:
+      - name: "{{ prometheus_network }}"
+    ports:
+      - "{{ prometheus_host_port }}:{{ prometheus_container_port }}"
+    volumes:
+      - "{{ prometheus_config_dir }}/prometheus.yml:/etc/prometheus/prometheus.yml:ro"
+      - "{{ prometheus_config_dir }}/alert-rules.yml:/etc/prometheus/alert-rules.yml:ro"

@@ -1,0 +1,156 @@
+groups:
+  - name: core-observability
+    rules:
+      - alert: PrometheusTargetDown
+        expr: up == 0
+        for: 2m
+        labels:
+          severity: critical
+          layer: observability
+        annotations:
+          summary: "Target indisponivel"
+          description: "O target {{ '{{ $labels.instance }}' }} do job {{ '{{ $labels.job }}' }} esta DOWN."
+
+      - alert: LokiDown
+        expr: up{job="loki"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          layer: observability
+        annotations:
+          summary: "Loki indisponivel"
+          description: "Prometheus nao esta conseguindo scrappear o Loki."
+
+      - alert: PrometheusMemoryHigh
+        expr: process_resident_memory_bytes > 800000000
+        for: 5m
+        labels:
+          severity: warning
+          layer: observability
+        annotations:
+          summary: "Memoria do Prometheus alta"
+          description: "Uso de memoria do processo Prometheus acima de 800MB por 5 minutos."
+
+      - alert: ScrapeDurationHigh
+        expr: max_over_time(scrape_duration_seconds[5m]) > 5
+        for: 5m
+        labels:
+          severity: warning
+          layer: observability
+        annotations:
+          summary: "Scrape lento"
+          description: "Tempo de scrape acima de 5s nos ultimos 5 minutos."
+
+  - name: ec2-node-exporter
+    rules:
+      - alert: NodeCpuHigh
+        expr: 100 - (avg by (instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 85
+        for: 5m
+        labels:
+          severity: warning
+          layer: ec2
+        annotations:
+          summary: "CPU alta na instancia {{ '{{ $labels.instance }}' }}"
+          description: "CPU acima de 85% por 5 minutos."
+
+      - alert: NodeMemoryLow
+        expr: (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100 < 15
+        for: 3m
+        labels:
+          severity: high
+          layer: ec2
+        annotations:
+          summary: "Memoria critica na instancia {{ '{{ $labels.instance }}' }}"
+          description: "Memoria livre abaixo de 15% por 3 minutos."
+
+      - alert: NodeDiskLow
+        expr: (node_filesystem_avail_bytes{fstype!~"tmpfs|overlay",mountpoint="/"} / node_filesystem_size_bytes{fstype!~"tmpfs|overlay",mountpoint="/"}) * 100 < 15
+        for: 5m
+        labels:
+          severity: high
+          layer: ec2
+        annotations:
+          summary: "Disco critico na instancia {{ '{{ $labels.instance }}' }}"
+          description: "Disco livre abaixo de 15% na raiz por 5 minutos."
+
+  - name: aws-cloudwatch
+    rules:
+      - alert: AlbUnhealthyHosts
+        expr: aws_applicationelb_healthy_host_count_minimum < 2
+        for: 2m
+        labels:
+          severity: critical
+          layer: alb
+        annotations:
+          summary: "ALB com hosts indisponiveis"
+          description: "Quantidade minima de hosts saudaveis abaixo de 2."
+
+      - alert: Alb5xxRateHigh
+        expr: (aws_applicationelb_httpcode_target_5_xx_count_sum / clamp_min(aws_applicationelb_request_count_sum, 1)) * 100 > 1
+        for: 3m
+        labels:
+          severity: high
+          layer: alb
+        annotations:
+          summary: "Taxa de erro 5xx alta no ALB"
+          description: "Taxa de 5xx acima de 1% por 3 minutos."
+
+      - alert: AlbLatencyHigh
+        expr: aws_applicationelb_target_response_time_average > 0.5
+        for: 5m
+        labels:
+          severity: warning
+          layer: alb
+        annotations:
+          summary: "Latencia ALB elevada"
+          description: "TargetResponseTime acima de 500ms por 5 minutos."
+
+      - alert: RdsConnectionsHigh
+        expr: aws_rds_database_connections_average > 80
+        for: 3m
+        labels:
+          severity: high
+          layer: rds
+        annotations:
+          summary: "Conexoes RDS altas"
+          description: "Conexoes do RDS acima do threshold por 3 minutos. Ajuste conforme sua capacidade real."
+
+      - alert: RdsFreeStorageLow
+        expr: aws_rds_free_storage_space_average < 2147483648
+        for: 5m
+        labels:
+          severity: critical
+          layer: rds
+        annotations:
+          summary: "Espaco livre do RDS critico"
+          description: "FreeStorageSpace abaixo de 2GB por 5 minutos."
+
+      - alert: RdsCpuHigh
+        expr: aws_rds_cpuutilization_average > 80
+        for: 5m
+        labels:
+          severity: warning
+          layer: rds
+        annotations:
+          summary: "CPU do RDS alta"
+          description: "CPUUtilization acima de 80% por 5 minutos."
+
+      - alert: RdsFreeableMemoryLow
+        expr: aws_rds_freeable_memory_average < 268435456
+        for: 5m
+        labels:
+          severity: warning
+          layer: rds
+        annotations:
+          summary: "Memoria livre do RDS baixa"
+          description: "FreeableMemory abaixo de 256MB por 5 minutos."
+
+      - alert: EfsIoLimitHigh
+        expr: aws_efs_percent_i_o_limit_average > 90
+        for: 10m
+        labels:
+          severity: warning
+          layer: efs
+        annotations:
+          summary: "EFS proximo do limite de I/O"
+          description: "PercentIOLimit acima de 90% por 10 minutos."

@@ -1,0 +1,46 @@
+global:
+  scrape_interval: 15s
+
+{% if prometheus_enable_alertmanager %}
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - '{{ prometheus_alertmanager_target }}'
+{% endif %}
+
+rule_files:
+  - /etc/prometheus/alert-rules.yml
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets:
+{% for target in prometheus_scrape_targets %}
+        - '{{ target }}'
+{% endfor %}
+
+{% if prometheus_enable_loki_scrape %}
+  - job_name: loki
+    static_configs:
+      - targets:
+          - '{{ prometheus_loki_target }}'
+{% endif %}
+
+{% if prometheus_enable_cloudwatch_exporter_scrape %}
+  - job_name: cloudwatch-exporter
+    static_configs:
+      - targets:
+          - '{{ prometheus_cloudwatch_exporter_target }}'
+{% endif %}
+
+{% if prometheus_enable_node_exporter_scrape %}
+  - job_name: node-exporter
+    static_configs:
+{% for host in groups['all'] %}
+      - targets:
+          - '{{ (hostvars[host].ansible_default_ipv4.address | default(hostvars[host].ansible_host)) }}:{{ prometheus_node_exporter_port }}'
+        labels:
+          instance_name: '{{ host }}'
+{% endfor %}
+{% endif %}

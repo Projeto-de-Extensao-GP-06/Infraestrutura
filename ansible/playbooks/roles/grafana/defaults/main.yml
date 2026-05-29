@@ -1,0 +1,26 @@
+---
+grafana_image: grafana/grafana:latest
+grafana_container_name: grafana
+grafana_host_port: 3001
+grafana_container_port: 3000
+grafana_network: observability
+grafana_data_dir: /opt/grafana
+grafana_provisioning_dir: /opt/grafana/provisioning
+grafana_dashboards_dir: /opt/grafana/dashboards
+grafana_dashboard_file: observability-overview.json
+grafana_dashboard_ec2_file: ec2-nodes.json
+grafana_dashboard_cloudwatch_file: aws-cloudwatch.json
+grafana_admin_user: admin
+grafana_admin_password: admin
+grafana_prometheus_url: http://prometheus:9090
+grafana_loki_url: http://loki:3100
+
+# ── SMTP / Alertas por e-mail ─────────────────────────────────────────────
+# Habilitar e preencher no inventario (production.ini) ou sobrescrever por host_vars
+grafana_smtp_enabled: "true"
+grafana_smtp_host: "smtp.gmail.com:587"
+grafana_smtp_user: "sistema.sgpj@gmail.com"
+grafana_smtp_password: "mypc oocr emyz lbqz"
+grafana_smtp_from_address: "sistema.sgpj@gmail.com"
+grafana_smtp_from_name: "Grafana SGPJ"
+grafana_alert_email: "coffe2765@gmail.com"

@@ -1,0 +1,56 @@
+---
+- name: Criar rede de observabilidade
+  community.docker.docker_network:
+    name: "{{ loki_network }}"
+
+- name: Criar diretorios do Loki
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    mode: "{{ item.mode }}"
+    owner: "{{ item.owner | default(omit) }}"
+    group: "{{ item.group | default(omit) }}"
+  loop:
+    - { path: "{{ loki_config_dir }}", mode: "0755" }
+    - {
+        path: "{{ loki_data_dir }}",
+        mode: "0775",
+        owner: "{{ loki_data_owner }}",
+        group: "{{ loki_data_group }}",
+      }
+    - {
+        path: "{{ loki_data_dir }}/chunks",
+        mode: "0775",
+        owner: "{{ loki_data_owner }}",
+        group: "{{ loki_data_group }}",
+      }
+    - {
+        path: "{{ loki_data_dir }}/rules",
+        mode: "0775",
+        owner: "{{ loki_data_owner }}",
+        group: "{{ loki_data_group }}",
+      }
+
+- name: Renderizar configuracao do Loki
+  ansible.builtin.template:
+    src: loki-config.yml.j2
+    dest: "{{ loki_config_dir }}/loki-config.yml"
+    mode: "0644"
+
+- name: Subir container do Loki
+  community.docker.docker_container:
+    name: "{{ loki_container_name }}"
+    image: "{{ loki_image }}"
+    state: started
+    restart_policy: unless-stopped
+    recreate: true
+    pull: always
+    command:
+      - -config.file=/etc/loki/loki-config.yml
+    networks:
+      - name: "{{ loki_network }}"
+    ports:
+      - "{{ loki_host_port }}:{{ loki_container_port }}"
+    volumes:
+      - "{{ loki_config_dir }}/loki-config.yml:/etc/loki/loki-config.yml:ro"
+      - "{{ loki_data_dir }}:/loki"

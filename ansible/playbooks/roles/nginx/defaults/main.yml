@@ -1,0 +1,9 @@
+---
+nginx_image: nginx:stable-alpine
+nginx_container_name: nginx
+nginx_host_port: 80
+nginx_container_port: 80
+nginx_html_host_path: /mnt/efs-sgpj/volumes/nginx/html
+nginx_html_container_path: /usr/share/nginx/html
+nginx_conf_host_path: /mnt/efs-sgpj/volumes/nginx/conf
+nginx_conf_container_path: /etc/nginx/conf.d

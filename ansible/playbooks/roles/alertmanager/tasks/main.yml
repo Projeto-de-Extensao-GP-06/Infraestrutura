@@ -1,0 +1,31 @@
+---
+- name: Criar rede de observabilidade
+  community.docker.docker_network:
+    name: "{{ alertmanager_network }}"
+
+- name: Criar diretorio do Alertmanager
+  ansible.builtin.file:
+    path: "{{ alertmanager_config_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: Renderizar configuracao do Alertmanager
+  ansible.builtin.template:
+    src: alertmanager.yml.j2
+    dest: "{{ alertmanager_config_dir }}/alertmanager.yml"
+    mode: "0644"
+
+- name: Subir container do Alertmanager
+  community.docker.docker_container:
+    name: "{{ alertmanager_container_name }}"
+    image: "{{ alertmanager_image }}"
+    state: started
+    restart_policy: unless-stopped
+    recreate: true
+    pull: always
+    networks:
+      - name: "{{ alertmanager_network }}"
+    ports:
+      - "{{ alertmanager_host_port }}:{{ alertmanager_container_port }}"
+    volumes:
+      - "{{ alertmanager_config_dir }}/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro"

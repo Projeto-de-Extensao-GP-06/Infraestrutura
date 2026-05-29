@@ -1,0 +1,18 @@
+---
+# ──────────────────────────────────────────────────────────────────────────────
+# playbook: docker.yml
+# Instala Docker em TODAS as instâncias (app, backend, db).
+#
+# Uso:
+#   cd infra/ansible
+#   ansible-playbook -i inventories/production.ini playbooks/docker.yml
+#
+# Rodar só numa instância:
+#   ansible-playbook -i inventories/production.ini playbooks/docker.yml --limit ec2-app-a
+# ──────────────────────────────────────────────────────────────────────────────
+- name: Instalar Docker em todas as instâncias
+  hosts: all
+  become: true
+
+  roles:
+    - docker

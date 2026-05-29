@@ -1,0 +1,104 @@
+---
+- name: Criar rede de observabilidade
+  community.docker.docker_network:
+    name: "{{ grafana_network }}"
+
+- name: Criar diretorio de dados do Grafana
+  ansible.builtin.file:
+    path: "{{ grafana_data_dir }}"
+    state: directory
+    mode: "0775"
+
+- name: Criar diretorio de provisioning do Grafana
+  ansible.builtin.file:
+    path: "{{ grafana_provisioning_dir }}/datasources"
+    state: directory
+    mode: "0755"
+
+- name: Criar diretorio de provisioning de dashboards do Grafana
+  ansible.builtin.file:
+    path: "{{ grafana_provisioning_dir }}/dashboards"
+    state: directory
+    mode: "0755"
+
+- name: Criar diretorio de dashboards do Grafana
+  ansible.builtin.file:
+    path: "{{ grafana_dashboards_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: Renderizar datasources do Grafana
+  ansible.builtin.template:
+    src: datasources.yml.j2
+    dest: "{{ grafana_provisioning_dir }}/datasources/datasources.yml"
+    mode: "0644"
+
+- name: Renderizar provider de dashboards do Grafana
+  ansible.builtin.template:
+    src: dashboards-provider.yml.j2
+    dest: "{{ grafana_provisioning_dir }}/dashboards/dashboards.yml"
+    mode: "0644"
+
+- name: Renderizar dashboard inicial de observabilidade
+  ansible.builtin.template:
+    src: observability-overview.json.j2
+    dest: "{{ grafana_dashboards_dir }}/{{ grafana_dashboard_file }}"
+    mode: "0644"
+
+- name: Renderizar dashboard EC2 Node Exporter
+  ansible.builtin.template:
+    src: ec2-nodes.json.j2
+    dest: "{{ grafana_dashboards_dir }}/{{ grafana_dashboard_ec2_file }}"
+    mode: "0644"
+
+- name: Renderizar dashboard AWS CloudWatch
+  ansible.builtin.template:
+    src: aws-cloudwatch.json.j2
+    dest: "{{ grafana_dashboards_dir }}/{{ grafana_dashboard_cloudwatch_file }}"
+    mode: "0644"
+
+- name: Criar diretorio de provisioning de alerting do Grafana
+  ansible.builtin.file:
+    path: "{{ grafana_provisioning_dir }}/alerting"
+    state: directory
+    mode: "0755"
+
+- name: Renderizar contact points do Grafana (email)
+  ansible.builtin.template:
+    src: contact-points.yml.j2
+    dest: "{{ grafana_provisioning_dir }}/alerting/contact-points.yml"
+    mode: "0644"
+
+- name: Renderizar politica de notificacao do Grafana
+  ansible.builtin.template:
+    src: notification-policies.yml.j2
+    dest: "{{ grafana_provisioning_dir }}/alerting/notification-policies.yml"
+    mode: "0644"
+
+- name: Subir container do Grafana
+  community.docker.docker_container:
+    name: "{{ grafana_container_name }}"
+    image: "{{ grafana_image }}"
+    state: started
+    restart_policy: unless-stopped
+    recreate: true
+    pull: always
+    networks:
+      - name: "{{ grafana_network }}"
+    ports:
+      - "{{ grafana_host_port }}:{{ grafana_container_port }}"
+    volumes:
+      - "{{ grafana_data_dir }}:/var/lib/grafana"
+      - "{{ grafana_provisioning_dir }}:/etc/grafana/provisioning:ro"
+      - "{{ grafana_dashboards_dir }}:/var/lib/grafana/dashboards:ro"
+    env:
+      GF_SECURITY_ADMIN_USER: "{{ grafana_admin_user }}"
+      GF_SECURITY_ADMIN_PASSWORD: "{{ grafana_admin_password }}"
+      GF_UNIFIED_ALERTING_ENABLED: "true"
+      GF_ALERTING_ENABLED: "false"
+      GF_SMTP_ENABLED: "{{ grafana_smtp_enabled }}"
+      GF_SMTP_HOST: "{{ grafana_smtp_host }}"
+      GF_SMTP_USER: "{{ grafana_smtp_user }}"
+      GF_SMTP_PASSWORD: "{{ grafana_smtp_password }}"
+      GF_SMTP_FROM_ADDRESS: "{{ grafana_smtp_from_address }}"
+      GF_SMTP_FROM_NAME: "{{ grafana_smtp_from_name }}"

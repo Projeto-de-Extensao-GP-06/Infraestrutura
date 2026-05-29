@@ -1,0 +1,51 @@
+---
+- name: Validar diretorios de conteudo e configuracao do Nginx no EFS
+  ansible.builtin.assert:
+    that:
+      - nginx_html_host_path is defined
+      - nginx_conf_host_path is defined
+      - nginx_html_host_path | length > 0
+      - nginx_conf_host_path | length > 0
+    fail_msg: Defina os caminhos de html e conf do Nginx.
+
+- name: Garantir diretorios de html e conf no EFS
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0777"
+  loop:
+    - "{{ nginx_html_host_path }}"
+    - "{{ nginx_conf_host_path }}"
+
+- name: Publicar pagina padrao no EFS (somente se nao existir)
+  ansible.builtin.copy:
+    src: default-index.html
+    dest: "{{ nginx_html_host_path }}/index.html"
+    mode: "0644"
+    force: false
+
+- name: Publicar configuracao padrao do Nginx no EFS (somente se nao existir)
+  ansible.builtin.copy:
+    src: default.conf
+    dest: "{{ nginx_conf_host_path }}/default.conf"
+    mode: "0644"
+    force: false
+
+- name: Baixar imagem do Nginx
+  community.docker.docker_image:
+    name: "{{ nginx_image }}"
+    source: pull
+
+- name: Subir container Nginx
+  community.docker.docker_container:
+    name: "{{ nginx_container_name }}"
+    image: "{{ nginx_image }}"
+    state: started
+    restart_policy: unless-stopped
+    recreate: true
+    pull: always
+    ports:
+      - "{{ nginx_host_port }}:{{ nginx_container_port }}"
+    volumes:
+      - "{{ nginx_html_host_path }}:{{ nginx_html_container_path }}:ro"
+      - "{{ nginx_conf_host_path }}:{{ nginx_conf_container_path }}:ro"

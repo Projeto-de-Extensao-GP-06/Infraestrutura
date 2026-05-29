@@ -1,0 +1,20 @@
+---
+prometheus_image: prom/prometheus:latest
+prometheus_container_name: prometheus
+prometheus_host_port: 9090
+prometheus_container_port: 9090
+prometheus_config_dir: /opt/prometheus
+prometheus_network: observability
+prometheus_scrape_targets:
+  - localhost:9090
+prometheus_enable_loki_scrape: true
+prometheus_loki_target: loki:3100
+prometheus_enable_alertmanager: true
+prometheus_alertmanager_target: alertmanager:9093
+prometheus_grafana_am_target: grafana:3000
+prometheus_grafana_am_user: admin
+prometheus_grafana_am_password: admin
+prometheus_enable_node_exporter_scrape: true
+prometheus_node_exporter_port: 9100
+prometheus_enable_cloudwatch_exporter_scrape: true
+prometheus_cloudwatch_exporter_target: cloudwatch-exporter:9106

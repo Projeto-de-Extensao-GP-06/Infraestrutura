@@ -1,0 +1,16 @@
+---
+- name: Subir container do Node Exporter
+  community.docker.docker_container:
+    name: "{{ node_exporter_container_name }}"
+    image: "{{ node_exporter_image }}"
+    state: started
+    restart_policy: unless-stopped
+    recreate: true
+    pull: always
+    command:
+      - --path.rootfs=/host
+      - --collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($|/)
+    ports:
+      - "{{ node_exporter_port }}:9100"
+    volumes:
+      - "/:/host:ro,rslave"

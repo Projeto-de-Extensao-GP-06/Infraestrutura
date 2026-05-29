@@ -1,0 +1,38 @@
+---
+- name: Criar rede de observabilidade
+  community.docker.docker_network:
+    name: "{{ alloy_network }}"
+
+- name: Criar diretorios do Alloy
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    mode: "{{ item.mode }}"
+  loop:
+    - { path: "{{ alloy_config_dir }}", mode: "0755" }
+    - { path: "{{ alloy_data_dir }}", mode: "0775" }
+
+- name: Renderizar configuracao do Alloy
+  ansible.builtin.template:
+    src: config.alloy.j2
+    dest: "{{ alloy_config_dir }}/config.alloy"
+    mode: "0644"
+
+- name: Subir container do Alloy
+  community.docker.docker_container:
+    name: "{{ alloy_container_name }}"
+    image: "{{ alloy_image }}"
+    state: started
+    restart_policy: unless-stopped
+    recreate: true
+    pull: always
+    command:
+      - run
+      - /etc/alloy/config.alloy
+    networks:
+      - name: "{{ alloy_network }}"
+    volumes:
+      - "{{ alloy_config_dir }}/config.alloy:/etc/alloy/config.alloy:ro"
+      - "{{ alloy_data_dir }}:/var/lib/alloy"
+      - "/var/lib/docker/containers:/var/lib/docker/containers:ro"
+      - "/var/log:/var/log:ro"

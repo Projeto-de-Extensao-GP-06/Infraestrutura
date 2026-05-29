@@ -1,0 +1,7 @@
+---
+alloy_image: grafana/alloy:latest
+alloy_container_name: alloy
+alloy_network: observability
+alloy_config_dir: /opt/alloy
+alloy_data_dir: /opt/alloy/data
+alloy_loki_url: http://loki:3100/loki/api/v1/push

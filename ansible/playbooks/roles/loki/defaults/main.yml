@@ -1,0 +1,10 @@
+---
+loki_image: grafana/loki:2.9.8
+loki_container_name: loki
+loki_host_port: 3100
+loki_container_port: 3100
+loki_network: observability
+loki_config_dir: /opt/loki/config
+loki_data_dir: /opt/loki/data
+loki_data_owner: "10001"
+loki_data_group: "10001"

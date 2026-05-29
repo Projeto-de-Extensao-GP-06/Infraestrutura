@@ -1,0 +1,7 @@
+---
+- name: Configurar EFS e Nginx nas instancias de app
+  hosts: app
+  become: true
+
+  roles:
+    - nginx

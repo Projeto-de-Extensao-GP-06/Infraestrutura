@@ -1,0 +1,100 @@
+---
+# ──────────────────────────────────────────────────────────────────────────────
+# role: docker
+# Substitui: deploy_application.sh + deploy_backend.sh + deploy_db.sh
+#
+# Instala Docker CE + Docker Compose plugin em qualquer instância Ubuntu.
+# Roda em: [all] — app, backend e db.
+# ──────────────────────────────────────────────────────────────────────────────
+
+- name: Instalar dependências base
+  apt:
+    name:
+      - ca-certificates
+      - curl
+      - nfs-common
+    state: present
+    update_cache: yes
+
+- name: Criar diretório de keyrings
+  file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: "0755"
+
+- name: Baixar chave GPG do Docker
+  get_url:
+    url: https://download.docker.com/linux/ubuntu/gpg
+    dest: /etc/apt/keyrings/docker.asc
+    mode: "0444"
+
+- name: Adicionar repositório Docker
+  apt_repository:
+    repo: >-
+      deb [arch={{ ansible_architecture | replace('x86_64', 'amd64') }}
+      signed-by=/etc/apt/keyrings/docker.asc]
+      https://download.docker.com/linux/ubuntu
+      {{ ansible_distribution_release }} stable
+    state: present
+    filename: docker
+
+- name: Instalar Docker CE e plugins
+  apt:
+    name:
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+      - docker-buildx-plugin
+      - docker-compose-plugin
+    state: present
+    update_cache: yes
+
+- name: Habilitar e iniciar serviço Docker
+  systemd:
+    name: docker
+    enabled: yes
+    state: started
+
+- name: Adicionar usuário ubuntu ao grupo docker
+  user:
+    name: ubuntu
+    groups: docker
+    append: yes
+
+- name: Criar diretório de mount do EFS
+  file:
+    path: /mnt/efs-sgpj
+    state: directory
+    mode: "0777"
+  when:
+    - efs_dns is defined
+    - "'app' in group_names or 'backend' in group_names"
+
+- name: Montar EFS e persistir no fstab
+  ansible.posix.mount:
+    path: /mnt/efs-sgpj
+    src: "{{ efs_dns }}:/"
+    fstype: nfs4
+    opts: nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport,_netdev
+    state: mounted
+  when:
+    - efs_dns is defined
+    - "'app' in group_names or 'backend' in group_names"
+
+- name: Criar estrutura padrao de volumes no EFS
+  file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0777"
+  loop:
+    - /mnt/efs-sgpj/volumes
+    - /mnt/efs-sgpj/volumes/nginx
+    - /mnt/efs-sgpj/volumes/nginx/html
+    - /mnt/efs-sgpj/volumes/nginx/conf
+    - /mnt/efs-sgpj/volumes/backend
+    - /mnt/efs-sgpj/volumes/backend/uploads
+    - /mnt/efs-sgpj/volumes/backend/logs
+    - /mnt/efs-sgpj/volumes/shared
+  when:
+    - efs_dns is defined
+    - "'app' in group_names or 'backend' in group_names"
