@@ -1,6 +1,7 @@
 # ── Terraform ─────────────────────────────
 .terraform/
 .terraform.lock.hcl
+.terraform.tfstate.lock.info
 *.tfvars
 *.tfvars.json
 *.tfstate
