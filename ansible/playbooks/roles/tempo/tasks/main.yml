@@ -1,0 +1,65 @@
+---
+- name: Criar rede de observabilidade
+  community.docker.docker_network:
+    name: "{{ tempo_network }}"
+
+- name: Criar diretorios do Tempo
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    mode: "{{ item.mode }}"
+    owner: "{{ item.owner | default(omit) }}"
+    group: "{{ item.group | default(omit) }}"
+  loop:
+    - { path: "{{ tempo_config_dir }}", mode: "0755" }
+    - {
+        path: "{{ tempo_data_dir }}",
+        mode: "0775",
+        owner: "10001",
+        group: "10001",
+      }
+    - {
+        path: "{{ tempo_data_dir }}/traces",
+        mode: "0775",
+        owner: "10001",
+        group: "10001",
+      }
+    - {
+        path: "{{ tempo_data_dir }}/wal",
+        mode: "0775",
+        owner: "10001",
+        group: "10001",
+      }
+    - {
+        path: "{{ tempo_data_dir }}/generator/wal",
+        mode: "0775",
+        owner: "10001",
+        group: "10001",
+      }
+
+- name: Renderizar configuracao do Tempo
+  ansible.builtin.template:
+    src: tempo-config.yml.j2
+    dest: "{{ tempo_config_dir }}/tempo-config.yml"
+    mode: "0644"
+
+- name: Subir container do Tempo
+  community.docker.docker_container:
+    name: "{{ tempo_container_name }}"
+    image: "{{ tempo_image }}"
+    state: started
+    restart_policy: unless-stopped
+    recreate: true
+    pull: always
+    command:
+      - -config.file=/etc/tempo/tempo-config.yml
+    networks:
+      - name: "{{ tempo_network }}"
+    ports:
+      - "{{ tempo_http_port }}:{{ tempo_http_port }}"
+      - "{{ tempo_otlp_grpc_port }}:{{ tempo_otlp_grpc_port }}"
+      - "{{ tempo_otlp_http_port }}:{{ tempo_otlp_http_port }}"
+    volumes:
+      - "{{ tempo_config_dir }}/tempo-config.yml:/etc/tempo/tempo-config.yml:ro"
+      - "{{ tempo_data_dir }}:/var/tempo"
+    user: "10001:10001"

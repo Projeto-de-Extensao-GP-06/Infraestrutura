@@ -16,3 +16,26 @@ loki.write "default" {
     url = "{{ alloy_loki_url }}"
   }
 }
+
+// ── OTLP receiver — recebe traces do backend (Spring Boot) e frontend (React) ──
+otelcol.receiver.otlp "default" {
+  http {
+    endpoint = "0.0.0.0:4318"
+  }
+  grpc {
+    endpoint = "0.0.0.0:4317"
+  }
+
+  output {
+    traces = [otelcol.exporter.otlp.tempo.input]
+  }
+}
+
+otelcol.exporter.otlp "tempo" {
+  client {
+    endpoint = "{{ alloy_tempo_url }}"
+    tls {
+      insecure = true
+    }
+  }
+}

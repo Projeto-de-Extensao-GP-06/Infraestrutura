@@ -31,6 +31,9 @@
       - /etc/alloy/config.alloy
     networks:
       - name: "{{ alloy_network }}"
+    ports:
+      - "4317:4317"
+      - "4318:4318"
     volumes:
       - "{{ alloy_config_dir }}/config.alloy:/etc/alloy/config.alloy:ro"
       - "{{ alloy_data_dir }}:/var/lib/alloy"

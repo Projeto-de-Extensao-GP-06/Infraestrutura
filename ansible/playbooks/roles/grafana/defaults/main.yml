@@ -14,6 +14,8 @@ grafana_admin_user: admin
 grafana_admin_password: admin
 grafana_prometheus_url: http://prometheus:9090
 grafana_loki_url: http://loki:3100
+grafana_tempo_url: http://tempo:3200
+grafana_dashboard_tracing_file: tracing-overview.json
 
 # ── SMTP / Alertas por e-mail ─────────────────────────────────────────────
 # Habilitar e preencher no inventario (production.ini) ou sobrescrever por host_vars

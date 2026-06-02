@@ -198,6 +198,22 @@ resource "aws_security_group" "observability" {
   }
 
   ingress {
+    description = "OTLP gRPC — traces da VPC (backend/frontend)"
+    from_port   = 4317
+    to_port     = 4317
+    protocol    = "tcp"
+    cidr_blocks = [var.vpc_cidr]
+  }
+
+  ingress {
+    description = "OTLP HTTP — traces da VPC (backend/frontend)"
+    from_port   = 4318
+    to_port     = 4318
+    protocol    = "tcp"
+    cidr_blocks = [var.vpc_cidr]
+  }
+
+  ingress {
     description = "Node Exporter (scrape local via VPC)"
     from_port   = 9100
     to_port     = 9100

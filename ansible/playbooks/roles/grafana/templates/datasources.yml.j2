@@ -15,3 +15,22 @@ datasources:
     access: proxy
     url: {{ grafana_loki_url }}
     editable: true
+
+  - name: Tempo
+    uid: tempo
+    type: tempo
+    access: proxy
+    url: {{ grafana_tempo_url }}
+    editable: true
+    jsonData:
+      httpMethod: GET
+      serviceMap:
+        datasourceUid: prometheus
+      nodeGraph:
+        enabled: true
+      traceQuery:
+        timeShiftEnabled: true
+        spanStartTimeShift: 1h
+        spanEndTimeShift: -1h
+      lokiSearch:
+        datasourceUid: loki

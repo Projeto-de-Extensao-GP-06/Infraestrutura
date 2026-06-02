@@ -1,0 +1,132 @@
+{
+  "title": "Tracing — Serviços SGPJ",
+  "uid": "sgpj-tracing",
+  "tags": ["tracing", "tempo", "opentelemetry"],
+  "timezone": "browser",
+  "refresh": "30s",
+  "time": { "from": "now-1h", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "type": "text",
+      "title": "",
+      "gridPos": { "x": 0, "y": 0, "w": 24, "h": 2 },
+      "options": {
+        "mode": "markdown",
+        "content": "## Tracing — OpenTelemetry via Alloy → Tempo\nVisualize traces do backend (Spring Boot) e frontend (React). Use o campo **Search** para filtrar por serviço ou `traceId`."
+      }
+    },
+    {
+      "id": 2,
+      "type": "traces",
+      "title": "Explorador de Traces",
+      "datasource": { "uid": "tempo", "type": "tempo" },
+      "gridPos": { "x": 0, "y": 2, "w": 24, "h": 16 },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "traceql",
+          "query": "{ }"
+        }
+      ],
+      "options": {
+        "dedupStrategy": "none",
+        "sortBy": "startTime"
+      }
+    },
+    {
+      "id": 3,
+      "type": "nodeGraph",
+      "title": "Service Map (span-metrics)",
+      "datasource": { "uid": "tempo", "type": "tempo" },
+      "gridPos": { "x": 0, "y": 18, "w": 24, "h": 12 },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "serviceMap"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "Rate de Requisições por Serviço (span-metrics)",
+      "datasource": { "uid": "prometheus", "type": "prometheus" },
+      "gridPos": { "x": 0, "y": 30, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(traces_spanmetrics_calls_total[1m])) by (service_name)",
+          "legendFormat": "{{ "{{" }}service_name{{ "}}" }}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "reqps" }
+      }
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Latência p95 por Serviço (span-metrics)",
+      "datasource": { "uid": "prometheus", "type": "prometheus" },
+      "gridPos": { "x": 12, "y": 30, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.95, sum(rate(traces_spanmetrics_duration_seconds_bucket[1m])) by (le, service_name))",
+          "legendFormat": "p95 {{ "{{" }}service_name{{ "}}" }}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "s" }
+      }
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Erros por Serviço (span-metrics)",
+      "datasource": { "uid": "prometheus", "type": "prometheus" },
+      "gridPos": { "x": 0, "y": 38, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(traces_spanmetrics_calls_total{status_code=\"STATUS_CODE_ERROR\"}[1m])) by (service_name)",
+          "legendFormat": "erros {{ "{{" }}service_name{{ "}}" }}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "color": { "mode": "fixed", "fixedColor": "red" }
+        }
+      }
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "Latência p50 / p95 / p99 — backend",
+      "datasource": { "uid": "prometheus", "type": "prometheus" },
+      "gridPos": { "x": 12, "y": 38, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.50, sum(rate(traces_spanmetrics_duration_seconds_bucket{service_name=\"sgpj-backend\"}[1m])) by (le))",
+          "legendFormat": "p50"
+        },
+        {
+          "refId": "B",
+          "expr": "histogram_quantile(0.95, sum(rate(traces_spanmetrics_duration_seconds_bucket{service_name=\"sgpj-backend\"}[1m])) by (le))",
+          "legendFormat": "p95"
+        },
+        {
+          "refId": "C",
+          "expr": "histogram_quantile(0.99, sum(rate(traces_spanmetrics_duration_seconds_bucket{service_name=\"sgpj-backend\"}[1m])) by (le))",
+          "legendFormat": "p99"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "s" }
+      }
+    }
+  ]
+}

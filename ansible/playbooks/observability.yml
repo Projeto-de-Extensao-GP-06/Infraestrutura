@@ -21,6 +21,8 @@
       when: inventory_hostname == observability_primary_host
     - role: alertmanager
       when: inventory_hostname == observability_primary_host
+    - role: tempo
+      when: inventory_hostname == observability_primary_host
     - role: prometheus
       when: inventory_hostname == observability_primary_host
     - role: cloudwatch_exporter

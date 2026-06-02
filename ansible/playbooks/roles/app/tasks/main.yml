@@ -16,3 +16,5 @@
       - name: "{{ app_network }}"
     ports:
       - "{{ app_host_port }}:{{ app_container_port }}"
+    etc_hosts:
+      host.docker.internal: host-gateway

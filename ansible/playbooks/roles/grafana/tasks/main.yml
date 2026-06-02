@@ -57,6 +57,12 @@
     dest: "{{ grafana_dashboards_dir }}/{{ grafana_dashboard_cloudwatch_file }}"
     mode: "0644"
 
+- name: Renderizar dashboard de Tracing (Tempo)
+  ansible.builtin.template:
+    src: tracing-overview.json.j2
+    dest: "{{ grafana_dashboards_dir }}/{{ grafana_dashboard_tracing_file }}"
+    mode: "0644"
+
 - name: Criar diretorio de provisioning de alerting do Grafana
   ansible.builtin.file:
     path: "{{ grafana_provisioning_dir }}/alerting"

@@ -5,3 +5,4 @@ alloy_network: observability
 alloy_config_dir: /opt/alloy
 alloy_data_dir: /opt/alloy/data
 alloy_loki_url: http://loki:3100/loki/api/v1/push
+alloy_tempo_url: tempo:4317
