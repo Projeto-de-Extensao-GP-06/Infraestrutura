@@ -177,7 +177,7 @@ Esse playbook:
 
 ```bash
 cd infra/ansible
-ansible-playbook -i inventories/production.ini playbooks/nginx.ymlc
+ansible-playbook -i inventories/production.ini playbooks/nginx.yml
 ```
 
 Se quiser fazer teste de A/B:

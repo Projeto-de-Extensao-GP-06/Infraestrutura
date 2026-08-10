@@ -256,7 +256,7 @@ resource "aws_cloudwatch_dashboard" "sgpj" {
         width  = 24
         height = 1
         properties = {
-          markdown = "## EFS — fs-005d326a920e57a12"
+          markdown = "## EFS — ${aws_efs_file_system.app_efs.id}"
         }
       },
       {
@@ -272,7 +272,7 @@ resource "aws_cloudwatch_dashboard" "sgpj" {
           period = 60
           stat   = "Sum"
           metrics = [
-            ["AWS/EFS", "DataReadIOBytes", "FileSystemId", "fs-005d326a920e57a12"]
+            ["AWS/EFS", "DataReadIOBytes", "FileSystemId", aws_efs_file_system.app_efs.id]
           ]
         }
       },
@@ -289,7 +289,7 @@ resource "aws_cloudwatch_dashboard" "sgpj" {
           period = 60
           stat   = "Sum"
           metrics = [
-            ["AWS/EFS", "DataWriteIOBytes", "FileSystemId", "fs-005d326a920e57a12"]
+            ["AWS/EFS", "DataWriteIOBytes", "FileSystemId", aws_efs_file_system.app_efs.id]
           ]
         }
       },

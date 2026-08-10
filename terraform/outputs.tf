@@ -40,12 +40,12 @@ output "alb_dns" {
 # ── EFS ─────────────────────────────────────────────────────────────────────
 output "efs_id" {
   description = "ID do EFS"
-  value       = data.aws_efs_file_system.app_efs.id
+  value       = aws_efs_file_system.app_efs.id
 }
 
 output "efs_dns_name" {
   description = "DNS do EFS para montagem nas instâncias"
-  value       = data.aws_efs_file_system.app_efs.dns_name
+  value       = aws_efs_file_system.app_efs.dns_name
 }
 
 # ── RDS MySQL ────────────────────────────────────────────────────────────────
