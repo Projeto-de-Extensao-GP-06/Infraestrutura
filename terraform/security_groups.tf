@@ -198,7 +198,7 @@ resource "aws_security_group" "observability" {
   }
 
   ingress {
-    description = "OTLP gRPC — traces da VPC (backend/frontend)"
+    description = "OTLP gRPC - traces da VPC (backend/frontend)"
     from_port   = 4317
     to_port     = 4317
     protocol    = "tcp"
@@ -206,7 +206,7 @@ resource "aws_security_group" "observability" {
   }
 
   ingress {
-    description = "OTLP HTTP — traces da VPC (backend/frontend)"
+    description = "OTLP HTTP - traces da VPC (backend/frontend)"
     from_port   = 4318
     to_port     = 4318
     protocol    = "tcp"
