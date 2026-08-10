@@ -5,14 +5,27 @@ Gera infra/ansible/inventories/production.ini a partir dos outputs do Terraform.
 Uso:
   cd infra/terraform
 
-  Rodar no cmd:
-  terraform output -json | py ../scripts/gen_inventory.py > ../ansible/inventories/production.ini
+  Escrever em arquivo UTF-8 (recomendado no PowerShell):
+  terraform output -json | py ../scripts/gen_inventory.py ../ansible/inventories/production.ini
+
+  Ou imprimir no stdout:
+  terraform output -json | py ../scripts/gen_inventory.py
 """
 
 import json
 import sys
 
-data = json.load(sys.stdin)
+raw_input = sys.stdin.read()
+
+if not raw_input.strip():
+  raise SystemExit(
+    "Nenhum JSON recebido no stdin. Rode 'terraform output -json' no diretorio terraform e verifique se o apply ja foi executado."
+  )
+
+# Windows PowerShell pode encaminhar a saida UTF-8 com BOM como texto mojibake.
+raw_input = raw_input.lstrip("\ufeff").lstrip("ï»¿")
+
+data = json.loads(raw_input)
 
 def val(key):
     return data[key]["value"]
@@ -64,7 +77,13 @@ prometheus_enable_cloudwatch_exporter_scrape={'true' if aws_auth_enabled else 'f
 alertmanager_sns_topic_arn={alert_sns_topic_arn}
 
 [private:vars]
-ansible_ssh_common_args='-o StrictHostKeyChecking=no -o ConnectTimeout=10 -o ProxyJump=ubuntu@{val("app_a_public_ip")}'
+ansible_ssh_common_args='-o StrictHostKeyChecking=no -o ConnectTimeout=10 -o ProxyCommand="ssh -i ~/.ssh/Key-All.pem -o StrictHostKeyChecking=no -W %h:%p ubuntu@{val("app_a_public_ip")}"'
 """
 
-print(out.strip())
+rendered = out.strip() + "\n"
+
+if len(sys.argv) > 1:
+  with open(sys.argv[1], "w", encoding="utf-8", newline="\n") as file_obj:
+    file_obj.write(rendered)
+else:
+  print(rendered, end="")

@@ -57,8 +57,6 @@
       - name: "{{ tempo_network }}"
     ports:
       - "{{ tempo_http_port }}:{{ tempo_http_port }}"
-      - "{{ tempo_otlp_grpc_port }}:{{ tempo_otlp_grpc_port }}"
-      - "{{ tempo_otlp_http_port }}:{{ tempo_otlp_http_port }}"
     volumes:
       - "{{ tempo_config_dir }}/tempo-config.yml:/etc/tempo/tempo-config.yml:ro"
       - "{{ tempo_data_dir }}:/var/tempo"

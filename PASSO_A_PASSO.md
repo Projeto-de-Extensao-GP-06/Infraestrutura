@@ -107,7 +107,7 @@ Rode apos cada `terraform apply`:
 
 ```bash
 cd infra/terraform
-terraform output -json | py ../scripts/gen_inventory.py > ../ansible/inventories/production.ini
+terraform output -json | py ../scripts/gen_inventory.py ../ansible/inventories/production.ini
 ```
 
 Obs.: o script agora usa `efs_dns_name` do Terraform (sem hardcode).
@@ -118,25 +118,13 @@ Inventarios disponiveis:
 
 Exemplo rapido para usar outro ambiente:
 
-```bash
-eval $(ssh-agent -s)
-ssh-add ~/.ssh/Key-All.pem
+```WSL
+mkdir -p ~/.ssh
+cp "/mnt/c/Users/compu/OneDrive - SPTech School/GitHub/Grupo06/infra/Key-All.pem" ~/.ssh/Key-All.pem
+chmod 600 ~/.ssh/Key-All.pem
 
-ansible all -m ping -i inventories/production.ini
+ansible all -i inventories/production.ini -m ping
 ```
-
-Se estiver no WSL em pasta do OneDrive (/mnt/c/...), pode aparecer aviso de `world writable`.
-Isso nao impede o inventario de funcionar, mas faz o Ansible ignorar o `ansible.cfg` local.
-
-Use este comando completo para evitar dependencia do `ansible.cfg`:
-
-# Usar antes eval $(ssh-agent -s) ssh-add ~/.ssh/Key-All.pem
-
-```bash
-ansible all -m ping -i inventories/production.ini -u ubuntu --private-key ~/.ssh/Key-All.pem
-```
-
-Opcional (mais limpo): trabalhar com o repo dentro do Linux (`~/projetos/...`) em vez de `/mnt/c/...`.
 
 ---
 
@@ -281,7 +269,7 @@ Este projeto agora provisiona automaticamente:
    - `AWS CloudWatch` — ALB, RDS e EFS
 3. Regras de alerta no Prometheus com severidade (critical/high/warning)
 4. Alertas para camadas: observability, EC2, ALB, RDS e EFS
-5. Roteamento de alertas no Alertmanager para SNS (todos os 15 alertas)
+5. Roteamento de alertas no Alertmanager via SMTP/e-mail (SNS requer implementacao Terraform)
 6. Integracao Grafana <-> Alertmanager externo via `GF_UNIFIED_ALERTING_ALERTMANAGER_URL`
 
 Para aplicar/atualizar:
@@ -306,12 +294,11 @@ Queries de validacao (Prometheus):
 
 ### 5.7 Habilitar e-mail via SNS (opcional)
 
-No Terraform (`infra/terraform/terraform.tfvars`):
+No estado atual deste repositório, o envio de alertas por SNS **nao esta implementado** no Terraform.
+O caminho suportado hoje para e-mail e via SMTP no Alertmanager (secao 0.2).
 
-```hcl
-enable_alert_sns = true
-alert_email      = "seu-email@exemplo.com"
-```
+Se voce quiser SNS, precisa primeiro adicionar os recursos/variaveis de SNS no Terraform
+(topic, subscription e output do topic ARN), aplicar, e depois reaplicar a observabilidade.
 
 Aplicar:
 
@@ -325,7 +312,7 @@ Confirmar o e-mail enviado pela AWS SNS (subscription confirmation), depois:
 
 ```bash
 cd infra/terraform
-terraform output -json | py ../scripts/gen_inventory.py > ../ansible/inventories/production.ini
+terraform output -json | py ../scripts/gen_inventory.py ../ansible/inventories/production.ini
 
 cd ../ansible
 ansible-playbook -i inventories/production.ini playbooks/observability.yml
@@ -438,7 +425,7 @@ Abra no navegador:
 cd infra/terraform
 terraform init
 terraform apply -var-file=terraform.tfvars
-terraform output -json | py ../scripts/gen_inventory.py > ../ansible/inventories/production.ini
+terraform output -json | py ../scripts/gen_inventory.py ../ansible/inventories/production.ini
 
 cd ../ansible
 ansible-galaxy collection install -r requirements.yml
