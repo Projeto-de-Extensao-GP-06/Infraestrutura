@@ -29,14 +29,15 @@
     mode: "0444"
 
 - name: Adicionar repositório Docker
-  apt_repository:
-    repo: >-
-      deb [arch={{ ansible_architecture | replace('x86_64', 'amd64') }}
-      signed-by=/etc/apt/keyrings/docker.asc]
-      https://download.docker.com/linux/ubuntu
-      {{ ansible_distribution_release }} stable
+  deb822_repository:
+    name: docker
+    types: deb
+    uris: https://download.docker.com/linux/ubuntu
+    suites: "{{ ansible_distribution_release }}"
+    components: stable
+    signed_by: /etc/apt/keyrings/docker.asc
+    architectures: "{{ ansible_architecture | replace('x86_64', 'amd64') }}"
     state: present
-    filename: docker
 
 - name: Instalar Docker CE e plugins
   apt:
