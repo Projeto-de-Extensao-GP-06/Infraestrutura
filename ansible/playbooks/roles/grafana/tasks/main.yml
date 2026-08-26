@@ -57,9 +57,9 @@
     dest: "{{ grafana_dashboards_dir }}/{{ grafana_dashboard_cloudwatch_file }}"
     mode: "0644"
 
-- name: Renderizar dashboard de Tracing (Tempo)
-  ansible.builtin.template:
-    src: tracing-overview.json.j2
+- name: Copiar dashboard de Tracing (Tempo)
+  ansible.builtin.copy:
+    src: tracing-overview.json
     dest: "{{ grafana_dashboards_dir }}/{{ grafana_dashboard_tracing_file }}"
     mode: "0644"
 
