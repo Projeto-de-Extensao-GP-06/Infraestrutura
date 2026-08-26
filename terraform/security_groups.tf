@@ -52,6 +52,22 @@ resource "aws_security_group" "app" {
     cidr_blocks = [var.vpc_cidr]
   }
 
+  ingress {
+    description = "OTLP gRPC - traces (frontend to observability)"
+    from_port   = 4317
+    to_port     = 4317
+    protocol    = "tcp"
+    cidr_blocks = [var.vpc_cidr]
+  }
+
+  ingress {
+    description = "OTLP HTTP - traces (frontend to observability)"
+    from_port   = 4318
+    to_port     = 4318
+    protocol    = "tcp"
+    cidr_blocks = [var.vpc_cidr]
+  }
+
   egress {
     from_port   = 0
     to_port     = 0
@@ -209,6 +225,14 @@ resource "aws_security_group" "observability" {
     description = "OTLP HTTP - traces da VPC (backend/frontend)"
     from_port   = 4318
     to_port     = 4318
+    protocol    = "tcp"
+    cidr_blocks = [var.vpc_cidr]
+  }
+
+  ingress {
+    description = "Tempo HTTP - Grafana access"
+    from_port   = 3200
+    to_port     = 3200
     protocol    = "tcp"
     cidr_blocks = [var.vpc_cidr]
   }
