@@ -2,13 +2,14 @@ version: '3.8'
 
 services:
   localstack:
-    image: localstack/localstack:3.5
+    image: localstack/localstack-pro:latest
     container_name: sgpj-localstack
     ports:
       - "4566:4566"          # LocalStack Gateway
       - "4510-4559:4510-4559" # External services port range
     environment:
-      - SERVICES=s3,glue,iam,sts,logs,ec2,vpc,rds,efs,elbv2,cloudwatch,kinesis,events,sqs,sns,lambda,dynamodb,secretsmanager,ssm,apigateway,stepfunctions
+      - LOCALSTACK_AUTH_TOKEN=${LOCALSTACK_AUTH_TOKEN}
+      # - SERVICES=s3,glue,iam,sts,logs,ec2,vpc,rds,efs,elbv2,cloudwatch,kinesis,events,sqs,sns,lambda,dynamodb,secretsmanager,ssm,apigateway,stepfunctions
       - DEBUG=1
       - DATA_DIR=/var/lib/localstack/data
       - AWS_DEFAULT_REGION=us-east-1
@@ -20,7 +21,8 @@ services:
       - LAMBDA_EXECUTOR=docker
       - DOCKER_HOST=unix:///var/run/docker.sock
     volumes:
-      - "${LOCALSTACK_VOLUME_DIR:-./localstack_data}:/var/lib/localstack/data"
+      # - "${LOCALSTACK_VOLUME_DIR:-./localstack_data}:/var/lib/localstack/data"
+      - "${LOCALSTACK_VOLUME_DIR:-./localstack_data}:/var/lib/localstack"
       - "/var/run/docker.sock:/var/run/docker.sock"
       - "./scripts/localstack_init.sh:/etc/localstack/init/ready.d/localstack_init.sh"
     networks:
@@ -39,7 +41,7 @@ services:
 
   # Opcional: CLI para testar
   aws-cli:
-    image: amazon/aws-cli:2.15
+    image: amazon/aws-cli:2.15.30
     container_name: sgpj-aws-cli
     depends_on:
       localstack:

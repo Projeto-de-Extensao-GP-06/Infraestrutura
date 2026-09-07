@@ -15,19 +15,33 @@ export AWS_SECRET_ACCESS_KEY
 export AWS_DEFAULT_REGION=$REGION
 
 # Função para aguardar LocalStack estar pronto
-wait_for_localstack() {
-    echo "Aguardando LocalStack ficar pronto..."
-    for i in {1..60}; do
-        if curl -s "$ENDPOINT_URL/_localstack/health" | grep -q '"s3": "running"'; then
-            echo "LocalStack está pronto!"
-            return 0
-        fi
-        echo "Tentativa $i/60 - aguardando..."
-        sleep 2
-    done
-    echo "Erro: LocalStack não ficou pronto a tempo"
-    exit 1
-}
+# wait_for_localstack() {
+#     echo "Aguardando LocalStack ficar pronto..."
+#     for i in {1..60}; do
+#         if curl -s "$ENDPOINT_URL/_localstack/health" | grep -q '"s3": "running"'; then
+#             echo "LocalStack está pronto!"
+#             return 0
+#         fi
+#         echo "Tentativa $i/60 - aguardando..."
+#         sleep 2
+#     done
+#     echo "Erro: LocalStack não ficou pronto a tempo"
+#     exit 1
+# }
+
+wait_for_localstack() {                                                                                                                                                                          
+        echo "Aguardando LocalStack ficar pronto..."                                                                                                                                                 
+        for i in {1..30}; do                                                                                                                                                                         
+            if curl -s -f "$ENDPOINT_URL/_localstack/health" > /dev/null 2>&1; then                                                                                                                  
+                echo "LocalStack está pronto!"                                                                                                                                                       
+                return 0                                                                                                                                                                             
+            fi                                                                                                                                                                                       
+            echo "Tentativa $i/30 - aguardando..."                                                                                                                                                   
+            sleep 2                                                                                                                                                                                  
+        done                                                                                                                                                                                         
+        echo "Erro: LocalStack não ficou pronto a tempo"                                                                                                                                             
+        exit 1                                                                                                                                                                                       
+    }
 
 # ============================================================
 # VPC E NETWORKING
@@ -273,8 +287,8 @@ create_security_groups() {
         --query 'GroupId' --output text)
     aws --endpoint-url=$ENDPOINT_URL ec2 authorize-security-group-ingress \
         --group-id $SG_ALB --protocol tcp --port 80 --cidr 0.0.0.0/0
-    aws --endpoint-url=$ENDPOINT_URL ec2 authorize-security-group-egress \
-        --group-id $SG_ALB --protocol -1 --cidr 0.0.0.0/0
+    # aws --endpoint-url=$ENDPOINT_URL ec2 authorize-security-group-egress \
+    #     --group-id $SG_ALB --protocol -1 --cidr 0.0.0.0/0
     
     # App SG (Public)
     SG_APP=$(aws --endpoint-url=$ENDPOINT_URL ec2 create-security-group \
@@ -290,8 +304,8 @@ create_security_groups() {
         --group-id $SG_APP --protocol tcp --port 4317 --cidr $VPC_CIDR
     aws --endpoint-url=$ENDPOINT_URL ec2 authorize-security-group-ingress \
         --group-id $SG_APP --protocol tcp --port 4318 --cidr $VPC_CIDR
-    aws --endpoint-url=$ENDPOINT_URL ec2 authorize-security-group-egress \
-        --group-id $SG_APP --protocol -1 --cidr 0.0.0.0/0
+    # aws --endpoint-url=$ENDPOINT_URL ec2 authorize-security-group-egress \
+    #     --group-id $SG_APP --protocol -1 --cidr 0.0.0.0/0
     
     # Backend SG (Private)
     SG_BACKEND=$(aws --endpoint-url=$ENDPOINT_URL ec2 create-security-group \
@@ -303,8 +317,8 @@ create_security_groups() {
         --group-id $SG_BACKEND --protocol tcp --port 8080 --cidr $VPC_CIDR
     aws --endpoint-url=$ENDPOINT_URL ec2 authorize-security-group-ingress \
         --group-id $SG_BACKEND --protocol tcp --port 9100 --cidr $VPC_CIDR
-    aws --endpoint-url=$ENDPOINT_URL ec2 authorize-security-group-egress \
-        --group-id $SG_BACKEND --protocol -1 --cidr 0.0.0.0/0
+    # aws --endpoint-url=$ENDPOINT_URL ec2 authorize-security-group-egress \
+    #     --group-id $SG_BACKEND --protocol -1 --cidr 0.0.0.0/0
     
     # DB SG (Private)
     SG_DB=$(aws --endpoint-url=$ENDPOINT_URL ec2 create-security-group \
@@ -316,8 +330,8 @@ create_security_groups() {
         --group-id $SG_DB --protocol tcp --port 22 --cidr $VPC_CIDR
     aws --endpoint-url=$ENDPOINT_URL ec2 authorize-security-group-ingress \
         --group-id $SG_DB --protocol tcp --port 9100 --cidr $VPC_CIDR
-    aws --endpoint-url=$ENDPOINT_URL ec2 authorize-security-group-egress \
-        --group-id $SG_DB --protocol -1 --cidr 0.0.0.0/0
+    # aws --endpoint-url=$ENDPOINT_URL ec2 authorize-security-group-egress \
+    #     --group-id $SG_DB --protocol -1 --cidr 0.0.0.0/0
     
     # Observability SG
     SG_OBS=$(aws --endpoint-url=$ENDPOINT_URL ec2 create-security-group \
@@ -341,8 +355,8 @@ create_security_groups() {
         --group-id $SG_OBS --protocol tcp --port 3200 --cidr $VPC_CIDR
     aws --endpoint-url=$ENDPOINT_URL ec2 authorize-security-group-ingress \
         --group-id $SG_OBS --protocol tcp --port 9100 --cidr $VPC_CIDR
-    aws --endpoint-url=$ENDPOINT_URL ec2 authorize-security-group-egress \
-        --group-id $SG_OBS --protocol -1 --cidr 0.0.0.0/0
+    # aws --endpoint-url=$ENDPOINT_URL ec2 authorize-security-group-egress \
+    #     --group-id $SG_OBS --protocol -1 --cidr 0.0.0.0/0
     
     # EFS SG
     SG_EFS=$(aws --endpoint-url=$ENDPOINT_URL ec2 create-security-group \
@@ -350,8 +364,8 @@ create_security_groups() {
         --query 'GroupId' --output text)
     aws --endpoint-url=$ENDPOINT_URL ec2 authorize-security-group-ingress \
         --group-id $SG_EFS --protocol tcp --port 2049 --cidr $VPC_CIDR
-    aws --endpoint-url=$ENDPOINT_URL ec2 authorize-security-group-egress \
-        --group-id $SG_EFS --protocol -1 --cidr 0.0.0.0/0
+    # aws --endpoint-url=$ENDPOINT_URL ec2 authorize-security-group-egress \
+    #     --group-id $SG_EFS --protocol -1 --cidr 0.0.0.0/0
     
     # RDS SG
     SG_RDS=$(aws --endpoint-url=$ENDPOINT_URL ec2 create-security-group \
@@ -361,8 +375,8 @@ create_security_groups() {
         --group-id $SG_RDS --protocol tcp --port 3306 --source-group $SG_BACKEND
     aws --endpoint-url=$ENDPOINT_URL ec2 authorize-security-group-ingress \
         --group-id $SG_RDS --protocol tcp --port 3306 --source-group $SG_DB
-    aws --endpoint-url=$ENDPOINT_URL ec2 authorize-security-group-egress \
-        --group-id $SG_RDS --protocol -1 --cidr 0.0.0.0/0
+    # aws --endpoint-url=$ENDPOINT_URL ec2 authorize-security-group-egress \
+    #     --group-id $SG_RDS --protocol -1 --cidr 0.0.0.0/0
     
     echo "Security Groups criados"
     export SG_ALB SG_APP SG_BACKEND SG_DB SG_OBS SG_EFS SG_RDS
@@ -383,7 +397,8 @@ create_ec2_instances() {
     echo "Criando instâncias EC2..."
     
     # Usar AMI Ubuntu 22.04 para us-east-1
-    AMI_ID="ami-0c02fb55956c7d316"  # Ubuntu 22.04 LTS us-east-1
+    # AMI_ID="ami-0c02fb55956c7d316"  # Ubuntu 22.04 LTS us-east-1
+    AMI_ID=$(aws --endpoint-url=$ENDPOINT_URL ec2 describe-images --query 'Images[0].ImageId' --output text)
     INSTANCE_TYPE="t3.micro"
     
     # User data simples
@@ -485,11 +500,11 @@ create_rds() {
         --db-name sgpjdb --master-username admin --master-user-password admin123 \
         --db-subnet-group-name sgpj-rds-subnet-group \
         --vpc-security-group-ids $SG_RDS \
-        --multi-az false --publicly-accessible false \
-        --deletion-protection false --skip-final-snapshot \
+        --no-multi-az --no-publicly-accessible \
+        --no-deletion-protection \
         --backup-retention-period 7 \
-        --backup-window "03:00-04:00" \
-        --maintenance-window "Mon:04:00-Mon:05:00" \
+        --preferred-backup-window "03:00-04:00" \
+        --preferred-maintenance-window "Mon:04:00-Mon:05:00" \
         --tags Key=Name,Value=sgpj-rds-mysql
     
     echo "RDS criado (aguardando ficar available em background)"
@@ -677,8 +692,7 @@ create_s3_buckets() {
     
     for BUCKET in sgpj-bronze sgpj-silver sgpj-gold; do
         aws --endpoint-url=$ENDPOINT_URL s3api create-bucket \
-            --bucket $BUCKET --region $REGION \
-            --create-bucket-configuration LocationConstraint=$REGION 2>/dev/null || true
+            --bucket $BUCKET --region $REGION 
         
         aws --endpoint-url=$ENDPOINT_URL s3api put-bucket-versioning \
             --bucket $BUCKET --versioning-configuration Status=Enabled

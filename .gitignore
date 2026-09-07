@@ -49,3 +49,6 @@ __pycache__/
 *.pyo
 .venv/
 venv/
+
+# ── Localstack ────────────────────────────────
+localstack_data/
