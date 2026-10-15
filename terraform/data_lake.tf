@@ -8,8 +8,15 @@ locals {
 }
 
 resource "aws_s3_bucket" "bronze" {
-  bucket        = local.bronze_bucket
-  force_destroy = true
+  bucket              = local.bronze_bucket
+  force_destroy       = true
+  # object_lock_enabled = false evita a chamada GetObjectLockConfiguration
+  # que é bloqueada pelo SCP do AWS Academy (explicit deny na policy da organização)
+  object_lock_enabled = false
+
+  lifecycle {
+    ignore_changes = [object_lock_enabled]
+  }
 
   tags = {
     Name        = "sgpj-bronze"
@@ -36,8 +43,13 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "bronze" {
 }
 
 resource "aws_s3_bucket" "silver" {
-  bucket        = local.silver_bucket
-  force_destroy = true
+  bucket              = local.silver_bucket
+  force_destroy       = true
+  object_lock_enabled = false
+
+  lifecycle {
+    ignore_changes = [object_lock_enabled]
+  }
 
   tags = {
     Name        = "sgpj-silver"
@@ -64,8 +76,13 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "silver" {
 }
 
 resource "aws_s3_bucket" "gold" {
-  bucket        = local.gold_bucket
-  force_destroy = true
+  bucket              = local.gold_bucket
+  force_destroy       = true
+  object_lock_enabled = false
+
+  lifecycle {
+    ignore_changes = [object_lock_enabled]
+  }
 
   tags = {
     Name        = "sgpj-gold"
