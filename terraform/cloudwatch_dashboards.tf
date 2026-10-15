@@ -36,8 +36,7 @@ resource "aws_cloudwatch_dashboard" "sgpj" {
             ["AWS/EC2", "CPUUtilization", "InstanceId", aws_instance.app_b.id, { label = "app-b" }],
             ["AWS/EC2", "CPUUtilization", "InstanceId", aws_instance.backend_a.id, { label = "backend-a" }],
             ["AWS/EC2", "CPUUtilization", "InstanceId", aws_instance.backend_b.id, { label = "backend-b" }],
-            ["AWS/EC2", "CPUUtilization", "InstanceId", aws_instance.db.id, { label = "db" }],
-            ["AWS/EC2", "CPUUtilization", "InstanceId", aws_instance.observability.id, { label = "observability" }],
+            ["AWS/EC2", "CPUUtilization", "InstanceId", aws_instance.db.id, { label = "db (MySQL)" }]
           ]
           yAxis = { left = { min = 0, max = 100 } }
         }
@@ -126,125 +125,9 @@ resource "aws_cloudwatch_dashboard" "sgpj" {
             ["AWS/EC2", "StatusCheckFailed", "InstanceId", aws_instance.app_b.id, { label = "app-b" }],
             ["AWS/EC2", "StatusCheckFailed", "InstanceId", aws_instance.backend_a.id, { label = "backend-a" }],
             ["AWS/EC2", "StatusCheckFailed", "InstanceId", aws_instance.backend_b.id, { label = "backend-b" }],
-            ["AWS/EC2", "StatusCheckFailed", "InstanceId", aws_instance.db.id, { label = "db" }],
-            ["AWS/EC2", "StatusCheckFailed", "InstanceId", aws_instance.observability.id, { label = "observability" }],
+            ["AWS/EC2", "StatusCheckFailed", "InstanceId", aws_instance.db.id, { label = "db (MySQL)" }]
           ]
           yAxis = { left = { min = 0, max = 2 } }
-        }
-      },
-
-      # ── Seção: RDS ────────────────────────────────────────────────────────
-      {
-        type   = "text"
-        x      = 0
-        y      = 21
-        width  = 24
-        height = 1
-        properties = {
-          markdown = "## RDS — sgpj-mysql"
-        }
-      },
-      {
-        type   = "metric"
-        x      = 0
-        y      = 22
-        width  = 8
-        height = 6
-        properties = {
-          title  = "CPU Utilization (%)"
-          view   = "timeSeries"
-          region = var.region
-          period = 60
-          stat   = "Average"
-          metrics = [
-            ["AWS/RDS", "CPUUtilization", "DBInstanceIdentifier", aws_db_instance.mysql.identifier]
-          ]
-          yAxis = { left = { min = 0, max = 100 } }
-        }
-      },
-      {
-        type   = "metric"
-        x      = 8
-        y      = 22
-        width  = 8
-        height = 6
-        properties = {
-          title  = "Database Connections"
-          view   = "timeSeries"
-          region = var.region
-          period = 60
-          stat   = "Average"
-          metrics = [
-            ["AWS/RDS", "DatabaseConnections", "DBInstanceIdentifier", aws_db_instance.mysql.identifier]
-          ]
-        }
-      },
-      {
-        type   = "metric"
-        x      = 16
-        y      = 22
-        width  = 8
-        height = 6
-        properties = {
-          title  = "Free Storage Space (bytes)"
-          view   = "timeSeries"
-          region = var.region
-          period = 60
-          stat   = "Average"
-          metrics = [
-            ["AWS/RDS", "FreeStorageSpace", "DBInstanceIdentifier", aws_db_instance.mysql.identifier]
-          ]
-        }
-      },
-      {
-        type   = "metric"
-        x      = 0
-        y      = 28
-        width  = 8
-        height = 6
-        properties = {
-          title  = "Read IOPS"
-          view   = "timeSeries"
-          region = var.region
-          period = 60
-          stat   = "Average"
-          metrics = [
-            ["AWS/RDS", "ReadIOPS", "DBInstanceIdentifier", aws_db_instance.mysql.identifier]
-          ]
-        }
-      },
-      {
-        type   = "metric"
-        x      = 8
-        y      = 28
-        width  = 8
-        height = 6
-        properties = {
-          title  = "Write IOPS"
-          view   = "timeSeries"
-          region = var.region
-          period = 60
-          stat   = "Average"
-          metrics = [
-            ["AWS/RDS", "WriteIOPS", "DBInstanceIdentifier", aws_db_instance.mysql.identifier]
-          ]
-        }
-      },
-      {
-        type   = "metric"
-        x      = 16
-        y      = 28
-        width  = 8
-        height = 6
-        properties = {
-          title  = "Freeable Memory (bytes)"
-          view   = "timeSeries"
-          region = var.region
-          period = 60
-          stat   = "Average"
-          metrics = [
-            ["AWS/RDS", "FreeableMemory", "DBInstanceIdentifier", aws_db_instance.mysql.identifier]
-          ]
         }
       },
 

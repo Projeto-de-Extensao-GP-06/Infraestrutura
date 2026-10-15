@@ -158,8 +158,9 @@ resource "aws_security_group" "db" {
   tags = { Name = "db-private" }
 }
 
-# ── EC2 Observabilidade ─────────────────────────────────────────────────────
+# ── EC2 Observabilidade (Opcional) ──────────────────────────────────────────
 resource "aws_security_group" "observability" {
+  count       = var.enable_observability ? 1 : 0
   name        = "observability"
   description = "Security group da instancia dedicada de observabilidade"
   vpc_id      = aws_vpc.sgpj_vpc.id
@@ -277,36 +278,4 @@ resource "aws_security_group" "efs" {
   }
 
   tags = { Name = "efs" }
-}
-
-# ── RDS MySQL ────────────────────────────────────────────────────────────────
-resource "aws_security_group" "rds" {
-  name        = "rds-mysql"
-  description = "Security group do RDS MySQL - acesso apenas do backend e da ec2-db"
-  vpc_id      = aws_vpc.sgpj_vpc.id
-
-  ingress {
-    description     = "MySQL do backend"
-    from_port       = 3306
-    to_port         = 3306
-    protocol        = "tcp"
-    security_groups = [aws_security_group.backend.id]
-  }
-
-  ingress {
-    description     = "MySQL da ec2-db (admin/migrations)"
-    from_port       = 3306
-    to_port         = 3306
-    protocol        = "tcp"
-    security_groups = [aws_security_group.db.id]
-  }
-
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  tags = { Name = "rds-mysql" }
 }

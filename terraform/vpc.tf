@@ -60,15 +60,6 @@ resource "aws_subnet" "private_db_a" {
   tags = { Name = "sgpj-subnet-private-db-a" }
 }
 
-# AZ-b: necessária para o DB Subnet Group do RDS (exige >= 2 AZs)
-resource "aws_subnet" "private_db_b" {
-  vpc_id            = aws_vpc.sgpj_vpc.id
-  cidr_block        = var.private_db_b_cidr
-  availability_zone = "${var.region}b"
-
-  tags = { Name = "sgpj-subnet-private-db-b" }
-}
-
 # ── Route Tables ────────────────────────────────────────────────────────────
 # Pública → IGW
 resource "aws_route_table" "public" {
@@ -92,8 +83,9 @@ resource "aws_route_table_association" "public_b" {
   route_table_id = aws_route_table.public.id
 }
 
-# ── Subnet Pública (Observabilidade — AZ-c) ─────────────────────────────────
+# ── Subnet Pública (Observabilidade — AZ-c — opcional) ───────────────────────
 resource "aws_subnet" "public_obs" {
+  count                   = var.enable_observability ? 1 : 0
   vpc_id                  = aws_vpc.sgpj_vpc.id
   cidr_block              = var.public_subnet_obs_cidr
   availability_zone       = "${var.region}c"
@@ -103,7 +95,8 @@ resource "aws_subnet" "public_obs" {
 }
 
 resource "aws_route_table_association" "public_obs" {
-  subnet_id      = aws_subnet.public_obs.id
+  count          = var.enable_observability ? 1 : 0
+  subnet_id      = aws_subnet.public_obs[0].id
   route_table_id = aws_route_table.public.id
 }
 
@@ -145,11 +138,6 @@ resource "aws_route_table_association" "private_backend_b" {
 
 resource "aws_route_table_association" "private_db_a" {
   subnet_id      = aws_subnet.private_db_a.id
-  route_table_id = aws_route_table.private.id
-}
-
-resource "aws_route_table_association" "private_db_b" {
-  subnet_id      = aws_subnet.private_db_b.id
   route_table_id = aws_route_table.private.id
 }
 
@@ -212,8 +200,7 @@ resource "aws_network_acl" "private" {
   subnet_ids = [
     aws_subnet.private_backend_a.id,
     aws_subnet.private_backend_b.id,
-    aws_subnet.private_db_a.id,
-    aws_subnet.private_db_b.id,
+    aws_subnet.private_db_a.id
   ]
 
   # Tráfego interno da VPC

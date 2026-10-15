@@ -1,0 +1,28 @@
+---
+# ──────────────────────────────────────────────────────────────────────────────
+# Arquivo gerado automaticamente pelo Terraform (templates/all.yml.tftpl)
+# NÃO EDITE MANUALMENTE. Suas alterações serão sobrescritas no terraform apply.
+# ──────────────────────────────────────────────────────────────────────────────
+
+aws_region: "us-east-1"
+efs_dns: "fs-073ef153d1ece92fa.efs.us-east-1.amazonaws.com"
+
+# ── Conectividade entre Camadas (Service Discovery Automático) ────────────────
+db_host: "10.0.5.156"
+db_port: 3306
+mysql_database: "sgpj"
+mysql_user: "admin"
+mysql_password: "sgpj96321"
+mysql_root_password: "sgpj96321"
+
+backend_hosts:
+  - "10.0.3.29"
+  - "10.0.4.137"
+
+# ── Repositórios de Imagens Docker (AWS ECR) ──────────────────────────────────
+ecr_frontend_image: "487375662162.dkr.ecr.us-east-1.amazonaws.com/sgpj-frontend:latest"
+ecr_backend_image: "487375662162.dkr.ecr.us-east-1.amazonaws.com/sgpj-backend:latest"
+
+# ── Configuração de Observabilidade (Opcional) ────────────────────────────────
+enable_observability: false
+observability_host: ""

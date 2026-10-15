@@ -10,8 +10,8 @@ output "app_b_public_ip" {
 }
 
 output "observability_public_ip" {
-  description = "IP público da instância de observabilidade"
-  value       = aws_instance.observability.public_ip
+  description = "IP publico da instancia de observabilidade (se habilitada)"
+  value       = try(aws_instance.observability[0].public_ip, null)
 }
 
 # ── Instâncias Privadas (Backend) ───────────────────────────────────────────
@@ -25,10 +25,15 @@ output "backend_b_private_ip" {
   value       = aws_instance.backend_b.private_ip
 }
 
-# ── Banco de Dados ──────────────────────────────────────────────────────────
+# ── Banco de Dados (MySQL em Container na EC2 db) ───────────────────────────
 output "db_private_ip" {
-  description = "IP privado do banco de dados"
+  description = "IP privado do banco de dados MySQL"
   value       = aws_instance.db.private_ip
+}
+
+output "db_port" {
+  description = "Porta do banco de dados MySQL"
+  value       = 3306
 }
 
 # ── Load Balancer ───────────────────────────────────────────────────────────
@@ -44,24 +49,8 @@ output "efs_id" {
 }
 
 output "efs_dns_name" {
-  description = "DNS do EFS para montagem nas instâncias"
+  description = "DNS do EFS para montagem nas instancias"
   value       = aws_efs_file_system.app_efs.dns_name
-}
-
-# ── RDS MySQL ────────────────────────────────────────────────────────────────
-output "rds_endpoint" {
-  description = "Endpoint de conexão do RDS MySQL"
-  value       = aws_db_instance.mysql.endpoint
-}
-
-output "rds_port" {
-  description = "Porta do RDS MySQL"
-  value       = aws_db_instance.mysql.port
-}
-
-output "rds_db_name" {
-  description = "Nome do banco de dados"
-  value       = aws_db_instance.mysql.db_name
 }
 
 output "observability_aws_auth_enabled" {

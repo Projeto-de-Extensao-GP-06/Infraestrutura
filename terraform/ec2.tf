@@ -62,12 +62,13 @@ resource "aws_instance" "db" {
   tags = { Name = "ec2-db" }
 }
 
-# ── Instância de Observabilidade (AZ-c — dedicada) ──────────────────────────
+# ── Instância de Observabilidade (AZ-c — opcional) ──────────────────────────
 resource "aws_instance" "observability" {
+  count                       = var.enable_observability ? 1 : 0
   ami                         = var.ami_id
   instance_type               = var.instance_type
-  subnet_id                   = aws_subnet.public_obs.id
-  vpc_security_group_ids      = [aws_security_group.observability.id]
+  subnet_id                   = aws_subnet.public_obs[0].id
+  vpc_security_group_ids      = [aws_security_group.observability[0].id]
   iam_instance_profile        = var.enable_observability_iam ? aws_iam_instance_profile.observability_ec2_profile[0].name : var.observability_existing_instance_profile_name
   key_name                    = var.Key-All
   associate_public_ip_address = true

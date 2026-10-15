@@ -1,0 +1,5 @@
+---
+backend_image: "{{ ecr_backend_image | default('sgpj-backend:latest') }}"
+backend_container_name: "sgpj-backend"
+backend_port: 8080
+backend_jar_path: "{{ playbook_dir }}/../../scripts/test/sgpj-0.0.1-SNAPSHOT.jar"

@@ -1,0 +1,28 @@
+---
+# ──────────────────────────────────────────────────────────────────────────────
+# Arquivo gerado automaticamente pelo Terraform (templates/all.yml.tftpl)
+# NÃO EDITE MANUALMENTE. Suas alterações serão sobrescritas no terraform apply.
+# ──────────────────────────────────────────────────────────────────────────────
+
+aws_region: "${aws_region}"
+efs_dns: "${efs_dns}"
+
+# ── Conectividade entre Camadas (Service Discovery Automático) ────────────────
+db_host: "${db_host}"
+db_port: 3306
+mysql_database: "${mysql_database}"
+mysql_user: "${mysql_user}"
+mysql_password: "${mysql_password}"
+mysql_root_password: "${mysql_password}"
+
+backend_hosts:
+  - "${backend_a_ip}"
+  - "${backend_b_ip}"
+
+# ── Repositórios de Imagens Docker (AWS ECR) ──────────────────────────────────
+ecr_frontend_image: "${ecr_frontend_url}:latest"
+ecr_backend_image: "${ecr_backend_url}:latest"
+
+# ── Configuração de Observabilidade (Opcional) ────────────────────────────────
+enable_observability: ${enable_observability}
+observability_host: "${observability_ip}"

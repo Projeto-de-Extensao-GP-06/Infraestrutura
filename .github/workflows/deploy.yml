@@ -1,0 +1,138 @@
+name: CI/CD Pipeline - SGPJ Infrastructure & App
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      enable_observability:
+        description: 'Habilitar EC2 e servicos de Observabilidade (Grafana/Prometheus/Loki)?'
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  # ────────────────────────────────────────────────────────────────────────────
+  # 1. CI: Build das Imagens Docker e Push para o AWS ECR
+  # ────────────────────────────────────────────────────────────────────────────
+  build-and-push-ecr:
+    name: Build & Push Imagens Docker (ECR)
+    runs-on: ubuntu-latest
+    outputs:
+      ecr_registry: ${{ steps.login-ecr.outputs.registry }}
+    steps:
+      - name: Checkout do Repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Credenciais AWS
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: ${{ secrets.AWS_REGION || 'us-east-1' }}
+
+      - name: Login no Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build e Push da Imagem do Backend
+        run: |
+          BACKEND_ECR_REPO="${{ steps.login-ecr.outputs.registry }}/sgpj-backend"
+          echo "Building Backend Image..."
+          if [ -f scripts/test/sgpj-0.0.1-SNAPSHOT.jar ]; then
+            cat << 'EOF' > Dockerfile.backend
+          FROM eclipse-temurin:21-jre-alpine
+          WORKDIR /app
+          COPY scripts/test/sgpj-0.0.1-SNAPSHOT.jar app.jar
+          EXPOSE 8080
+          ENTRYPOINT ["java", "-jar", "app.jar"]
+          EOF
+            docker build -t $BACKEND_ECR_REPO:latest -t $BACKEND_ECR_REPO:${{ github.sha }} -f Dockerfile.backend .
+            docker push $BACKEND_ECR_REPO:latest
+            docker push $BACKEND_ECR_REPO:${{ github.sha }}
+          fi
+
+      - name: Build e Push da Imagem do Frontend (Nginx/React)
+        run: |
+          FRONTEND_ECR_REPO="${{ steps.login-ecr.outputs.registry }}/sgpj-frontend"
+          echo "Building Frontend Image..."
+          if [ -d scripts/test/dist ]; then
+            cat << 'EOF' > Dockerfile.frontend
+          FROM nginx:alpine
+          COPY scripts/test/dist /usr/share/nginx/html
+          EXPOSE 80
+          CMD ["nginx", "-g", "daemon off;"]
+          EOF
+            docker build -t $FRONTEND_ECR_REPO:latest -t $FRONTEND_ECR_REPO:${{ github.sha }} -f Dockerfile.frontend .
+            docker push $FRONTEND_ECR_REPO:latest
+            docker push $FRONTEND_ECR_REPO:${{ github.sha }}
+          fi
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # 2. CD: Infraestrutura com Terraform e Provisionamento com Ansible
+  # ────────────────────────────────────────────────────────────────────────────
+  deploy-infrastructure:
+    name: Provisionar Terraform e Ansible
+    needs: build-and-push-ecr
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout do Repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Credenciais AWS
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: ${{ secrets.AWS_REGION || 'us-east-1' }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.9.0"
+
+      - name: Instalar Ansible no Runner
+        run: |
+          sudo apt update
+          sudo apt install -y ansible
+
+      - name: Configurar Chave SSH Privada
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/vokey.pem
+          chmod 400 ~/.ssh/vokey.pem
+
+      - name: Terraform Init
+        working-directory: terraform
+        run: terraform init
+
+      - name: Terraform Apply (Gera Inventário e Variáveis do Ansible)
+        working-directory: terraform
+        env:
+          TF_VAR_enable_observability: ${{ github.event.inputs.enable_observability || false }}
+          TF_VAR_auto_run_ansible: false
+        run: |
+          terraform apply -auto-approve
+
+      - name: Aguardar Inicialização do SSH das Instâncias
+        run: sleep 30
+
+      - name: Executar Ansible Playbook (Deploy Automático de Tudo)
+        working-directory: ansible
+        run: |
+          ansible-playbook -i inventories/production.ini playbooks/site.yml
+
+      - name: Exibir Informações de Acesso
+        working-directory: terraform
+        run: |
+          echo "============================================="
+          echo "URL do Load Balancer (Frontend): http://$(terraform output -raw alb_dns)"
+          echo "IP Privado do Banco MySQL: $(terraform output -raw db_private_ip)"
+          echo "============================================="

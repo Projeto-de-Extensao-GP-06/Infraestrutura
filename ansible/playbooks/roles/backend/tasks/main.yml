@@ -1,0 +1,63 @@
+---
+- name: Criar diretorio para o Backend
+  ansible.builtin.file:
+    path: /opt/app-backend
+    state: directory
+    mode: "0755"
+
+- name: Verificar se imagem existe no ECR ou se faremos deploy via JAR
+  ansible.builtin.stat:
+    path: "{{ backend_jar_path }}"
+  register: local_jar_file
+  delegate_to: localhost
+  become: false
+
+- name: Copiar JAR do Backend para a instancia (se existir localmente)
+  ansible.builtin.copy:
+    src: "{{ backend_jar_path }}"
+    dest: /opt/app-backend/app.jar
+    mode: "0644"
+  when: local_jar_file.stat.exists
+
+- name: Criar Dockerfile para o Backend
+  ansible.builtin.copy:
+    dest: /opt/app-backend/Dockerfile
+    content: |
+      FROM eclipse-temurin:21-jre-alpine
+      WORKDIR /app
+      COPY app.jar app.jar
+      EXPOSE 8080
+      ENTRYPOINT ["java", "-jar", "app.jar"]
+    mode: "0644"
+  when: local_jar_file.stat.exists
+
+- name: Build da imagem local do Backend caso use JAR
+  community.docker.docker_image:
+    name: "sgpj-backend:latest"
+    build:
+      path: /opt/app-backend
+    source: build
+    force_source: true
+  when: local_jar_file.stat.exists
+
+- name: Iniciar container do Backend (Spring Boot) conectado ao MySQL
+  community.docker.docker_container:
+    name: "{{ backend_container_name }}"
+    image: "{{ 'sgpj-backend:latest' if local_jar_file.stat.exists else backend_image }}"
+    state: started
+    restart_policy: always
+    ports:
+      - "{{ backend_port }}:8080"
+    env:
+      SPRING_DATASOURCE_URL: "jdbc:mysql://{{ db_host }}:3306/{{ mysql_database }}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC"
+      SPRING_DATASOURCE_USERNAME: "{{ mysql_user }}"
+      SPRING_DATASOURCE_PASSWORD: "{{ mysql_password }}"
+      SERVER_PORT: "8080"
+
+- name: Aguardar o Backend aceitar conexoes na porta 8080
+  ansible.builtin.wait_for:
+    host: "127.0.0.1"
+    port: "{{ backend_port }}"
+    delay: 5
+    timeout: 90
+    state: started

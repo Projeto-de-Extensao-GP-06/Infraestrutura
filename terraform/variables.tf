@@ -42,7 +42,7 @@ variable "private_db_a_cidr" {
 }
 
 variable "private_db_b_cidr" {
-  description = "Subnet privada banco de dados AZ-b (necessária para o DB Subnet Group do RDS)"
+  description = "Subnet privada banco de dados AZ-b (reservada, não usada atualmente)"
   default     = "10.0.6.0/24"
 }
 
@@ -82,39 +82,42 @@ variable "force_observability_aws_integrations" {
   default     = true
 }
 
+variable "enable_observability" {
+  description = "Define se a infraestrutura de observabilidade (EC2 Grafana/Prometheus/Loki) deve ser provisionada"
+  type        = bool
+  default     = false
+}
+
+variable "auto_run_ansible" {
+  description = "Dispara a execucao do Ansible Playbook automaticamente apos provisionar o Terraform"
+  type        = bool
+  default     = true
+}
+
+variable "enable_data_lake_iam" {
+  description = "Cria IAM roles para Glue Crawlers e Jobs (bloqueado no AWS Academy - requer permissao iam:CreateRole)"
+  type        = bool
+  default     = false
+}
+
 variable "Key-All" {
   description = "Nome do Key Pair para acesso SSH"
   type        = string
 }
 
-# ── RDS MySQL ───────────────────────────────────────────────────────────────
-variable "rds_instance_class" {
-  description = "Classe da instância RDS"
-  default     = "db.t3.micro"
-}
-
-variable "rds_allocated_storage" {
-  description = "Armazenamento inicial do RDS em GB"
-  default     = 20
-}
-
-variable "rds_max_allocated_storage" {
-  description = "Armazenamento máximo do RDS em GB (autoscaling)"
-  default     = 100
-}
-
+# ── Banco de Dados MySQL (Container Docker na EC2 db) ─────────────────────────
 variable "rds_db_name" {
   description = "Nome do banco de dados inicial"
   default     = "sgpj"
 }
 
 variable "rds_username" {
-  description = "Usuário administrador do RDS"
+  description = "Usuario administrador do MySQL"
   default     = "admin"
 }
 
 variable "rds_password" {
-  description = "Senha do administrador do RDS"
+  description = "Senha do administrador do MySQL"
   type        = string
   sensitive   = true
 }
