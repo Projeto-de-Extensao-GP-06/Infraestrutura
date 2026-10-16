@@ -45,10 +45,15 @@
     name: "{{ backend_container_name }}"
     image: "{{ 'sgpj-backend:latest' if local_jar_file.stat.exists else backend_image }}"
     state: started
+    recreate: true
     restart_policy: always
     ports:
       - "{{ backend_port }}:8080"
     env:
+      DB_HOST: "{{ db_host }}"
+      DB_NAME: "{{ mysql_database }}"
+      DB_USERNAME: "{{ mysql_user }}"
+      DB_PASSWORD: "{{ mysql_password }}"
       SPRING_DATASOURCE_URL: "jdbc:mysql://{{ db_host }}:3306/{{ mysql_database }}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC"
       SPRING_DATASOURCE_USERNAME: "{{ mysql_user }}"
       SPRING_DATASOURCE_PASSWORD: "{{ mysql_password }}"

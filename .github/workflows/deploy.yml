@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - refatoracao
   workflow_dispatch:
     inputs:
       enable_observability:
@@ -106,8 +107,8 @@ jobs:
       - name: Configurar Chave SSH Privada
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/vokey.pem
-          chmod 400 ~/.ssh/vokey.pem
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/vockey.pem
+          chmod 400 ~/.ssh/vockey.pem
 
       - name: Terraform Init
         working-directory: terraform

@@ -1,110 +1,79 @@
 # ── Data Lake S3 Buckets (Bronze, Silver, Gold) ────────────────────────────────
-# Nomes incluem account_id para garantir unicidade global no S3
+# Nomes incluem account_id para garantir unicidade global no S3.
+#
+# IMPORTANTE (AWS Academy): O provider aws_s3_bucket chama GetObjectLockConfiguration
+# durante o refresh, operação bloqueada pelo SCP da organização do Academy.
+# Solução: usar null_resource + AWS CLI para criar e configurar os buckets.
+# ARNs são calculados via locals (formato determinístico — não precisamos do provider).
+
+data "aws_caller_identity" "current" {}
+
 locals {
-  account_id     = data.aws_caller_identity.current.account_id
-  bronze_bucket  = "sgpj-bronze-${local.account_id}"
-  silver_bucket  = "sgpj-silver-${local.account_id}"
-  gold_bucket    = "sgpj-gold-${local.account_id}"
+  account_id = data.aws_caller_identity.current.account_id
+
+  bronze_bucket = "sgpj-bronze-${local.account_id}"
+  silver_bucket = "sgpj-silver-${local.account_id}"
+  gold_bucket   = "sgpj-gold-${local.account_id}"
+
+  # ARNs calculados sem depender do recurso aws_s3_bucket
+  bronze_bucket_arn = "arn:aws:s3:::${local.bronze_bucket}"
+  silver_bucket_arn = "arn:aws:s3:::${local.silver_bucket}"
+  gold_bucket_arn   = "arn:aws:s3:::${local.gold_bucket}"
 }
 
-resource "aws_s3_bucket" "bronze" {
-  bucket              = local.bronze_bucket
-  force_destroy       = true
-  # object_lock_enabled = false evita a chamada GetObjectLockConfiguration
-  # que é bloqueada pelo SCP do AWS Academy (explicit deny na policy da organização)
-  object_lock_enabled = false
-
-  lifecycle {
-    ignore_changes = [object_lock_enabled]
+# ── Criação e configuração dos buckets via AWS CLI ─────────────────────────────
+# null_resource não faz refresh — nunca chama GetObjectLockConfiguration.
+resource "null_resource" "s3_data_lake" {
+  triggers = {
+    bronze_bucket = local.bronze_bucket
+    silver_bucket = local.silver_bucket
+    gold_bucket   = local.gold_bucket
   }
 
-  tags = {
-    Name        = "sgpj-bronze"
-    Environment = "data-lake"
-    Layer       = "bronze"
-  }
-}
+  provisioner "local-exec" {
+    interpreter = ["PowerShell", "-Command"]
+    command     = <<-EOT
+      $ErrorActionPreference = 'Stop'
+      $region  = 'us-east-1'
+      $buckets = @('${local.bronze_bucket}', '${local.silver_bucket}', '${local.gold_bucket}')
 
-resource "aws_s3_bucket_versioning" "bronze" {
-  bucket = aws_s3_bucket.bronze.id
-  versioning_configuration {
-    status = "Enabled"
-  }
-}
+      # Cria arquivo temporario com JSON de criptografia e formata path com barras normais para o AWS CLI
+      $encFile = [System.IO.Path]::GetTempFileName()
+      Set-Content -Path $encFile -Value '{"Rules":[{"ApplyServerSideEncryptionByDefault":{"SSEAlgorithm":"AES256"},"BucketKeyEnabled":false}]}'
+      $encFilePath = $encFile.Replace('\', '/')
 
-resource "aws_s3_bucket_server_side_encryption_configuration" "bronze" {
-  bucket = aws_s3_bucket.bronze.id
+      try {
+        foreach ($bucket in $buckets) {
+          Write-Host ">>> Configurando bucket: $bucket"
 
-  rule {
-    apply_server_side_encryption_by_default {
-      sse_algorithm = "AES256"
-    }
-  }
-}
+          # Verifica se o bucket ja existe antes de criar
+          aws s3api head-bucket --bucket $bucket 2>$null
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "Criando bucket $bucket..."
+            aws s3api create-bucket --bucket $bucket --region $region
+            if ($LASTEXITCODE -ne 0) { throw "Falha ao criar bucket $bucket" }
+          } else {
+            Write-Host "Bucket $bucket ja existe, pulando criacao."
+          }
 
-resource "aws_s3_bucket" "silver" {
-  bucket              = local.silver_bucket
-  force_destroy       = true
-  object_lock_enabled = false
+          # Habilita versionamento
+          Write-Host "Habilitando versionamento em $bucket..."
+          aws s3api put-bucket-versioning --bucket $bucket --versioning-configuration Status=Enabled
+          if ($LASTEXITCODE -ne 0) { throw "Falha no versionamento de $bucket" }
 
-  lifecycle {
-    ignore_changes = [object_lock_enabled]
-  }
+          # Habilita criptografia AES256
+          Write-Host "Habilitando criptografia em $bucket..."
+          aws s3api put-bucket-encryption --bucket $bucket --server-side-encryption-configuration "file://$encFilePath"
+          if ($LASTEXITCODE -ne 0) { throw "Falha na criptografia de $bucket" }
 
-  tags = {
-    Name        = "sgpj-silver"
-    Environment = "data-lake"
-    Layer       = "silver"
-  }
-}
+          Write-Host ">>> Bucket $bucket OK"
+        }
+      } finally {
+        if (Test-Path $encFile) { Remove-Item $encFile -Force }
+      }
 
-resource "aws_s3_bucket_versioning" "silver" {
-  bucket = aws_s3_bucket.silver.id
-  versioning_configuration {
-    status = "Enabled"
-  }
-}
-
-resource "aws_s3_bucket_server_side_encryption_configuration" "silver" {
-  bucket = aws_s3_bucket.silver.id
-
-  rule {
-    apply_server_side_encryption_by_default {
-      sse_algorithm = "AES256"
-    }
-  }
-}
-
-resource "aws_s3_bucket" "gold" {
-  bucket              = local.gold_bucket
-  force_destroy       = true
-  object_lock_enabled = false
-
-  lifecycle {
-    ignore_changes = [object_lock_enabled]
-  }
-
-  tags = {
-    Name        = "sgpj-gold"
-    Environment = "data-lake"
-    Layer       = "gold"
-  }
-}
-
-resource "aws_s3_bucket_versioning" "gold" {
-  bucket = aws_s3_bucket.gold.id
-  versioning_configuration {
-    status = "Enabled"
-  }
-}
-
-resource "aws_s3_bucket_server_side_encryption_configuration" "gold" {
-  bucket = aws_s3_bucket.gold.id
-
-  rule {
-    apply_server_side_encryption_by_default {
-      sse_algorithm = "AES256"
-    }
+      Write-Host ">>> Todos os buckets configurados com sucesso"
+    EOT
   }
 }
 
@@ -138,13 +107,14 @@ data "aws_iam_policy_document" "glue_crawler_policy" {
       "s3:ListBucket",
       "s3:GetBucketLocation"
     ]
+    # Usa locals em vez de aws_s3_bucket.*.arn
     resources = [
-      aws_s3_bucket.bronze.arn,
-      "${aws_s3_bucket.bronze.arn}/*",
-      aws_s3_bucket.silver.arn,
-      "${aws_s3_bucket.silver.arn}/*",
-      aws_s3_bucket.gold.arn,
-      "${aws_s3_bucket.gold.arn}/*"
+      local.bronze_bucket_arn,
+      "${local.bronze_bucket_arn}/*",
+      local.silver_bucket_arn,
+      "${local.silver_bucket_arn}/*",
+      local.gold_bucket_arn,
+      "${local.gold_bucket_arn}/*"
     ]
   }
 
@@ -168,8 +138,6 @@ resource "aws_iam_role_policy" "glue_crawler_policy" {
 }
 
 # ── Glue Databases ─────────────────────────────────────────────────────────────
-data "aws_caller_identity" "current" {}
-
 resource "aws_glue_catalog_database" "bronze_db" {
   name        = "sgpj_bronze"
   description = "Bronze layer database for raw data"
@@ -198,7 +166,7 @@ resource "aws_glue_crawler" "bronze_crawler" {
   description   = "Crawler for bronze layer raw data"
 
   s3_target {
-    path = "s3://${aws_s3_bucket.bronze.bucket}/"
+    path = "s3://${local.bronze_bucket}/"
   }
 
   schema_change_policy {
@@ -234,7 +202,7 @@ resource "aws_glue_crawler" "silver_crawler" {
   description   = "Crawler for silver layer cleaned data"
 
   s3_target {
-    path = "s3://${aws_s3_bucket.silver.bucket}/"
+    path = "s3://${local.silver_bucket}/"
   }
 
   schema_change_policy {
@@ -270,7 +238,7 @@ resource "aws_glue_crawler" "gold_crawler" {
   description   = "Crawler for gold layer aggregated data"
 
   s3_target {
-    path = "s3://${aws_s3_bucket.gold.bucket}/"
+    path = "s3://${local.gold_bucket}/"
   }
 
   schema_change_policy {
@@ -328,12 +296,12 @@ data "aws_iam_policy_document" "glue_job_policy" {
       "s3:GetBucketLocation"
     ]
     resources = [
-      aws_s3_bucket.bronze.arn,
-      "${aws_s3_bucket.bronze.arn}/*",
-      aws_s3_bucket.silver.arn,
-      "${aws_s3_bucket.silver.arn}/*",
-      aws_s3_bucket.gold.arn,
-      "${aws_s3_bucket.gold.arn}/*"
+      local.bronze_bucket_arn,
+      "${local.bronze_bucket_arn}/*",
+      local.silver_bucket_arn,
+      "${local.silver_bucket_arn}/*",
+      local.gold_bucket_arn,
+      "${local.gold_bucket_arn}/*"
     ]
   }
 
@@ -367,21 +335,21 @@ resource "aws_glue_job" "bronze_to_silver" {
 
   command {
     name            = "glueetl"
-    script_location = "s3://${aws_s3_bucket.silver.bucket}/scripts/bronze_to_silver.py"
+    script_location = "s3://${local.silver_bucket}/scripts/bronze_to_silver.py"
     python_version  = "3"
   }
 
   default_arguments = {
-    "--job-language"                      = "python"
-    "--enable-continuous-cloudwatch-log"  = "true"
-    "--enable-metrics"                    = ""
-    "--enable-spark-ui"                   = "true"
-    "--spark-event-logs-path"             = "s3://${aws_s3_bucket.silver.bucket}/logs/spark/"
-    "--TempDir"                           = "s3://${aws_s3_bucket.silver.bucket}/tmp/"
-    "--source_bucket"                     = aws_s3_bucket.bronze.bucket
-    "--target_bucket"                     = aws_s3_bucket.silver.bucket
-    "--source_database"                   = aws_glue_catalog_database.bronze_db.name
-    "--target_database"                   = aws_glue_catalog_database.silver_db.name
+    "--job-language"                     = "python"
+    "--enable-continuous-cloudwatch-log" = "true"
+    "--enable-metrics"                   = ""
+    "--enable-spark-ui"                  = "true"
+    "--spark-event-logs-path"            = "s3://${local.silver_bucket}/logs/spark/"
+    "--TempDir"                          = "s3://${local.silver_bucket}/tmp/"
+    "--source_bucket"                    = local.bronze_bucket
+    "--target_bucket"                    = local.silver_bucket
+    "--source_database"                  = aws_glue_catalog_database.bronze_db.name
+    "--target_database"                  = aws_glue_catalog_database.silver_db.name
   }
 
   max_retries       = 0
@@ -406,21 +374,21 @@ resource "aws_glue_job" "silver_to_gold" {
 
   command {
     name            = "glueetl"
-    script_location = "s3://${aws_s3_bucket.gold.bucket}/scripts/silver_to_gold.py"
+    script_location = "s3://${local.gold_bucket}/scripts/silver_to_gold.py"
     python_version  = "3"
   }
 
   default_arguments = {
-    "--job-language"                      = "python"
-    "--enable-continuous-cloudwatch-log"  = "true"
-    "--enable-metrics"                    = ""
-    "--enable-spark-ui"                   = "true"
-    "--spark-event-logs-path"             = "s3://${aws_s3_bucket.gold.bucket}/logs/spark/"
-    "--TempDir"                           = "s3://${aws_s3_bucket.gold.bucket}/tmp/"
-    "--source_bucket"                     = aws_s3_bucket.silver.bucket
-    "--target_bucket"                     = aws_s3_bucket.gold.bucket
-    "--source_database"                   = aws_glue_catalog_database.silver_db.name
-    "--target_database"                   = aws_glue_catalog_database.gold_db.name
+    "--job-language"                     = "python"
+    "--enable-continuous-cloudwatch-log" = "true"
+    "--enable-metrics"                   = ""
+    "--enable-spark-ui"                  = "true"
+    "--spark-event-logs-path"            = "s3://${local.gold_bucket}/logs/spark/"
+    "--TempDir"                          = "s3://${local.gold_bucket}/tmp/"
+    "--source_bucket"                    = local.silver_bucket
+    "--target_bucket"                    = local.gold_bucket
+    "--source_database"                  = aws_glue_catalog_database.silver_db.name
+    "--target_database"                  = aws_glue_catalog_database.gold_db.name
   }
 
   max_retries       = 0
@@ -439,32 +407,32 @@ resource "aws_glue_job" "silver_to_gold" {
 # ── Outputs ────────────────────────────────────────────────────────────────────
 output "bronze_bucket_name" {
   description = "Nome do bucket bronze"
-  value       = aws_s3_bucket.bronze.bucket
+  value       = local.bronze_bucket
 }
 
 output "silver_bucket_name" {
   description = "Nome do bucket silver"
-  value       = aws_s3_bucket.silver.bucket
+  value       = local.silver_bucket
 }
 
 output "gold_bucket_name" {
   description = "Nome do bucket gold"
-  value       = aws_s3_bucket.gold.bucket
+  value       = local.gold_bucket
 }
 
 output "bronze_bucket_arn" {
   description = "ARN do bucket bronze"
-  value       = aws_s3_bucket.bronze.arn
+  value       = local.bronze_bucket_arn
 }
 
 output "silver_bucket_arn" {
   description = "ARN do bucket silver"
-  value       = aws_s3_bucket.silver.arn
+  value       = local.silver_bucket_arn
 }
 
 output "gold_bucket_arn" {
   description = "ARN do bucket gold"
-  value       = aws_s3_bucket.gold.arn
+  value       = local.gold_bucket_arn
 }
 
 output "glue_crawler_role_arn" {

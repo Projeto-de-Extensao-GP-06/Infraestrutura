@@ -20,8 +20,9 @@ Coloque sua chave privada na pasta `~/.ssh/`:
 
 ```bash
 # No WSL:
-cp "/mnt/c/Users/compu/OneDrive - SPTech School/GitHub/Grupo06/infra/Key-All.pem" ~/.ssh/vokey.pem
-chmod 600 ~/.ssh/vokey.pem
+mkdir -p ~/.ssh
+cp "/mnt/c/Users/compu/OneDrive - SPTech School/GitHub/Grupo06/infra/vockey.pem" ~/.ssh/vockey.pem
+chmod 400 ~/.ssh/vockey.pem
 ```
 
 Configure as credenciais AWS no terminal (copie do Vocareum):
@@ -83,67 +84,57 @@ grafana_alert_email:       "EMAIL_DESTINO@gmail.com"
 
 ---
 
-## 1) Provisionar a infraestrutura com Terraform
+## 1) Deploy 100% Automático via Terraform (Recomendado)
+
+Como a variável `auto_run_ansible = true` está ativada no `terraform.tfvars`, **você só precisa rodar o Terraform**. Ele provisiona toda a AWS e em seguida **dispara o Ansible sozinho**:
 
 ```bash
 cd infra/terraform
 terraform init
-terraform plan
-terraform apply
+terraform apply -auto-approve
 ```
 
-O `terraform apply` faz tudo isso automaticamente:
+O `terraform apply` executa todo o fluxo em cadeia:
 
-1. Cria VPC, subnets, Security Groups, Internet Gateway
-2. Sobe as EC2: `ec2-app-a`, `ec2-app-b`, `ec2-backend-a`, `ec2-backend-b`, `ec2-db`
-3. Sobe a EC2 `ec2-observability` **somente se** `enable_observability = true`
-4. Cria o Application Load Balancer (ALB)
-5. Cria o EFS para volumes compartilhados
-6. Cria os repositórios ECR (`sgpj-frontend`, `sgpj-backend`)
-7. **Gera automaticamente** `ansible/inventories/production.ini` com os IPs reais das instâncias
-8. **Gera automaticamente** `ansible/inventories/group_vars/all.yml` com variáveis de conexão (IP do banco, URLs do ECR, etc.)
-9. Se `auto_run_ansible = true`: dispara o `site.yml` sozinho
-
-Conferir saídas:
-
-```bash
-terraform output
-```
-
-Saídas úteis:
-- `alb_dns` — URL do Load Balancer para acessar a aplicação
-- `db_private_ip` — IP privado do banco MySQL
-- `ecr_frontend_repository_url` — URL do repositório de imagens do frontend no ECR
-- `ecr_backend_repository_url` — URL do repositório de imagens do backend no ECR
+1. Cria VPC, subnets, Security Groups e Internet Gateway
+2. Sobe as EC2: `ec2-app-a`, `ec2-app-b`, `ec2-backend-a`, `ec2-backend-b`, `ec2-db` (e `ec2-observability` se habilitada)
+3. Cria o Application Load Balancer (ALB), Target Groups e EFS
+4. Cria os repositórios ECR (`sgpj-frontend`, `sgpj-backend`)
+5. Cria e configura os buckets S3 do Data Lake
+6. **Gera automaticamente** `ansible/inventories/production.ini` e `group_vars/all.yml` com os IPs reais
+7. **Dispara o Ansible Playbook (`site.yml`) automaticamente:**
+   - Instala Docker e monta o EFS em todas as instâncias
+   - Sobe o MySQL container na `ec2-db` e roda o `schema.sql`
+   - Sobe os containers Spring Boot conectados ao MySQL
+   - Sobe o Nginx com balanceamento round-robin para os backends
+   - Faz o deploy do frontend React
 
 ---
 
-## 2) Instalar coleções do Ansible (só precisa fazer uma vez por máquina)
+## 2) Execução Manual do Ansible (Opcional / Troubleshooting)
+
+Você **NÃO precisa rodar estes comandos** se usou o passo 1 acima. Esta seção serve apenas se você definiu `auto_run_ansible = false` ou precisa redeployar algum container individualmente:
+
+### 2.1 Instalar coleções (apenas uma vez)
 
 ```bash
 cd infra/ansible
 ansible-galaxy collection install -r requirements.yml
 ```
 
----
-
-## 3) Verificar conectividade SSH com as instâncias
+### 2.2 Testar conectividade SSH
 
 ```bash
 cd infra/ansible
+export ANSIBLE_CONFIG=./ansible.cfg
 ansible all -i inventories/production.ini -m ping
 ```
 
-Resultado esperado: `pong` de todas as instâncias.
-
----
-
-## 4) Fazer deploy completo com o Playbook Mestre
-
-O `site.yml` orquestra **tudo na ordem certa** com um único comando:
+### 2.3 Rodar o deploy completo manualmente
 
 ```bash
 cd infra/ansible
+export ANSIBLE_CONFIG=./ansible.cfg
 ansible-playbook -i inventories/production.ini playbooks/site.yml
 ```
 
