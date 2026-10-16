@@ -3,3 +3,10 @@ backend_image: "{{ ecr_backend_image | default('sgpj-backend:latest') }}"
 backend_container_name: "sgpj-backend"
 backend_port: 8080
 backend_jar_path: "{{ playbook_dir }}/../../scripts/test/sgpj-0.0.1-SNAPSHOT.jar"
+
+# Variaveis de seguranca (lidas dinamicamente do GitHub Secrets, extra-vars ou ENV)
+backend_jwt_secret: "{{ lookup('env', 'JWT_SECRET') | default(omit, true) }}"
+backend_client_id: "{{ lookup('env', 'CLIENT_ID') | default(omit, true) }}"
+backend_client_secret: "{{ lookup('env', 'CLIENT_SECRET') | default(omit, true) }}"
+backend_tenant_id: "{{ lookup('env', 'TENANT_ID') | default('common', true) }}"
+backend_redirect_uri: "{{ lookup('env', 'REDIRECT_URI') | default('http://localhost:8080/login/oauth2/code/azure', true) }}"
