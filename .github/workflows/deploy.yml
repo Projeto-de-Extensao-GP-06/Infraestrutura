@@ -18,79 +18,8 @@ permissions:
   contents: read
 
 jobs:
-  # ────────────────────────────────────────────────────────────────────────────
-  # 1. CI: Build das Imagens Docker e Push para o AWS ECR
-  # ────────────────────────────────────────────────────────────────────────────
-  build-and-push-ecr:
-    name: Build & Push Imagens Docker (ECR)
-    runs-on: ubuntu-latest
-    outputs:
-      ecr_registry: ${{ steps.login-ecr.outputs.registry }}
-    steps:
-      - name: Checkout do Repositorio
-        uses: actions/checkout@v4
-
-      - name: Extrair Credenciais AWS do Secret JSON
-        id: aws-creds
-        run: |
-          echo '${{ secrets.AWS_CREDENTIALS }}' > /tmp/aws_creds.json
-          echo "AWS_ACCESS_KEY_ID=$(jq -r '.aws_access_key_id'     /tmp/aws_creds.json)" >> $GITHUB_ENV
-          echo "AWS_SECRET_ACCESS_KEY=$(jq -r '.aws_secret_access_key' /tmp/aws_creds.json)" >> $GITHUB_ENV
-          echo "AWS_SESSION_TOKEN=$(jq -r '.aws_session_token'   /tmp/aws_creds.json)" >> $GITHUB_ENV
-          echo "AWS_REGION=us-east-1" >> $GITHUB_ENV
-          rm -f /tmp/aws_creds.json
-
-      - name: Configurar Credenciais AWS
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ env.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ env.AWS_SECRET_ACCESS_KEY }}
-          aws-session-token: ${{ env.AWS_SESSION_TOKEN }}
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: Login no Amazon ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v2
-
-      - name: Build e Push da Imagem do Backend
-        run: |
-          BACKEND_ECR_REPO="${{ steps.login-ecr.outputs.registry }}/sgpj-backend"
-          echo "Building Backend Image..."
-          if [ -f scripts/test/sgpj-0.0.1-SNAPSHOT.jar ]; then
-            cat << 'EOF' > Dockerfile.backend
-          FROM eclipse-temurin:21-jre-alpine
-          WORKDIR /app
-          COPY scripts/test/sgpj-0.0.1-SNAPSHOT.jar app.jar
-          EXPOSE 8080
-          ENTRYPOINT ["java", "-jar", "app.jar"]
-          EOF
-            docker build -t $BACKEND_ECR_REPO:latest -t $BACKEND_ECR_REPO:${{ github.sha }} -f Dockerfile.backend .
-            docker push $BACKEND_ECR_REPO:latest
-            docker push $BACKEND_ECR_REPO:${{ github.sha }}
-          fi
-
-      - name: Build e Push da Imagem do Frontend (Nginx/React)
-        run: |
-          FRONTEND_ECR_REPO="${{ steps.login-ecr.outputs.registry }}/sgpj-frontend"
-          echo "Building Frontend Image..."
-          if [ -d scripts/test/dist ]; then
-            cat << 'EOF' > Dockerfile.frontend
-          FROM nginx:alpine
-          COPY scripts/test/dist /usr/share/nginx/html
-          EXPOSE 80
-          CMD ["nginx", "-g", "daemon off;"]
-          EOF
-            docker build -t $FRONTEND_ECR_REPO:latest -t $FRONTEND_ECR_REPO:${{ github.sha }} -f Dockerfile.frontend .
-            docker push $FRONTEND_ECR_REPO:latest
-            docker push $FRONTEND_ECR_REPO:${{ github.sha }}
-          fi
-
-  # ────────────────────────────────────────────────────────────────────────────
-  # 2. CD: Infraestrutura com Terraform e Provisionamento com Ansible
-  # ────────────────────────────────────────────────────────────────────────────
   deploy-infrastructure:
     name: Provisionar Terraform e Ansible
-    needs: build-and-push-ecr
     runs-on: ubuntu-latest
     steps:
       - name: Checkout do Repositorio
@@ -98,11 +27,20 @@ jobs:
 
       - name: Extrair Credenciais AWS do Secret JSON
         id: aws-creds
+        env:
+          AWS_CREDENTIALS_RAW: ${{ secrets.AWS_CREDENTIALS }}
         run: |
-          echo '${{ secrets.AWS_CREDENTIALS }}' > /tmp/aws_creds.json
-          echo "AWS_ACCESS_KEY_ID=$(jq -r '.aws_access_key_id'     /tmp/aws_creds.json)" >> $GITHUB_ENV
-          echo "AWS_SECRET_ACCESS_KEY=$(jq -r '.aws_secret_access_key' /tmp/aws_creds.json)" >> $GITHUB_ENV
-          echo "AWS_SESSION_TOKEN=$(jq -r '.aws_session_token'   /tmp/aws_creds.json)" >> $GITHUB_ENV
+          echo "$AWS_CREDENTIALS_RAW" | tr -d '\r' > /tmp/aws_creds.json
+          KEY_ID=$(jq -r '.aws_access_key_id // .access_key // empty' /tmp/aws_creds.json)
+          SECRET_KEY=$(jq -r '.aws_secret_access_key // .secret_key // empty' /tmp/aws_creds.json)
+          TOKEN=$(jq -r '.aws_session_token // .session_token // empty' /tmp/aws_creds.json)
+          if [ -z "$KEY_ID" ] || [ -z "$SECRET_KEY" ]; then
+            echo "::error::Não foi possível extrair aws_access_key_id ou aws_secret_access_key do secret AWS_CREDENTIALS."
+            exit 1
+          fi
+          echo "AWS_ACCESS_KEY_ID=$KEY_ID" >> $GITHUB_ENV
+          echo "AWS_SECRET_ACCESS_KEY=$SECRET_KEY" >> $GITHUB_ENV
+          echo "AWS_SESSION_TOKEN=$TOKEN" >> $GITHUB_ENV
           echo "AWS_REGION=us-east-1" >> $GITHUB_ENV
           rm -f /tmp/aws_creds.json
 
@@ -113,6 +51,20 @@ jobs:
           aws-secret-access-key: ${{ env.AWS_SECRET_ACCESS_KEY }}
           aws-session-token: ${{ env.AWS_SESSION_TOKEN }}
           aws-region: ${{ env.AWS_REGION }}
+
+      - name: Extrair Variaveis da Aplicacao (APP_SECRETS JSON)
+        env:
+          APP_SECRETS_RAW: ${{ secrets.APP_SECRETS }}
+        run: |
+          if [ -n "$APP_SECRETS_RAW" ]; then
+            echo "$APP_SECRETS_RAW" | tr -d '\r' > /tmp/app_secrets.json
+            echo "JWT_SECRET=$(jq -r '.jwt_secret // empty' /tmp/app_secrets.json)" >> $GITHUB_ENV
+            echo "CLIENT_ID=$(jq -r '.client_id // empty' /tmp/app_secrets.json)" >> $GITHUB_ENV
+            echo "CLIENT_SECRET=$(jq -r '.client_secret // empty' /tmp/app_secrets.json)" >> $GITHUB_ENV
+            echo "TENANT_ID=$(jq -r '.tenant_id // "common"' /tmp/app_secrets.json)" >> $GITHUB_ENV
+            echo "REDIRECT_URI=$(jq -r '.redirect_uri // "http://localhost:8080/login/oauth2/code/azure"' /tmp/app_secrets.json)" >> $GITHUB_ENV
+            rm -f /tmp/app_secrets.json
+          fi
 
       - name: Configurar Chave SSH Privada
         run: |
@@ -148,11 +100,11 @@ jobs:
       - name: Executar Ansible Playbook (Deploy Automático de Tudo)
         working-directory: ansible
         env:
-          JWT_SECRET: ${{ secrets.JWT_SECRET }}
-          CLIENT_ID: ${{ secrets.CLIENT_ID }}
-          CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
-          TENANT_ID: ${{ secrets.TENANT_ID || 'common' }}
-          REDIRECT_URI: ${{ secrets.REDIRECT_URI }}
+          JWT_SECRET: ${{ env.JWT_SECRET || secrets.JWT_SECRET }}
+          CLIENT_ID: ${{ env.CLIENT_ID || secrets.CLIENT_ID }}
+          CLIENT_SECRET: ${{ env.CLIENT_SECRET || secrets.CLIENT_SECRET }}
+          TENANT_ID: ${{ env.TENANT_ID || secrets.TENANT_ID || 'common' }}
+          REDIRECT_URI: ${{ env.REDIRECT_URI || secrets.REDIRECT_URI }}
         run: |
           ansible-playbook -i inventories/production.ini playbooks/site.yml
 

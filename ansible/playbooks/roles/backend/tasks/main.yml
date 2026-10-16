@@ -40,6 +40,12 @@
     force_source: true
   when: local_jar_file.stat.exists
 
+- name: Baixar imagem do Backend do Docker Hub
+  community.docker.docker_image:
+    name: "{{ backend_image }}"
+    source: pull
+  when: not local_jar_file.stat.exists
+
 - name: Iniciar container do Backend (Spring Boot) conectado ao MySQL
   community.docker.docker_container:
     name: "{{ backend_container_name }}"
@@ -47,6 +53,7 @@
     state: started
     recreate: true
     restart_policy: always
+    pull: "{{ 'never' if local_jar_file.stat.exists else 'always' }}"
     ports:
       - "{{ backend_port }}:8080"
     env:
