@@ -1,12 +1,15 @@
 ---
-backend_image: "{{ ecr_backend_image | default('lpamorim/sgpj-backend:latest') }}"
+backend_image: "{{ docker_backend_image | default(ecr_backend_image, true) | default('lpamorim/sgpj-backend:latest', true) }}"
 backend_container_name: "sgpj-backend"
 backend_port: 8080
 backend_jar_path: "{{ playbook_dir }}/../../scripts/test/sgpj-0.0.1-SNAPSHOT.jar"
 
-# Variaveis de seguranca (lidas dinamicamente do GitHub Secrets, extra-vars ou ENV)
-backend_jwt_secret: "{{ lookup('env', 'JWT_SECRET') | default(omit, true) }}"
-backend_client_id: "{{ lookup('env', 'CLIENT_ID') | default(omit, true) }}"
-backend_client_secret: "{{ lookup('env', 'CLIENT_SECRET') | default(omit, true) }}"
-backend_tenant_id: "{{ lookup('env', 'TENANT_ID') | default('common', true) }}"
-backend_redirect_uri: "{{ lookup('env', 'REDIRECT_URI') | default('http://localhost:8080/login/oauth2/code/azure', true) }}"
+# Variaveis de seguranca (lidas do secrets.yml, extra-vars ou ENV)
+backend_jwt_secret: "{{ jwt_secret | default(lookup('env', 'JWT_SECRET'), true) | default(omit, true) }}"
+backend_client_id: "{{ client_id | default(lookup('env', 'CLIENT_ID'), true) | default(omit, true) }}"
+backend_client_secret: "{{ client_secret | default(lookup('env', 'CLIENT_SECRET'), true) | default(omit, true) }}"
+backend_tenant_id: "{{ tenant_id | default(lookup('env', 'TENANT_ID'), true) | default('common', true) }}"
+backend_redirect_uri: "{{ redirect_uri | default(lookup('env', 'REDIRECT_URI'), true) | default('http://localhost:8080/login/oauth2/code/azure', true) }}"
+backend_cookie_secure: "{{ cookie_secure | default(lookup('env', 'COOKIE_SECURE'), true) | default('false', true) }}"
+backend_datajud_api_key: "{{ datajud_api_key | default(lookup('env', 'DATAJUD_API_KEY'), true) | default(omit, true) }}"
+backend_cloudflare_secret_key: "{{ cloudflare_secret_key | default(lookup('env', 'CLOUDFLARE_SECRET_KEY'), true) | default(omit, true) }}"

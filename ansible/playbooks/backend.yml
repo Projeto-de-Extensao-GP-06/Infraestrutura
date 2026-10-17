@@ -3,5 +3,15 @@
   hosts: backend
   become: true
 
+  pre_tasks:
+    - name: Carregar segredos locais (secrets.yml) se existirem
+      ansible.builtin.include_vars:
+        file: "{{ item }}"
+      with_first_found:
+        - files:
+            - "{{ playbook_dir }}/../secrets.yml"
+            - "{{ playbook_dir }}/secrets.yml"
+          skip: true
+
   roles:
     - backend

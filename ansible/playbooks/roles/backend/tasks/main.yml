@@ -70,6 +70,9 @@
       CLIENT_SECRET: "{{ backend_client_secret }}"
       TENANT_ID: "{{ backend_tenant_id }}"
       REDIRECT_URI: "{{ backend_redirect_uri }}"
+      COOKIE_SECURE: "{{ backend_cookie_secure }}"
+      DATAJUD_API_KEY: "{{ backend_datajud_api_key | default(omit) }}"
+      CLOUDFLARE_SECRET_KEY: "{{ backend_cloudflare_secret_key | default(omit) }}"
 
 - name: Aguardar o Backend aceitar conexoes na porta 8080
   ansible.builtin.wait_for:

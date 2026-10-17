@@ -30,10 +30,14 @@ ansible/*.retry
 vault_pass.txt
 .vault_pass
 
-# ── Variáveis de ambiente ──────────────────
+# ── Variáveis de ambiente e Segredos ──────────
 .env
 .env.*
 !.env.example
+secrets.yml
+*.secrets.yml
+ansible/secrets.yml
+!ansible/secrets.yml.example
 
 # ── Editores / OS ──────────────────────────
 .DS_Store
