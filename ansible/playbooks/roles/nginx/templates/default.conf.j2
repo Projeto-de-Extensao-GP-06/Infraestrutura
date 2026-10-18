@@ -11,6 +11,8 @@ server {
     listen 80;
     server_name _;
 
+    client_max_body_size 260M;
+
     root /usr/share/nginx/html;
     index index.html;
 
@@ -18,7 +20,7 @@ server {
         try_files $uri $uri/ /index.html;
     }
 
-    location /api/ {
+    location ~ ^/(auth|usuarios|processos|clientes|dashboard|documentos|cargos|permissoes|prioridades|solicitacoes|siglaTribunais|statusClientes|tiposAlteracao|tiposDocumento|fasesProcesso|motivosStatusProcesso|api-onedrive|login/oauth2|api) {
         proxy_pass http://backend_servers;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;

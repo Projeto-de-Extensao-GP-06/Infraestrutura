@@ -14,5 +14,13 @@
   hosts: all
   become: true
 
+  pre_tasks:
+    - name: Forçar IPv4 no apt para evitar falha de conexão IPv6
+      ansible.builtin.copy:
+        dest: /etc/apt/apt.conf.d/99force-ipv4
+        content: 'Acquire::ForceIPv4 "true";'
+        mode: "0644"
+
   roles:
     - docker
+

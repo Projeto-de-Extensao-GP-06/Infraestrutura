@@ -25,6 +25,10 @@
     image: "{{ mysql_image }}"
     state: started
     restart_policy: always
+    command:
+      - mysqld
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
     ports:
       - "{{ mysql_host_port }}:{{ mysql_container_port }}"
     env:
@@ -43,3 +47,18 @@
     delay: 5
     timeout: 60
     state: started
+
+- name: Aguardar o MySQL aceitar conexoes autenticadas e estar pronto
+  ansible.builtin.command: >
+    docker exec {{ mysql_container_name }} mysqladmin ping -h 127.0.0.1 -u {{ mysql_user }} -p{{ mysql_password }}
+  register: db_ping
+  until: db_ping.rc == 0
+  retries: 30
+  delay: 4
+  changed_when: false
+
+- name: Garantir schema e dados populados em UTF-8 no MySQL
+  ansible.builtin.shell: >
+    docker exec -i {{ mysql_container_name }} mysql --default-character-set=utf8mb4 -u root -p{{ mysql_root_password }} < {{ mysql_init_dir }}/01-schema.sql
+
+

@@ -61,9 +61,11 @@
       DB_NAME: "{{ mysql_database }}"
       DB_USERNAME: "{{ mysql_user }}"
       DB_PASSWORD: "{{ mysql_password }}"
-      SPRING_DATASOURCE_URL: "jdbc:mysql://{{ db_host }}:3306/{{ mysql_database }}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC"
+      SPRING_DATASOURCE_URL: "jdbc:mysql://{{ db_host }}:3306/{{ mysql_database }}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&characterEncoding=UTF-8&useUnicode=true"
       SPRING_DATASOURCE_USERNAME: "{{ mysql_user }}"
       SPRING_DATASOURCE_PASSWORD: "{{ mysql_password }}"
+      SPRING_DATASOURCE_DRIVER_CLASS_NAME: "com.mysql.cj.jdbc.Driver"
+      SPRING_JPA_DATABASE_PLATFORM: "org.hibernate.dialect.MySQLDialect"
       SERVER_PORT: "8080"
       JWT_SECRET: "{{ backend_jwt_secret }}"
       CLIENT_ID: "{{ backend_client_id }}"
@@ -79,5 +81,6 @@
     host: "127.0.0.1"
     port: "{{ backend_port }}"
     delay: 5
-    timeout: 90
+    timeout: 120
     state: started
+

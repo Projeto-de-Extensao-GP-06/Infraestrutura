@@ -52,6 +52,12 @@
     source: pull
   when: not (local_dist_dir.stat.exists and local_dist_dir.stat.isdir)
 
+- name: Extrair bundle estatico do Frontend da imagem Docker para o EFS compartilhado
+  ansible.builtin.shell: >
+    docker run --rm -v {{ nginx_html_host_path }}:/efs-target {{ app_image }} cp -r /usr/share/nginx/html/. /efs-target/
+  when: not (local_dist_dir.stat.exists and local_dist_dir.stat.isdir)
+  run_once: true
+
 - name: Subir container da aplicacao frontend
   community.docker.docker_container:
     name: "{{ app_container_name }}"

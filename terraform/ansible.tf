@@ -60,6 +60,6 @@ resource "null_resource" "run_ansible" {
 
   provisioner "local-exec" {
     working_dir = "${path.module}/../ansible"
-    command     = "ansible-playbook -i inventories/production.ini playbooks/site.yml 2>nul || wsl -e bash -c \"sleep 30 && cd '/mnt/c/Users/compu/OneDrive - SPTech School/GitHub/Grupo06/infra/ansible' && export ANSIBLE_CONFIG=./ansible.cfg && ansible-playbook -i inventories/production.ini playbooks/site.yml\""
+    command     = "wsl -e bash -c \"./run_ansible.sh\""
   }
 }
