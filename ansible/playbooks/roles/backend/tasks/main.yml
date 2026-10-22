@@ -5,13 +5,37 @@
     state: directory
     mode: "0755"
 
-- name: Verificar se imagem existe no ECR ou se faremos deploy via JAR
+- name: Verificar se JAR local do Backend existe
   ansible.builtin.stat:
     path: "{{ backend_jar_path }}"
   register: local_jar_file
   delegate_to: localhost
   become: false
 
+# ── Autenticação ECR ──────────────────────────────────────────────────────────
+- name: Obter token de autenticação do ECR (executado localmente)
+  ansible.builtin.command:
+    cmd: "aws ecr get-login-password --region {{ aws_region }}"
+  register: ecr_token
+  delegate_to: localhost
+  become: false
+  run_once: true
+  when:
+    - use_ecr | default(false)
+    - not local_jar_file.stat.exists
+  no_log: true
+
+- name: Autenticar Docker no ECR
+  ansible.builtin.shell: |
+    echo "{{ ecr_token.stdout }}" | docker login --username AWS --password-stdin {{ ecr_registry_url }}
+  when:
+    - use_ecr | default(false)
+    - not local_jar_file.stat.exists
+    - ecr_token is defined
+    - ecr_token.stdout is defined
+  no_log: true
+
+# ── Deploy via JAR local (alternativo) ───────────────────────────────────────
 - name: Copiar JAR do Backend para a instancia (se existir localmente)
   ansible.builtin.copy:
     src: "{{ backend_jar_path }}"
@@ -40,11 +64,23 @@
     force_source: true
   when: local_jar_file.stat.exists
 
-- name: Baixar imagem do Backend do Docker Hub
+# ── Pull da imagem ECR (caminho principal) ─────────────────────────────────────
+- name: Baixar imagem do Backend do ECR
   community.docker.docker_image:
     name: "{{ backend_image }}"
     source: pull
-  when: not local_jar_file.stat.exists
+    force_source: true
+  when:
+    - not local_jar_file.stat.exists
+    - use_ecr | default(false)
+
+- name: Baixar imagem do Backend do Docker Hub (fallback sem ECR)
+  community.docker.docker_image:
+    name: "{{ backend_image }}"
+    source: pull
+  when:
+    - not local_jar_file.stat.exists
+    - not (use_ecr | default(false))
 
 - name: Iniciar container do Backend (Spring Boot) conectado ao MySQL
   community.docker.docker_container:
@@ -83,4 +119,3 @@
     delay: 5
     timeout: 120
     state: started
-

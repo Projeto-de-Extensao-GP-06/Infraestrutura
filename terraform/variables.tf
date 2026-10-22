@@ -94,6 +94,24 @@ variable "auto_run_ansible" {
   default     = true
 }
 
+variable "auto_sync_ecr" {
+  description = "Sincroniza automaticamente as imagens do Docker Hub para o Amazon ECR durante o terraform apply"
+  type        = bool
+  default     = true
+}
+
+variable "docker_frontend_hub_image" {
+  description = "Imagem do Frontend no Docker Hub para sincronizacao no ECR"
+  type        = string
+  default     = "lpamorim/sgpj-frontend:latest"
+}
+
+variable "docker_backend_hub_image" {
+  description = "Imagem do Backend no Docker Hub para sincronizacao no ECR"
+  type        = string
+  default     = "lpamorim/sgpj-backend:latest"
+}
+
 variable "enable_data_lake_iam" {
   description = "Cria IAM roles para Glue Crawlers e Jobs (bloqueado no AWS Academy - requer permissao iam:CreateRole)"
   type        = bool

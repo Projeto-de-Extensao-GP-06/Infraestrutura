@@ -1,5 +1,6 @@
 ---
-app_image: "{{ docker_frontend_image | default(ecr_frontend_image, true) | default('lpamorim/sgpj-frontend:latest', true) }}"
+# ECR tem prioridade; fallback para Docker Hub
+app_image: "{{ ecr_frontend_image | default(docker_frontend_image, true) | default('lpamorim/sgpj-frontend:latest', true) }}"
 app_container_name: sgpj-frontend
 app_host_port: 3000
 app_container_port: 80

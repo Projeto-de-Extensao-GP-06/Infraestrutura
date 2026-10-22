@@ -54,6 +54,7 @@ resource "null_resource" "run_ansible" {
     aws_instance.observability,
     aws_ecr_repository.frontend,
     aws_ecr_repository.backend,
+    null_resource.sync_dockerhub_to_ecr,
     local_file.ansible_inventory,
     local_file.ansible_vars
   ]

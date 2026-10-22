@@ -5,6 +5,27 @@
     state: directory
     mode: "0755"
 
+# ── Autenticação ECR ──────────────────────────────────────────────────────────
+- name: Obter token de autenticação do ECR (executado localmente)
+  ansible.builtin.command:
+    cmd: "aws ecr get-login-password --region {{ aws_region }}"
+  register: ecr_token
+  delegate_to: localhost
+  become: false
+  run_once: true
+  when: use_ecr | default(false)
+  no_log: true
+
+- name: Autenticar Docker no ECR
+  ansible.builtin.shell: |
+    echo "{{ ecr_token.stdout }}" | docker login --username AWS --password-stdin {{ ecr_registry_url }}
+  when:
+    - use_ecr | default(false)
+    - ecr_token is defined
+    - ecr_token.stdout is defined
+  no_log: true
+
+# ── Verificar bundle local (deploy alternativo sem ECR) ───────────────────────
 - name: Verificar se bundle compilado do Frontend existe localmente
   ansible.builtin.stat:
     path: "{{ app_dist_path }}"
@@ -46,11 +67,23 @@
   when: local_dist_dir.stat.exists and local_dist_dir.stat.isdir
   ignore_errors: true
 
-- name: Baixar imagem da aplicacao remota (quando nao ha bundle dist local)
+# ── Pull da imagem ECR (quando não há bundle local) ───────────────────────────
+- name: Baixar imagem da aplicacao do ECR
   community.docker.docker_image:
     name: "{{ app_image }}"
     source: pull
-  when: not (local_dist_dir.stat.exists and local_dist_dir.stat.isdir)
+    force_source: true
+  when:
+    - not (local_dist_dir.stat.exists and local_dist_dir.stat.isdir)
+    - use_ecr | default(false)
+
+- name: Baixar imagem da aplicacao do Docker Hub (fallback sem ECR)
+  community.docker.docker_image:
+    name: "{{ app_image }}"
+    source: pull
+  when:
+    - not (local_dist_dir.stat.exists and local_dist_dir.stat.isdir)
+    - not (use_ecr | default(false))
 
 - name: Extrair bundle estatico do Frontend da imagem Docker para o EFS compartilhado
   ansible.builtin.shell: >
