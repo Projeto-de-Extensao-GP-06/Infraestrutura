@@ -1,0 +1,167 @@
+---
+# ──────────────────────────────────────────────────────────────────────────────
+# role: swarm
+# Inicializa o Docker Swarm no Manager e faz os Workers entrarem no cluster.
+#
+# Fluxo:
+#   1. Manager (ec2-app-a): docker swarm init
+#   2. Manager: obter join-token de worker
+#   3. Workers (ec2-app-b, ec2-backend-a, ec2-backend-b): docker swarm join
+#   4. Manager: aplicar labels de placement nos nodes
+#   5. Manager: fazer docker login no ECR
+#   6. Manager: deploy do docker stack (stack.yml)
+# ──────────────────────────────────────────────────────────────────────────────
+
+# ── 1. Verificar se o Swarm já está ativo no Manager ─────────────────────────
+- name: Verificar estado atual do Swarm
+  ansible.builtin.command: docker info --format "{{ '{{' }}.Swarm.LocalNodeState{{ '}}' }}"
+  register: swarm_state
+  changed_when: false
+
+# ── 2. Inicializar Swarm no Manager ──────────────────────────────────────────
+- name: Inicializar Docker Swarm (apenas Manager)
+  ansible.builtin.command: >
+    docker swarm init
+    --advertise-addr {{ ansible_default_ipv4.address }}
+  when:
+    - inventory_hostname in groups['app']
+    - inventory_hostname == groups['app'][0]
+    - swarm_state.stdout != 'active'
+  register: swarm_init
+  changed_when: swarm_init.rc == 0
+
+# ── 3. Obter join-token de worker ─────────────────────────────────────────────
+- name: Obter join-token para workers
+  ansible.builtin.command: docker swarm join-token worker -q
+  register: swarm_worker_token
+  when:
+    - inventory_hostname in groups['app']
+    - inventory_hostname == groups['app'][0]
+  changed_when: false
+  run_once: true
+
+# Armazenar token e IP do manager como facts globais
+- name: Registrar token e IP do manager como fact global
+  ansible.builtin.set_fact:
+    swarm_join_token: "{{ swarm_worker_token.stdout }}"
+    swarm_manager_addr: "{{ ansible_default_ipv4.address }}:2377"
+  when:
+    - inventory_hostname in groups['app']
+    - inventory_hostname == groups['app'][0]
+  run_once: true
+
+# ── 4. Workers entram no Swarm ────────────────────────────────────────────────
+- name: Verificar se o Worker já está no Swarm
+  ansible.builtin.command: docker info --format "{{ '{{' }}.Swarm.LocalNodeState{{ '}}' }}"
+  register: worker_swarm_state
+  changed_when: false
+  when: inventory_hostname not in groups['app'] or inventory_hostname != groups['app'][0]
+
+- name: Worker entra no Swarm
+  ansible.builtin.command: >
+    docker swarm join
+    --token {{ hostvars[groups['app'][0]]['swarm_join_token'] }}
+    {{ hostvars[groups['app'][0]]['swarm_manager_addr'] }}
+  when:
+    - inventory_hostname not in groups['app'] or inventory_hostname != groups['app'][0]
+    - worker_swarm_state.stdout is defined
+    - worker_swarm_state.stdout != 'active'
+  register: swarm_join
+  changed_when: swarm_join.rc == 0
+
+# ── 5. Aplicar labels de placement nos nodes (executar no Manager) ─────────────
+- name: Aguardar todos os workers estarem no Swarm
+  ansible.builtin.pause:
+    seconds: 5
+  when:
+    - inventory_hostname in groups['app']
+    - inventory_hostname == groups['app'][0]
+
+- name: Listar nodes do Swarm com seus hostnames
+  ansible.builtin.command: docker node ls --format "{{ '{{' }}.Hostname{{ '}}' }} {{ '{{' }}.ID{{ '}}' }}"
+  register: swarm_nodes
+  when:
+    - inventory_hostname in groups['app']
+    - inventory_hostname == groups['app'][0]
+  changed_when: false
+
+- name: Aplicar label role=app nos nodes app
+  ansible.builtin.shell: |
+    NODE_ID=$(docker node ls --format '{{ '{{' }}.Hostname{{ '}}' }} {{ '{{' }}.ID{{ '}}' }}' | grep "^{{ item | regex_replace('\\..+', '') }}" | awk '{print $2}')
+    if [ -n "$NODE_ID" ]; then
+      docker node update --label-add role=app "$NODE_ID" || true
+    fi
+  loop: "{{ groups['app'] | map('extract', hostvars, 'ansible_hostname') | list }}"
+  when:
+    - inventory_hostname in groups['app']
+    - inventory_hostname == groups['app'][0]
+  changed_when: false
+
+- name: Aplicar label role=backend nos nodes backend
+  ansible.builtin.shell: |
+    NODE_ID=$(docker node ls --format '{{ '{{' }}.Hostname{{ '}}' }} {{ '{{' }}.ID{{ '}}' }}' | grep "^{{ item | regex_replace('\\..+', '') }}" | awk '{print $2}')
+    if [ -n "$NODE_ID" ]; then
+      docker node update --label-add role=backend "$NODE_ID" || true
+    fi
+  loop: "{{ groups['backend'] | map('extract', hostvars, 'ansible_hostname') | list }}"
+  when:
+    - inventory_hostname in groups['app']
+    - inventory_hostname == groups['app'][0]
+  changed_when: false
+
+# ── 6. Autenticar no ECR no Manager ──────────────────────────────────────────
+- name: Obter token ECR localmente
+  ansible.builtin.command:
+    cmd: "aws ecr get-login-password --region {{ aws_region }}"
+  register: ecr_token
+  delegate_to: localhost
+  become: false
+  run_once: true
+  when:
+    - use_ecr | default(false)
+    - inventory_hostname in groups['app']
+    - inventory_hostname == groups['app'][0]
+  no_log: true
+
+- name: Autenticar Docker no ECR no Manager (para --with-registry-auth)
+  ansible.builtin.shell: |
+    echo "{{ ecr_token.stdout }}" | docker login --username AWS --password-stdin {{ ecr_registry_url }}
+  when:
+    - use_ecr | default(false)
+    - inventory_hostname in groups['app']
+    - inventory_hostname == groups['app'][0]
+    - ecr_token is defined
+    - ecr_token.stdout is defined
+  no_log: true
+
+# ── 7. Criar diretório e copiar stack.yml para o Manager ──────────────────────
+- name: Criar diretório do Swarm stack no Manager
+  ansible.builtin.file:
+    path: /opt/swarm
+    state: directory
+    mode: "0755"
+  when:
+    - inventory_hostname in groups['app']
+    - inventory_hostname == groups['app'][0]
+
+- name: Gerar stack.yml no Manager
+  ansible.builtin.template:
+    src: stack.yml.j2
+    dest: "{{ swarm_stack_file }}"
+    mode: "0644"
+  when:
+    - inventory_hostname in groups['app']
+    - inventory_hostname == groups['app'][0]
+
+# ── 8. Deploy da stack no Swarm ───────────────────────────────────────────────
+- name: Deploy da stack SGPJ no Swarm
+  ansible.builtin.shell: >
+    docker stack deploy
+    --with-registry-auth
+    --compose-file {{ swarm_stack_file }}
+    {{ swarm_stack_name }}
+  when:
+    - inventory_hostname in groups['app']
+    - inventory_hostname == groups['app'][0]
+  register: stack_deploy
+  changed_when: "'Updating' in stack_deploy.stdout or 'Creating' in stack_deploy.stdout"

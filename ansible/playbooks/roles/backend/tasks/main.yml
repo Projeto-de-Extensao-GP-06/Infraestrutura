@@ -1,121 +1,26 @@
 ---
+# ──────────────────────────────────────────────────────────────────────────────
+# role: backend
+# Com Docker Swarm, o deploy do container é feito pela role 'swarm'.
+# Esta role cria apenas a estrutura de diretórios necessária no host.
+# ──────────────────────────────────────────────────────────────────────────────
+
 - name: Criar diretorio para o Backend
   ansible.builtin.file:
     path: /opt/app-backend
     state: directory
     mode: "0755"
 
-- name: Verificar se JAR local do Backend existe
-  ansible.builtin.stat:
-    path: "{{ backend_jar_path }}"
-  register: local_jar_file
-  delegate_to: localhost
-  become: false
+- name: Criar diretório de logs do Backend no EFS
+  ansible.builtin.file:
+    path: /mnt/efs-sgpj/volumes/backend/logs
+    state: directory
+    mode: "0777"
+  ignore_errors: true
 
-# ── Autenticação ECR ──────────────────────────────────────────────────────────
-- name: Obter token de autenticação do ECR (executado localmente)
-  ansible.builtin.command:
-    cmd: "aws ecr get-login-password --region {{ aws_region }}"
-  register: ecr_token
-  delegate_to: localhost
-  become: false
-  run_once: true
-  when:
-    - use_ecr | default(false)
-    - not local_jar_file.stat.exists
-  no_log: true
-
-- name: Autenticar Docker no ECR
-  ansible.builtin.shell: |
-    echo "{{ ecr_token.stdout }}" | docker login --username AWS --password-stdin {{ ecr_registry_url }}
-  when:
-    - use_ecr | default(false)
-    - not local_jar_file.stat.exists
-    - ecr_token is defined
-    - ecr_token.stdout is defined
-  no_log: true
-
-# ── Deploy via JAR local (alternativo) ───────────────────────────────────────
-- name: Copiar JAR do Backend para a instancia (se existir localmente)
-  ansible.builtin.copy:
-    src: "{{ backend_jar_path }}"
-    dest: /opt/app-backend/app.jar
-    mode: "0644"
-  when: local_jar_file.stat.exists
-
-- name: Criar Dockerfile para o Backend
-  ansible.builtin.copy:
-    dest: /opt/app-backend/Dockerfile
-    content: |
-      FROM eclipse-temurin:21-jre-alpine
-      WORKDIR /app
-      COPY app.jar app.jar
-      EXPOSE 8080
-      ENTRYPOINT ["java", "-jar", "app.jar"]
-    mode: "0644"
-  when: local_jar_file.stat.exists
-
-- name: Build da imagem local do Backend caso use JAR
-  community.docker.docker_image:
-    name: "sgpj-backend:latest"
-    build:
-      path: /opt/app-backend
-    source: build
-    force_source: true
-  when: local_jar_file.stat.exists
-
-# ── Pull da imagem ECR (caminho principal) ─────────────────────────────────────
-- name: Baixar imagem do Backend do ECR
-  community.docker.docker_image:
-    name: "{{ backend_image }}"
-    source: pull
-    force_source: true
-  when:
-    - not local_jar_file.stat.exists
-    - use_ecr | default(false)
-
-- name: Baixar imagem do Backend do Docker Hub (fallback sem ECR)
-  community.docker.docker_image:
-    name: "{{ backend_image }}"
-    source: pull
-  when:
-    - not local_jar_file.stat.exists
-    - not (use_ecr | default(false))
-
-- name: Iniciar container do Backend (Spring Boot) conectado ao MySQL
-  community.docker.docker_container:
-    name: "{{ backend_container_name }}"
-    image: "{{ 'sgpj-backend:latest' if local_jar_file.stat.exists else backend_image }}"
-    state: started
-    recreate: true
-    restart_policy: always
-    pull: "{{ 'never' if local_jar_file.stat.exists else 'always' }}"
-    ports:
-      - "{{ backend_port }}:8080"
-    env:
-      DB_HOST: "{{ db_host }}"
-      DB_NAME: "{{ mysql_database }}"
-      DB_USERNAME: "{{ mysql_user }}"
-      DB_PASSWORD: "{{ mysql_password }}"
-      SPRING_DATASOURCE_URL: "jdbc:mysql://{{ db_host }}:3306/{{ mysql_database }}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&characterEncoding=UTF-8&useUnicode=true"
-      SPRING_DATASOURCE_USERNAME: "{{ mysql_user }}"
-      SPRING_DATASOURCE_PASSWORD: "{{ mysql_password }}"
-      SPRING_DATASOURCE_DRIVER_CLASS_NAME: "com.mysql.cj.jdbc.Driver"
-      SPRING_JPA_DATABASE_PLATFORM: "org.hibernate.dialect.MySQLDialect"
-      SERVER_PORT: "8080"
-      JWT_SECRET: "{{ backend_jwt_secret }}"
-      CLIENT_ID: "{{ backend_client_id }}"
-      CLIENT_SECRET: "{{ backend_client_secret }}"
-      TENANT_ID: "{{ backend_tenant_id }}"
-      REDIRECT_URI: "{{ backend_redirect_uri }}"
-      COOKIE_SECURE: "{{ backend_cookie_secure }}"
-      DATAJUD_API_KEY: "{{ backend_datajud_api_key | default(omit) }}"
-      CLOUDFLARE_SECRET_KEY: "{{ backend_cloudflare_secret_key | default(omit) }}"
-
-- name: Aguardar o Backend aceitar conexoes na porta 8080
-  ansible.builtin.wait_for:
-    host: "127.0.0.1"
-    port: "{{ backend_port }}"
-    delay: 5
-    timeout: 120
-    state: started
+- name: Criar diretório de uploads do Backend no EFS
+  ansible.builtin.file:
+    path: /mnt/efs-sgpj/volumes/backend/uploads
+    state: directory
+    mode: "0777"
+  ignore_errors: true

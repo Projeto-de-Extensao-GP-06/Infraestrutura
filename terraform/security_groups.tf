@@ -68,6 +68,39 @@ resource "aws_security_group" "app" {
     cidr_blocks = [var.vpc_cidr]
   }
 
+  # ── Portas Docker Swarm ───────────────────────────────────────────────────
+  ingress {
+    description = "Swarm Manager API (entre nodes)"
+    from_port   = 2377
+    to_port     = 2377
+    protocol    = "tcp"
+    cidr_blocks = [var.vpc_cidr]
+  }
+
+  ingress {
+    description = "Swarm gossip TCP (entre nodes)"
+    from_port   = 7946
+    to_port     = 7946
+    protocol    = "tcp"
+    cidr_blocks = [var.vpc_cidr]
+  }
+
+  ingress {
+    description = "Swarm gossip UDP (entre nodes)"
+    from_port   = 7946
+    to_port     = 7946
+    protocol    = "udp"
+    cidr_blocks = [var.vpc_cidr]
+  }
+
+  ingress {
+    description = "Swarm overlay VXLAN UDP (entre nodes)"
+    from_port   = 4789
+    to_port     = 4789
+    protocol    = "udp"
+    cidr_blocks = [var.vpc_cidr]
+  }
+
   egress {
     from_port   = 0
     to_port     = 0
@@ -105,6 +138,39 @@ resource "aws_security_group" "backend" {
     from_port   = 9100
     to_port     = 9100
     protocol    = "tcp"
+    cidr_blocks = [var.vpc_cidr]
+  }
+
+  # ── Portas Docker Swarm ───────────────────────────────────────────────────
+  ingress {
+    description = "Swarm Manager API (entre nodes)"
+    from_port   = 2377
+    to_port     = 2377
+    protocol    = "tcp"
+    cidr_blocks = [var.vpc_cidr]
+  }
+
+  ingress {
+    description = "Swarm gossip TCP (entre nodes)"
+    from_port   = 7946
+    to_port     = 7946
+    protocol    = "tcp"
+    cidr_blocks = [var.vpc_cidr]
+  }
+
+  ingress {
+    description = "Swarm gossip UDP (entre nodes)"
+    from_port   = 7946
+    to_port     = 7946
+    protocol    = "udp"
+    cidr_blocks = [var.vpc_cidr]
+  }
+
+  ingress {
+    description = "Swarm overlay VXLAN UDP (entre nodes)"
+    from_port   = 4789
+    to_port     = 4789
+    protocol    = "udp"
     cidr_blocks = [var.vpc_cidr]
   }
 

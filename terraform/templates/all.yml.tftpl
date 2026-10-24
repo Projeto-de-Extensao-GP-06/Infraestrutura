@@ -19,13 +19,14 @@ backend_hosts:
   - "${backend_a_ip}"
   - "${backend_b_ip}"
 
-# ── Repositórios de Imagens Docker (Amazon ECR prioritário) ───────────────────
+# ── Repositórios de Imagens Docker (Amazon ECR) ───────────────────────────────
 use_ecr: true
 ecr_registry_url: "${split("/", ecr_frontend_url)[0]}"
 ecr_frontend_image: "${ecr_frontend_url}:latest"
 ecr_backend_image: "${ecr_backend_url}:latest"
-docker_frontend_image: "lpamorim/sgpj-frontend:latest"
-docker_backend_image: "lpamorim/sgpj-backend:latest"
+
+# ── Docker Swarm ──────────────────────────────────────────────────────────────
+swarm_manager_ip: "${swarm_manager_ip}"
 
 # ── Configuração de Observabilidade (Opcional) ────────────────────────────────
 enable_observability: ${enable_observability}

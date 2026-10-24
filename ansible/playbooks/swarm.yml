@@ -1,0 +1,25 @@
+---
+# ──────────────────────────────────────────────────────────────────────────────
+# Playbook: swarm.yml
+# Inicializa o Docker Swarm e faz o deploy da stack SGPJ.
+# Roda em TODOS os nodes (app + backend) — o role filtra por grupo internamente.
+# ──────────────────────────────────────────────────────────────────────────────
+- name: Inicializar Docker Swarm e fazer deploy da stack SGPJ
+  hosts: app:backend
+  become: true
+  serial:
+    - 1       # Primeiro o manager (app[0])
+    - "100%"  # Depois todos os workers em paralelo
+
+  pre_tasks:
+    - name: Carregar segredos locais (secrets.yml) se existirem
+      ansible.builtin.include_vars:
+        file: "{{ item }}"
+      with_first_found:
+        - files:
+            - "{{ playbook_dir }}/../secrets.yml"
+            - "{{ playbook_dir }}/secrets.yml"
+          skip: true
+
+  roles:
+    - swarm

@@ -1,31 +1,18 @@
 ---
+# ──────────────────────────────────────────────────────────────────────────────
+# role: app
+# Com Docker Swarm, o deploy do container é feito pela role 'swarm'.
+# Esta role apenas prepara o EFS com os arquivos estáticos do Frontend
+# (caso exista um bundle local compilado) para o Nginx conseguir servi-los.
+# ──────────────────────────────────────────────────────────────────────────────
+
 - name: Criar diretorio para o Frontend
   ansible.builtin.file:
     path: /opt/app-frontend
     state: directory
     mode: "0755"
 
-# ── Autenticação ECR ──────────────────────────────────────────────────────────
-- name: Obter token de autenticação do ECR (executado localmente)
-  ansible.builtin.command:
-    cmd: "aws ecr get-login-password --region {{ aws_region }}"
-  register: ecr_token
-  delegate_to: localhost
-  become: false
-  run_once: true
-  when: use_ecr | default(false)
-  no_log: true
-
-- name: Autenticar Docker no ECR
-  ansible.builtin.shell: |
-    echo "{{ ecr_token.stdout }}" | docker login --username AWS --password-stdin {{ ecr_registry_url }}
-  when:
-    - use_ecr | default(false)
-    - ecr_token is defined
-    - ecr_token.stdout is defined
-  no_log: true
-
-# ── Verificar bundle local (deploy alternativo sem ECR) ───────────────────────
+# Verificar se existe bundle dist local (build do React)
 - name: Verificar se bundle compilado do Frontend existe localmente
   ansible.builtin.stat:
     path: "{{ app_dist_path }}"
@@ -33,32 +20,7 @@
   delegate_to: localhost
   become: false
 
-- name: Copiar bundle do Frontend para a instancia
-  ansible.builtin.copy:
-    src: "{{ app_dist_path }}/"
-    dest: /opt/app-frontend/dist/
-    mode: "0755"
-  when: local_dist_dir.stat.exists and local_dist_dir.stat.isdir
-
-- name: Criar Dockerfile para o Frontend (Nginx Alpine)
-  ansible.builtin.copy:
-    dest: /opt/app-frontend/Dockerfile
-    content: |
-      FROM nginx:alpine
-      COPY dist/ /usr/share/nginx/html/
-      EXPOSE 80
-    mode: "0644"
-  when: local_dist_dir.stat.exists and local_dist_dir.stat.isdir
-
-- name: Build da imagem local do Frontend caso use bundle dist
-  community.docker.docker_image:
-    name: "sgpj-frontend:latest"
-    build:
-      path: /opt/app-frontend
-    source: build
-    force_source: true
-  when: local_dist_dir.stat.exists and local_dist_dir.stat.isdir
-
+# Sincronizar arquivos estáticos para o EFS (se existir build local)
 - name: Sincronizar arquivos estáticos do React para o EFS compartilhado do Nginx
   ansible.builtin.copy:
     src: "{{ app_dist_path }}/"
@@ -66,42 +28,3 @@
     mode: "0755"
   when: local_dist_dir.stat.exists and local_dist_dir.stat.isdir
   ignore_errors: true
-
-# ── Pull da imagem ECR (quando não há bundle local) ───────────────────────────
-- name: Baixar imagem da aplicacao do ECR
-  community.docker.docker_image:
-    name: "{{ app_image }}"
-    source: pull
-    force_source: true
-  when:
-    - not (local_dist_dir.stat.exists and local_dist_dir.stat.isdir)
-    - use_ecr | default(false)
-
-- name: Baixar imagem da aplicacao do Docker Hub (fallback sem ECR)
-  community.docker.docker_image:
-    name: "{{ app_image }}"
-    source: pull
-  when:
-    - not (local_dist_dir.stat.exists and local_dist_dir.stat.isdir)
-    - not (use_ecr | default(false))
-
-- name: Extrair bundle estatico do Frontend da imagem Docker para o EFS compartilhado
-  ansible.builtin.shell: >
-    docker run --rm -v {{ nginx_html_host_path }}:/efs-target {{ app_image }} cp -r /usr/share/nginx/html/. /efs-target/
-  when: not (local_dist_dir.stat.exists and local_dist_dir.stat.isdir)
-  run_once: true
-
-- name: Subir container da aplicacao frontend
-  community.docker.docker_container:
-    name: "{{ app_container_name }}"
-    image: "{{ 'sgpj-frontend:latest' if (local_dist_dir.stat.exists and local_dist_dir.stat.isdir) else app_image }}"
-    state: started
-    restart_policy: unless-stopped
-    recreate: true
-    pull: "{{ 'never' if (local_dist_dir.stat.exists and local_dist_dir.stat.isdir) else 'always' }}"
-    networks:
-      - name: "{{ app_network }}"
-    ports:
-      - "{{ app_host_port }}:{{ app_container_port }}"
-    etc_hosts:
-      host.docker.internal: host-gateway

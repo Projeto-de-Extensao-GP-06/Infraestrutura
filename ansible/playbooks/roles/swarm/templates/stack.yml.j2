@@ -1,0 +1,111 @@
+version: "3.9"
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Docker Swarm Stack — SGPJ
+# Gerado pelo Ansible (roles/swarm/templates/stack.yml.j2)
+# NÃO EDITE MANUALMENTE.
+# ──────────────────────────────────────────────────────────────────────────────
+
+networks:
+  sgpj_net:
+    driver: overlay
+    attachable: true
+
+services:
+
+  # ── Nginx / Frontend React ─────────────────────────────────────────────────
+  nginx:
+    image: {{ ecr_frontend_image }}
+    networks:
+      - sgpj_net
+    ports:
+      - "3000:80"
+    deploy:
+      replicas: 2
+      placement:
+        constraints:
+          - node.labels.role == app
+      update_config:
+        parallelism: 1          # atualiza 1 réplica por vez
+        delay: 10s
+        failure_action: rollback
+        order: start-first      # sobe novo antes de parar o antigo (zero-downtime)
+      rollback_config:
+        parallelism: 1
+        delay: 5s
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:80"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+  # ── Backend Spring Boot ────────────────────────────────────────────────────
+  backend:
+    image: {{ ecr_backend_image }}
+    networks:
+      - sgpj_net
+    ports:
+      - "8080:8080"
+    environment:
+      DB_HOST: "{{ db_host }}"
+      DB_NAME: "{{ mysql_database }}"
+      DB_USERNAME: "{{ mysql_user }}"
+      DB_PASSWORD: "{{ mysql_password }}"
+      SPRING_DATASOURCE_URL: "jdbc:mysql://{{ db_host }}:3306/{{ mysql_database }}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&characterEncoding=UTF-8&useUnicode=true"
+      SPRING_DATASOURCE_USERNAME: "{{ mysql_user }}"
+      SPRING_DATASOURCE_PASSWORD: "{{ mysql_password }}"
+      SPRING_DATASOURCE_DRIVER_CLASS_NAME: "com.mysql.cj.jdbc.Driver"
+      SPRING_JPA_DATABASE_PLATFORM: "org.hibernate.dialect.MySQLDialect"
+      SERVER_PORT: "8080"
+{% if backend_jwt_secret is defined and backend_jwt_secret %}
+      JWT_SECRET: "{{ backend_jwt_secret }}"
+{% endif %}
+{% if backend_client_id is defined and backend_client_id %}
+      CLIENT_ID: "{{ backend_client_id }}"
+{% endif %}
+{% if backend_client_secret is defined and backend_client_secret %}
+      CLIENT_SECRET: "{{ backend_client_secret }}"
+{% endif %}
+{% if backend_tenant_id is defined and backend_tenant_id %}
+      TENANT_ID: "{{ backend_tenant_id }}"
+{% endif %}
+{% if backend_redirect_uri is defined and backend_redirect_uri %}
+      REDIRECT_URI: "{{ backend_redirect_uri }}"
+{% endif %}
+{% if backend_cookie_secure is defined %}
+      COOKIE_SECURE: "{{ backend_cookie_secure }}"
+{% endif %}
+{% if backend_datajud_api_key is defined and backend_datajud_api_key %}
+      DATAJUD_API_KEY: "{{ backend_datajud_api_key }}"
+{% endif %}
+{% if backend_cloudflare_secret_key is defined and backend_cloudflare_secret_key %}
+      CLOUDFLARE_SECRET_KEY: "{{ backend_cloudflare_secret_key }}"
+{% endif %}
+    deploy:
+      replicas: 2
+      placement:
+        constraints:
+          - node.labels.role == backend
+      update_config:
+        parallelism: 1          # atualiza 1 réplica por vez
+        delay: 15s
+        failure_action: rollback
+        order: start-first      # zero-downtime
+      rollback_config:
+        parallelism: 1
+        delay: 5s
+      restart_policy:
+        condition: any
+        delay: 10s
+        max_attempts: 5
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 15s
+      retries: 5
+      start_period: 60s

@@ -2,7 +2,7 @@
 # ──────────────────────────────────────────────────────────────────────────────
 # Playbook Mestre: site.yml
 # Orquestra todo o provisionamento e inicialização das aplicações na ordem:
-# Docker -> MySQL DB -> Backend -> Nginx/Frontend -> Observabilidade -> Logs
+# Docker -> MySQL DB -> Swarm (init + deploy stack) -> Observabilidade
 # ──────────────────────────────────────────────────────────────────────────────
 
 - name: 1. Instalar Docker em todos os nós
@@ -11,14 +11,8 @@
 - name: 2. Subir Banco de Dados MySQL na instância db
   import_playbook: db.yml
 
-- name: 3. Subir Backend Spring Boot conectado ao MySQL
-  import_playbook: backend.yml
+- name: 3. Inicializar Docker Swarm e fazer deploy da stack (Frontend + Backend)
+  import_playbook: swarm.yml
 
-- name: 4. Subir Nginx com Proxy Reverso apontando para os Backends
-  import_playbook: nginx.yml
-
-- name: 5. Subir Frontend da Aplicação
-  import_playbook: app.yml
-
-- name: 6. Provisionar Observabilidade (Opcional - só roda se habilitado)
+- name: 4. Provisionar Observabilidade (Opcional - só roda se habilitado)
   import_playbook: observability.yml

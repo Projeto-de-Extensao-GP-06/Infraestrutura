@@ -38,6 +38,7 @@ resource "local_file" "ansible_vars" {
     ecr_backend_url      = aws_ecr_repository.backend.repository_url
     enable_observability = var.enable_observability
     observability_ip     = var.enable_observability ? aws_instance.observability[0].private_ip : ""
+    swarm_manager_ip     = aws_instance.app_a.private_ip
   })
 }
 
@@ -54,7 +55,6 @@ resource "null_resource" "run_ansible" {
     aws_instance.observability,
     aws_ecr_repository.frontend,
     aws_ecr_repository.backend,
-    null_resource.sync_dockerhub_to_ecr,
     local_file.ansible_inventory,
     local_file.ansible_vars
   ]
