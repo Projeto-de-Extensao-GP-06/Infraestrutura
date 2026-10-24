@@ -10,6 +10,11 @@ resource "aws_ecr_repository" "frontend" {
     scan_on_push = true
   }
 
+  # Protege o repositório de ser destruído acidentalmente pelo terraform destroy
+  lifecycle {
+    prevent_destroy = true
+  }
+
   tags = {
     Name        = "sgpj-frontend"
     Environment = "production"
@@ -22,6 +27,11 @@ resource "aws_ecr_repository" "backend" {
 
   image_scanning_configuration {
     scan_on_push = true
+  }
+
+  # Protege o repositório de ser destruído acidentalmente pelo terraform destroy
+  lifecycle {
+    prevent_destroy = true
   }
 
   tags = {

@@ -70,6 +70,22 @@ case "$SERVICE" in
     DEPLOY_BACKEND=true
     BACKEND_PATH="${2:-$DEFAULT_BACKEND_PATH}"
     ;;
+  db)
+    # Re-provisiona o banco via Ansible (atualiza schema.sql ou configurações do MySQL)
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    ANSIBLE_DIR="$SCRIPT_DIR/../ansible"
+    INVENTORY="$ANSIBLE_DIR/inventories/production.ini"
+    [[ ! -f "$INVENTORY" ]] && error "Inventário não encontrado. Execute terraform apply primeiro."
+    info "Re-provisionando banco de dados MySQL via Ansible..."
+    cd "$ANSIBLE_DIR"
+    ansible-playbook -i inventories/production.ini playbooks/db.yml
+    success "Banco de dados re-provisionado com sucesso!"
+    echo ""
+    echo "  ⚠️  Para atualizar só o schema.sql, edite:"
+    echo "  scripts/test/schema.sql"
+    echo ""
+    exit 0
+    ;;
   *)
     echo ""
     echo "Uso:"
@@ -77,8 +93,9 @@ case "$SERVICE" in
     echo "  $0 all          → deploys frontend + backend"
     echo "  $0 frontend     → só o frontend"
     echo "  $0 backend      → só o backend"
+    echo "  $0 db           → re-provisiona o banco via Ansible"
     echo ""
-    error "Serviço inválido: '$SERVICE'. Use: all | frontend | backend"
+    error "Serviço inválido: '$SERVICE'. Use: all | frontend | backend | db"
     ;;
 esac
 
