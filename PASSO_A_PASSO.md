@@ -235,3 +235,12 @@ docker service logs -f --tail 50 sgpj_backend
 # Acessar a aplicação via DNS do Load Balancer:
 # http://<ALB_DNS>
 ```
+
+---
+
+## 9) Integração com Microsoft OneDrive (OAuth2)
+
+- Em ambiente local (`localhost:8080`), a integração e reconexão com o OneDrive funcionam de ponta a ponta sem necessidade de SSL/HTTPS (exceção nativa da Microsoft para loopback).
+- Para produção e nuvem AWS (onde a Microsoft exige HTTPS e o ALB possui DNS efêmero que muda a cada `destroy/apply`), consulte o guia completo de arquitetura, SSL/Certificados e proxy Cloudflare em:
+  [`INTEGRACAO_ONEDRIVE.md`](file:///c:/Users/compu/OneDrive%20-%20SPTech%20School/GitHub/Grupo06/infra/INTEGRACAO_ONEDRIVE.md) (também disponível em [`Backend/docs/INTEGRACAO_ONEDRIVE.md`](file:///c:/Users/compu/OneDrive%20-%20SPTech%20School/GitHub/Grupo06/Backend/docs/INTEGRACAO_ONEDRIVE.md)).
+

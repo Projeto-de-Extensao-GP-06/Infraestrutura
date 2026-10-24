@@ -50,6 +50,7 @@ Thumbs.db
 *~
 *.sqlite
 .c3x-cache*
+.infracost/
 
 # ── Logs & Testes ─────────────────────────
 *.log
