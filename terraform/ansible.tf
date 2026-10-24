@@ -39,6 +39,7 @@ resource "local_file" "ansible_vars" {
     enable_observability = var.enable_observability
     observability_ip     = var.enable_observability ? aws_instance.observability[0].private_ip : ""
     swarm_manager_ip     = aws_instance.app_a.private_ip
+    bronze_bucket        = local.bronze_bucket
   })
 }
 

@@ -28,6 +28,10 @@ ecr_backend_image: "${ecr_backend_url}:latest"
 # ── Docker Swarm ──────────────────────────────────────────────────────────────
 swarm_manager_ip: "${swarm_manager_ip}"
 
+# ── Data Lake / Logs S3 (Fluent Bit) ──────────────────────────────────────────
+bronze_bucket: "${bronze_bucket}"
+s3_bronze_bucket: "${bronze_bucket}"
+
 # ── Configuração de Observabilidade (Opcional) ────────────────────────────────
 enable_observability: ${enable_observability}
 observability_host: "${observability_ip}"

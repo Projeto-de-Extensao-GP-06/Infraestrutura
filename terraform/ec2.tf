@@ -31,9 +31,9 @@ resource "aws_instance" "backend_a" {
   instance_type          = var.instance_type
   subnet_id              = aws_subnet.private_backend_a.id
   vpc_security_group_ids = [aws_security_group.backend.id]
+  iam_instance_profile   = var.enable_observability_iam ? aws_iam_instance_profile.observability_ec2_profile[0].name : var.observability_existing_instance_profile_name
   key_name               = var.Key-All
-  # iam_instance_profile   = aws_iam_instance_profile.backend_s3.name
-  user_data = file("${path.module}/../scripts/util/bootstrap.sh")
+  user_data              = file("${path.module}/../scripts/util/bootstrap.sh")
 
   tags = { Name = "ec2-backend-a" }
 }
@@ -43,9 +43,9 @@ resource "aws_instance" "backend_b" {
   instance_type          = var.instance_type
   subnet_id              = aws_subnet.private_backend_b.id
   vpc_security_group_ids = [aws_security_group.backend.id]
+  iam_instance_profile   = var.enable_observability_iam ? aws_iam_instance_profile.observability_ec2_profile[0].name : var.observability_existing_instance_profile_name
   key_name               = var.Key-All
-  # iam_instance_profile   = aws_iam_instance_profile.backend_s3.name
-  user_data = file("${path.module}/../scripts/util/bootstrap.sh")
+  user_data              = file("${path.module}/../scripts/util/bootstrap.sh")
 
   tags = { Name = "ec2-backend-b" }
 }
@@ -56,6 +56,7 @@ resource "aws_instance" "db" {
   instance_type          = var.instance_type
   subnet_id              = aws_subnet.private_db_a.id
   vpc_security_group_ids = [aws_security_group.db.id]
+  iam_instance_profile   = var.enable_observability_iam ? aws_iam_instance_profile.observability_ec2_profile[0].name : var.observability_existing_instance_profile_name
   key_name               = var.Key-All
   user_data              = file("${path.module}/../scripts/util/bootstrap.sh")
 

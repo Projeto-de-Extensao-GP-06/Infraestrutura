@@ -2,7 +2,7 @@
 # ──────────────────────────────────────────────────────────────────────────────
 # Playbook Mestre: site.yml
 # Orquestra todo o provisionamento e inicialização das aplicações na ordem:
-# Docker -> MySQL DB -> Swarm (init + deploy stack) -> Observabilidade
+# Docker -> MySQL DB -> Swarm (init + deploy stack) -> Observabilidade -> Fluent Bit
 # ──────────────────────────────────────────────────────────────────────────────
 
 - name: 1. Instalar Docker em todos os nós
@@ -14,5 +14,8 @@
 - name: 3. Inicializar Docker Swarm e fazer deploy da stack (Frontend + Backend)
   import_playbook: swarm.yml
 
-- name: 4. Provisionar Observabilidade (Opcional - só roda se habilitado)
+- name: 4. Provisionar Observabilidade (Opcional - Grafana/Prometheus/Loki)
   import_playbook: observability.yml
+
+- name: 5. Provisionar Fluent Bit em todos os nós (Log Shipping para S3 Bronze)
+  import_playbook: fluentbit.yml

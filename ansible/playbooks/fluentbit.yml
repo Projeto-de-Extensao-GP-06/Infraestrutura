@@ -1,0 +1,13 @@
+---
+# ──────────────────────────────────────────────────────────────────────────────
+# playbook: fluentbit.yml
+# Instala e configura o Fluent Bit em todas as instâncias EC2 para capturar
+# logs de containers Docker, Nginx e Sistema Operacional, enviando para o
+# bucket S3 Bronze Tier particionado.
+# ──────────────────────────────────────────────────────────────────────────────
+- name: Deploy e configuracao do Fluent Bit (Log Shipping para S3 Bronze)
+  hosts: all
+  become: true
+
+  roles:
+    - fluentbit

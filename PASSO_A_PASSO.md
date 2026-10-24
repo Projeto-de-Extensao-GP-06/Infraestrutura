@@ -1,12 +1,13 @@
 # Passo a Passo — Infraestrutura SGPJ (Grupo 06)
 
-> **Arquitetura Atualizada (Docker Swarm + AWS ECR):**
+> **Arquitetura Atualizada (Docker Swarm + AWS ECR + Observabilidade & Fluent Bit):**
 > - **Orquestração:** Docker Swarm em cluster (`ec2-app-a` Manager; `ec2-app-b`, `ec2-backend-a/b` Workers).
 > - **Repositório de Imagens:** AWS ECR (`sgpj-frontend` e `sgpj-backend`).
 > - **Deploy de Aplicação:** Stack Swarm com Rolling Update (zero downtime), alias de rede overlay `api.backend` e healthchecks.
 > - **Banco:** MySQL 8.0 em container Docker na `ec2-db` (fora do Swarm por segurança/estado).
 > - **Proxy / Ingress:** ALB na porta 80 balanceando para o serviço `nginx` (React SPA + Proxy reverso `/api/` para `api.backend:8080`).
-> - **Observabilidade:** Opcional — Grafana + Loki + Prometheus + Alloy (habilitada por flag).
+> - **Observabilidade Ativa:** Grafana (`3001`) + Loki (`3100`) + Prometheus (`9090`) liberados para acesso público na EC2 de observabilidade.
+> - **Log Shipping & Data Lake:** Fluent Bit instalado em todas as EC2, enviando logs compactados em Gzip para o S3 Bronze Tier (`s3://sgpj-bronze-<account-id>/logs/`), catalogados via AWS Glue e consultáveis via AWS Athena.
 
 ---
 
@@ -35,23 +36,28 @@ export AWS_SESSION_TOKEN="..."
 
 ### 0.2 Arquivo de variáveis do Terraform — `terraform/terraform.tfvars`
 
-Verifique ou configure em `infra/terraform/terraform.tfvars`:
+Configurado em `infra/terraform/terraform.tfvars`:
 
 ```hcl
-Key-All    = "vockey"          # nome do Key Pair na AWS
-region     = "us-east-1"
+Key-All = "vockey"
+region  = "us-east-1"
 
-# ── Banco de Dados MySQL (container na ec2-db) ────────────────────────────────
-rds_password = "SUA_SENHA_DO_BANCO"
+# ── Observabilidade (Grafana, Prometheus, Loki) ─────────────────
+# Habilitado com acesso publico (0.0.0.0/0) para demonstracao e avaliacao
+enable_observability       = true
+observability_allowed_cidr = "0.0.0.0/0"
+observability_existing_instance_profile_name = "LabInstanceProfile"
+
+# ── Execucao Automatica do Ansible pelo Terraform ────────────
+auto_run_ansible = true
+
+# ── Data Lake IAM (Glue Crawlers/Jobs - bloqueado no AWS Academy) ─
+enable_data_lake_iam = false
+
+# ── Banco de Dados MySQL na EC2 db ───────────────────────────
+rds_password = "sgpj96321"
 rds_db_name  = "sgpj"
 rds_username = "admin"
-
-# ── Observabilidade (Opcional) ────────────────────────────────────────────────
-enable_observability       = false               # mude para true quando quiser Grafana/Prometheus/Loki
-observability_allowed_cidr = "SEU_IP_PUBLICO/32" # curl https://ifconfig.me/ip
-
-# ── Execução Automática do Ansible pelo Terraform ─────────────────────────────
-auto_run_ansible = true   # true = Terraform dispara o Ansible automaticamente após o apply
 ```
 
 ---
@@ -80,21 +86,25 @@ cd ../scripts
 ```
 > O script automatiza tudo: compila React (`dist/`), empacota Spring Boot (`.jar`), cria imagens Docker e faz o push para o ECR. Como detecta que o Swarm ainda não está no ar, ele envia as imagens e aguarda a criação da infra.
 
-### Passo 1.3 — Subir Toda a Infraestrutura (EC2s + Swarm + Stack)
+### Passo 1.3 — Subir Toda a Infraestrutura (EC2s + Swarm + Stack + Observabilidade + Fluent Bit)
 ```bash
 cd ../terraform
 terraform apply --auto-approve
 ```
 O Terraform criará:
-1. VPC, subnets, Security Groups (com portas do Swarm `2377`, `7946`, `4789`) e Internet Gateway
-2. EC2s (`ec2-app-a`, `ec2-app-b`, `ec2-backend-a`, `ec2-backend-b`, `ec2-db`)
+1. VPC, subnets, Security Groups (com portas do Swarm `2377`, `7946`, `4789` e Observabilidade pública `3001`, `9090`) e Internet Gateway
+2. EC2s: `ec2-app-a`, `ec2-app-b`, `ec2-backend-a`, `ec2-backend-b`, `ec2-db` e `ec2-observability`
 3. Application Load Balancer (ALB) e EFS compartilhado
-4. Gera dinamicamente `ansible/inventories/production.ini` e `group_vars/all.yml`
-5. **Dispara o Ansible automaticamente:**
+4. Repositórios ECR e Buckets S3 (Bronze, Silver, Gold e Athena Results)
+5. Glue Catalog Database `sgpj_logs_bronze` e Athena Workgroup `sgpj-logs-analytics`
+6. Gera dinamicamente `ansible/inventories/production.ini` e `group_vars/all.yml`
+7. **Dispara o Ansible automaticamente:**
    - Instala Docker e monta o EFS
    - Sobe o MySQL 8.0 na `ec2-db` e roda `schema.sql`
    - Inicializa o **Docker Swarm**: `ec2-app-a` vira Manager, as outras EC2 viram Workers
    - Autentica no ECR e faz o `docker stack deploy` da aplicação SGPJ
+   - Provisiona o stack de Observabilidade (Grafana, Loki, Prometheus, Alertmanager)
+   - Instala e inicia o **Fluent Bit** em todas as máquinas para enviar logs ao S3 Bronze
 
 ---
 
@@ -113,21 +123,10 @@ cd infra/scripts
 ./deploy.sh all
 ```
 
-### O que o `./deploy.sh all` faz sozinho:
-1. Executa `npm ci` e `npm run build` na pasta do Frontend gerando `dist/`
-2. Executa `mvn package -DskipTests` na pasta do Backend gerando o `.jar`
-3. Constrói as imagens Docker locais usando os `Dockerfile` validados
-4. Autentica no Amazon ECR
-5. Envia as novas imagens para os repositórios ECR
-6. Conecta via SSH no Swarm Manager (`ec2-app-a`) e dispara:
-   `docker service update --image <ECR_URL>:latest --with-registry-auth`
-7. O Docker Swarm detecta a alteração de hash da imagem e realiza um **Rolling Update** (1 réplica por vez, sem downtime).
-
 ---
 
 ## 3) Referência de Comandos do `deploy.sh`
 
-Os caminhos dos projetos já vêm pré-configurados no script:
 ```bash
 ./deploy.sh           # Build + push + update de Frontend e Backend (padrão)
 ./deploy.sh all       # Mesmo comportamento de ./deploy.sh
@@ -163,20 +162,55 @@ terraform destroy --auto-approve
 - **Destruído:** EC2s, VPC, Subnets, Security Groups, ALB, EFS.
 - **Protegido:** Os repositórios ECR (`sgpj-frontend` e `sgpj-backend`) e suas imagens **NÃO são apagados**, pois possuem a diretiva `lifecycle { prevent_destroy = true }`.
 
-> Quando for subir a infra novamente após um destroy, **você não precisa fazer o Passo 1.1 nem 1.2**. Basta rodar direto `terraform apply --auto-approve`, pois as imagens já estão salvas no ECR!
+---
+
+## 6) Como Acessar e Usar a Observabilidade (Grafana)
+
+A instância de observabilidade está configurada com acesso liberado (`0.0.0.0/0`):
+
+1. Obtenha o IP público da instância de observabilidade:
+   ```bash
+   cd infra/terraform
+   terraform output observability_public_ip
+   ```
+2. Abra no navegador:
+   - **Grafana:** `http://<IP_OBSERVABILITY>:3001` (Usuário: `admin` / Senha: `admin`)
+   - **Prometheus:** `http://<IP_OBSERVABILITY>:9090`
+   - **Alertmanager:** `http://<IP_OBSERVABILITY>:9093`
+3. No Grafana:
+   - Em **Explore**, selecione **Loki** para buscar logs de containers em tempo real (ex: `{job="docker"}`).
+   - Selecione **Prometheus** para visualizar métricas de CPU, memória e rede via Node Exporter.
 
 ---
 
-## 6) Habilitar ou Desabilitar a Observabilidade
+## 7) Pipeline de Logs com Fluent Bit e AWS Athena
 
-A observabilidade é controlada pela flag `enable_observability` no `terraform.tfvars`.
+### 7.1 Como funciona
+- O **Fluent Bit** roda como serviço nativo em cada EC2.
+- Ele coleta logs locais de:
+  - Containers Docker: `/var/lib/docker/containers/*/*-json.log`
+  - Nginx: `/var/log/nginx/`
+  - Sistema Operacional: `/var/log/syslog` e `/var/log/auth.log`
+- Comprime em Gzip e descarrega automaticamente no S3 Bronze:
+  `s3://sgpj-bronze-<account-id>/logs/` particionado em Hive (`year=YYYY/month=MM/day=DD/hour=HH/`).
 
-- `enable_observability = false`: Não cria a EC2 de observabilidade, poupando custos.
-- `enable_observability = true`: Provisiona Grafana (`3001`), Prometheus (`9090`), Alertmanager (`9093`) e Loki (`3100`).
+### 7.2 Como consultar no AWS Athena (Web Console)
+1. Acesse o **AWS Athena** no console AWS da sua conta.
+2. No menu superior direito do Athena, mude o **Workgroup** para:
+   `sgpj-logs-analytics`
+3. Selecione o banco de dados:
+   `sgpj_logs_bronze`
+4. Na aba **Saved Queries**, você já encontrará consultas analíticas prontas criadas pelo Terraform:
+   - `logs_containers_erros_e_excecoes`: Lista erros e stack traces do Backend.
+   - `logs_nginx_status_distribuicao`: Estatísticas de status HTTP (200, 4xx, 5xx).
+   - `logs_nginx_top_rotas_acessadas`: Endpoints mais acessados da API.
+   - `logs_os_auditoria_falhas_ssh`: Tentativas de login inválidas no SSH.
+5. Se as tabelas ainda não tiverem sido criadas pelo Glue Crawler, crie-as executando o script SQL contido em:
+   [`infra/scripts/athena/create_tables.sql`](file:///c:/Users/compu/OneDrive%20-%20SPTech%20School/GitHub/Grupo06/infra/scripts/athena/create_tables.sql).
 
 ---
 
-## 7) Verificação e Troubleshooting no Swarm
+## 8) Verificação e Troubleshooting no Swarm
 
 Para verificar o status das réplicas e containers em produção:
 

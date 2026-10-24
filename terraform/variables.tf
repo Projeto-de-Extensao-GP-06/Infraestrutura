@@ -58,9 +58,9 @@ variable "instance_type" {
 }
 
 variable "observability_allowed_cidr" {
-  description = "CIDR autorizado para acessar Prometheus (9090) e Grafana (3001), ex: 203.0.113.10/32"
+  description = "CIDR autorizado para acessar Prometheus (9090) e Grafana (3001), ex: 0.0.0.0/0 ou 203.0.113.10/32"
   type        = string
-  default     = null
+  default     = "0.0.0.0/0"
   nullable    = true
 }
 
@@ -71,9 +71,9 @@ variable "enable_observability_iam" {
 }
 
 variable "observability_existing_instance_profile_name" {
-  description = "Nome de um Instance Profile IAM ja existente para anexar nas EC2 app (opcional)"
+  description = "Nome de um Instance Profile IAM ja existente para anexar nas EC2 (LabInstanceProfile no AWS Academy)"
   type        = string
-  default     = null
+  default     = "LabInstanceProfile"
 }
 
 variable "force_observability_aws_integrations" {
@@ -85,7 +85,7 @@ variable "force_observability_aws_integrations" {
 variable "enable_observability" {
   description = "Define se a infraestrutura de observabilidade (EC2 Grafana/Prometheus/Loki) deve ser provisionada"
   type        = bool
-  default     = false
+  default     = true
 }
 
 variable "auto_run_ansible" {

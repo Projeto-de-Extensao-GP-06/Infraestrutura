@@ -1,0 +1,37 @@
+[PARSER]
+    Name        docker
+    Format      json
+    Time_Key    time
+    Time_Format %Y-%m-%dT%H:%M:%S.%L%z
+    Time_Keep   On
+
+[PARSER]
+    Name        nginx_access
+    Format      regex
+    Regex       ^(?<remote>[^ ]*) (?<host>[^ ]*) (?<user>[^ ]*) \[(?<time>[^\]]*)\] "(?<method>\S+)(?: +(?<path>[^\"]*?)(?: +\S*)?)?" (?<code>[^ ]*) (?<size>[^ ]*)(?: "(?<referer>[^\"]*)" "(?<agent>[^\"]*)")?$
+    Time_Key    time
+    Time_Format %d/%b/%Y:%H:%M:%S %z
+    Types       code:integer size:integer
+
+[PARSER]
+    Name        nginx_error
+    Format      regex
+    Regex       ^(?<time>\d{4}\/\d{2}\/\d{2} \d{2}:\d{2}:\d{2}) \[(?<level>\w+)\] (?<pid>\d+)#(?<tid>\d+): (?<message>.*)$
+    Time_Key    time
+    Time_Format %Y/%m/%d %H:%M:%S
+
+[PARSER]
+    Name        syslog_rfc3164
+    Format      regex
+    Regex       ^<(?<pri>[0-9]+)>?(?<time>[^ ]* {1,2}[^ ]* [^ ]*) (?<host>[^ ]*) (?<ident>[a-zA-Z0-9_\/\.\-]*)(?:\[(?<pid>[0-9]+)\])?(?:[^\:]*\:)? *(?<message>.*)$
+    Time_Key    time
+    Time_Format %b %d %H:%M:%S
+    Time_Keep   On
+
+[PARSER]
+    Name        syslog_rfc5424
+    Format      regex
+    Regex       ^\<(?<pri>[0-9]{1,5})\>1 (?<time>[^ ]+) (?<host>[^ ]+) (?<app>[^ ]+) (?<pid>[^ ]+) (?<msgid>[^ ]+) (?<extradata>(\[(.*)\]|-)) (?<message>.+)$
+    Time_Key    time
+    Time_Format %Y-%m-%dT%H:%M:%S.%L%z
+    Time_Keep   On
