@@ -4,38 +4,37 @@ set -euo pipefail
 # ──────────────────────────────────────────────────────────────────────────────
 # deploy.sh — Build completo + Push para ECR + Atualização no Docker Swarm
 #
-# USO:
-#   ./deploy.sh all     <CAMINHO_FRONTEND> <CAMINHO_BACKEND>
-#   ./deploy.sh frontend <CAMINHO_FRONTEND>
-#   ./deploy.sh backend  <CAMINHO_BACKEND>
+# USO SIMPLES (recomendado):
+#   ./deploy.sh            → build + deploy frontend E backend
+#   ./deploy.sh all        → igual ao de cima
+#   ./deploy.sh frontend   → só o frontend
+#   ./deploy.sh backend    → só o backend
 #
-# EXEMPLOS (WSL):
-#   ./deploy.sh all /mnt/c/Users/compu/.../Frontend /mnt/c/Users/compu/.../Backend
-#   ./deploy.sh frontend /mnt/c/Users/compu/.../Frontend
-#   ./deploy.sh backend  /mnt/c/Users/compu/.../Backend
+# Os caminhos do Frontend e Backend já estão configurados abaixo.
+# Não é necessário passar nenhum argumento extra.
 #
-# PRÉ-REQUISITOS (não precisa passar variável nenhuma, tudo é detectado):
-#   ✅ AWS CLI configurado — cole as credenciais do Academy no terminal:
-#        export AWS_ACCESS_KEY_ID=...
-#        export AWS_SECRET_ACCESS_KEY=...
-#        export AWS_SESSION_TOKEN=...
-#   ✅ Docker rodando no WSL (docker info)
-#   ✅ Node.js + npm  instalados  (para npm run build do frontend)
-#   ✅ Java + Maven   instalados  (para mvn package do backend)
-#   ✅ Terraform já executado ao menos 1x (gera os inventários com IPs e URLs do ECR)
+# PRÉ-REQUISITO — Cole as credenciais do AWS Academy no terminal antes de rodar:
+#   export AWS_ACCESS_KEY_ID=...
+#   export AWS_SECRET_ACCESS_KEY=...
+#   export AWS_SESSION_TOKEN=...
 #
 # ORDEM DE USO:
+#
 #   1ª vez (infraestrutura ainda não existe):
 #     a) terraform apply -target=aws_ecr_repository.frontend \
 #                        -target=aws_ecr_repository.backend \
 #                        -target=aws_ecr_lifecycle_policy.frontend \
 #                        -target=aws_ecr_lifecycle_policy.backend \
 #                        --auto-approve
-#     b) ./deploy.sh all <front_path> <back_path>    ← sobe as imagens no ECR
-#     c) terraform apply --auto-approve               ← sobe EC2s + Swarm + stack
+#        ↑ SÓ NA PRIMEIRA VEZ! Cria os repos ECR antes de subir as imagens.
 #
-#   Atualizações (infraestrutura já está no ar):
-#     ./deploy.sh all <front_path> <back_path>        ← build + push + rolling update
+#     b) ./deploy.sh     ← build + push das imagens para o ECR
+#
+#     c) terraform apply --auto-approve
+#        ← sobe EC2s + inicializa Swarm + faz deploy da stack do ECR
+#
+#   Atualizações (infra já no ar — uso do dia a dia):
+#     ./deploy.sh        ← build + push + rolling update automático no Swarm
 # ──────────────────────────────────────────────────────────────────────────────
 
 # ── Cores para output ─────────────────────────────────────────────────────────
@@ -45,8 +44,12 @@ success() { echo -e "   ${GREEN}✅${NC} $*"; }
 warn()    { echo -e "   ${YELLOW}⚠️ ${NC} $*"; }
 error()   { echo -e "${RED}❌${NC} $*"; exit 1; }
 
+# ── Caminhos dos projetos (fixos — altere só se mover as pastas) ──────────────
+DEFAULT_FRONTEND_PATH="/mnt/c/Users/compu/OneDrive - SPTech School/GitHub/Grupo06/Frontend"
+DEFAULT_BACKEND_PATH="/mnt/c/Users/compu/OneDrive - SPTech School/GitHub/Grupo06/Backend"
+
 # ── Parâmetros ────────────────────────────────────────────────────────────────
-SERVICE="${1:-}"
+SERVICE="${1:-all}"
 DEPLOY_FRONTEND=false
 DEPLOY_BACKEND=false
 FRONTEND_PATH=""
@@ -54,28 +57,26 @@ BACKEND_PATH=""
 
 case "$SERVICE" in
   all)
-    [[ -z "${2:-}" || -z "${3:-}" ]] && error "Uso para 'all': $0 all <CAMINHO_FRONTEND> <CAMINHO_BACKEND>"
     DEPLOY_FRONTEND=true
     DEPLOY_BACKEND=true
-    FRONTEND_PATH="${2}"
-    BACKEND_PATH="${3}"
+    FRONTEND_PATH="${2:-$DEFAULT_FRONTEND_PATH}"
+    BACKEND_PATH="${3:-$DEFAULT_BACKEND_PATH}"
     ;;
   frontend)
-    [[ -z "${2:-}" ]] && error "Uso: $0 frontend <CAMINHO_FRONTEND>"
     DEPLOY_FRONTEND=true
-    FRONTEND_PATH="${2}"
+    FRONTEND_PATH="${2:-$DEFAULT_FRONTEND_PATH}"
     ;;
   backend)
-    [[ -z "${2:-}" ]] && error "Uso: $0 backend <CAMINHO_BACKEND>"
     DEPLOY_BACKEND=true
-    BACKEND_PATH="${2}"
+    BACKEND_PATH="${2:-$DEFAULT_BACKEND_PATH}"
     ;;
   *)
     echo ""
     echo "Uso:"
-    echo "  $0 all     <CAMINHO_FRONTEND> <CAMINHO_BACKEND>"
-    echo "  $0 frontend <CAMINHO_FRONTEND>"
-    echo "  $0 backend  <CAMINHO_BACKEND>"
+    echo "  $0              → deploys frontend + backend (padrão: all)"
+    echo "  $0 all          → deploys frontend + backend"
+    echo "  $0 frontend     → só o frontend"
+    echo "  $0 backend      → só o backend"
     echo ""
     error "Serviço inválido: '$SERVICE'. Use: all | frontend | backend"
     ;;
