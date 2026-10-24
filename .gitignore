@@ -41,17 +41,22 @@ secrets.yml
 ansible/secrets.yml
 !ansible/secrets.yml.example
 
-# ── Editores / OS ──────────────────────────
+# ── Editores / OS / Caches ──────────────────
 .DS_Store
 Thumbs.db
 .vscode/
 *.swp
 *.swo
 *~
+*.sqlite
+.c3x-cache*
 
-# ── Python ────────────────────────────────
-__pycache__/
-*.pyc
-*.pyo
-.venv/
-venv/
+# ── Logs & Testes ─────────────────────────
+*.log
+localstack_data/
+logs/
+tests/reports/
+dist/
+build/
+coverage/
+node_modules/
