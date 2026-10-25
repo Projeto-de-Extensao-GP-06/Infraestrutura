@@ -140,8 +140,21 @@ docker() { "$DOCKER_BIN" "$@"; }
 aws()    { "$AWS_BIN" "$@"; }
 
 if $DEPLOY_FRONTEND; then
-  [[ -z "$NPM_BIN" ]] && error "npm não encontrado. Instale o Node.js no WSL ou execute pelo PowerShell via: .\deploy.ps1 all"
-  npm() { "$NPM_BIN" "$@"; }
+  if [[ -z "$NPM_BIN" ]]; then
+    if [[ -f "$FRONTEND_PATH/dist/index.html" ]]; then
+      warn "npm não encontrado, mas detectada pasta dist/ existente. Reaproveitando build existente do Frontend."
+      NPM_BIN="SKIP"
+    else
+      error "npm não encontrado e nenhuma pasta dist/ existente. Instale o Node.js no WSL ou execute pelo PowerShell via: .\deploy.ps1 all"
+    fi
+  fi
+  npm() {
+    if [[ "$NPM_BIN" == "SKIP" ]]; then
+      info "Reaproveitando build existente em dist/..."
+    else
+      "$NPM_BIN" "$@"
+    fi
+  }
 fi
 if $DEPLOY_BACKEND; then
   if [[ -z "$MVN_BIN" ]]; then

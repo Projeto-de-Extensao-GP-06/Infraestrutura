@@ -45,8 +45,23 @@ if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
 if (-not (Get-Command aws -ErrorAction SilentlyContinue)) {
     Write-Err "AWS CLI nao encontrado. Verifique o PATH do Windows."
 }
-if ($DeployFrontend -and -not (Get-Command npm -ErrorAction SilentlyContinue)) {
-    Write-Err "npm / Node.js nao encontrado no PATH."
+# Frontend: suporta npm/pnpm/yarn ou reaproveita dist/ existente
+$NpmCmd = "npm"
+if ($DeployFrontend) {
+    if (Get-Command npm -ErrorAction SilentlyContinue) {
+        $NpmCmd = "npm"
+    } elseif (Get-Command pnpm -ErrorAction SilentlyContinue) {
+        $NpmCmd = "pnpm"
+    } elseif (Get-Command yarn -ErrorAction SilentlyContinue) {
+        $NpmCmd = "yarn"
+    } else {
+        $distFolder = Join-Path $FrontendPath "dist"
+        if (Test-Path (Join-Path $distFolder "index.html")) {
+            $NpmCmd = "SKIP_EXISTING_DIST"
+        } else {
+            Write-Err "npm / Node.js nao encontrado no PATH e nenhuma pasta dist/ encontrada."
+        }
+    }
 }
 
 # Maven: suporta mvn global, Maven Wrapper (mvnw.cmd) ou reaproveita target/*.jar existente
@@ -163,9 +178,14 @@ if ($DeployFrontend) {
     Write-Info "Compilando Frontend React (npm run build)..."
     Push-Location $FrontendPath
     try {
-        npm run build
-        if ($LASTEXITCODE -ne 0) { Write-Err "Falha no build do Frontend (npm run build)." }
-        Write-Success "Frontend compilado com sucesso!"
+        if ($NpmCmd -eq "SKIP_EXISTING_DIST") {
+            Write-Info "Reaproveitando build existente em dist/..."
+        } else {
+            Write-Info "Compilando Frontend React ($NpmCmd run build)..."
+            & $NpmCmd run build
+            if ($LASTEXITCODE -ne 0) { Write-Err "Falha no build do Frontend ($NpmCmd run build)." }
+            Write-Success "Frontend compilado com sucesso!"
+        }
 
         Write-Info "Criando imagem Docker do Frontend..."
         docker build --platform linux/amd64 -t "${EcrFrontendRepo}:latest" .
