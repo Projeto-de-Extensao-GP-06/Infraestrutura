@@ -128,8 +128,9 @@ resource "aws_glue_crawler" "logs_os_crawler" {
 
 # ── 4. AWS Athena Workgroup Dedicado ───────────────────────────────────────────
 resource "aws_athena_workgroup" "logs_workgroup" {
-  name        = "sgpj-logs-analytics"
-  description = "Workgroup do Athena dedicado para consultas analiticas sobre logs"
+  name          = "sgpj-logs-analytics"
+  description   = "Workgroup do Athena dedicado para consultas analiticas sobre logs"
+  force_destroy = true
 
   configuration {
     enforce_workgroup_configuration    = false
