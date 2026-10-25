@@ -1,4 +1,4 @@
----
+﻿---
 grafana_image: grafana/grafana:latest
 grafana_container_name: grafana
 grafana_host_port: 3001
@@ -14,10 +14,8 @@ grafana_admin_user: admin
 grafana_admin_password: admin
 grafana_prometheus_url: http://prometheus:9090
 grafana_loki_url: http://loki:3100
-grafana_tempo_url: http://tempo:3200
-grafana_dashboard_tracing_file: tracing-overview.json
 
-# ── SMTP / Alertas por e-mail ─────────────────────────────────────────────
+# â”€â”€ SMTP / Alertas por e-mail â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # Habilitar e preencher no inventario (production.ini) ou sobrescrever por host_vars
 grafana_smtp_enabled: "true"
 grafana_smtp_host: "smtp.gmail.com:587"
@@ -26,3 +24,4 @@ grafana_smtp_password: "mypc oocr emyz lbqz"
 grafana_smtp_from_address: "sistema.sgpj@gmail.com"
 grafana_smtp_from_name: "Grafana SGPJ"
 grafana_alert_email: "coffe2765@gmail.com"
+
