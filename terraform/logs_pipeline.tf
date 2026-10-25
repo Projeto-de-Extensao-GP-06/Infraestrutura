@@ -267,6 +267,244 @@ resource "aws_athena_named_query" "query_os_auth_failures" {
   SQL
 }
 
+# ── 5.1 Glue Catalog Tables (Athena External Tables) ─────────────────────────
+resource "aws_glue_catalog_table" "logs_containers" {
+  name          = "containers"
+  database_name = aws_glue_catalog_database.logs_db.name
+  table_type    = "EXTERNAL_TABLE"
+
+  parameters = {
+    "classification"     = "json"
+    "compressionType"    = "gzip"
+    "has_encrypted_data" = "false"
+  }
+
+  partition_keys {
+    name = "year"
+    type = "string"
+  }
+  partition_keys {
+    name = "month"
+    type = "string"
+  }
+  partition_keys {
+    name = "day"
+    type = "string"
+  }
+  partition_keys {
+    name = "hour"
+    type = "string"
+  }
+
+  storage_descriptor {
+    location      = "s3://${local.bronze_bucket}/logs/containers/"
+    input_format  = "org.apache.hadoop.mapred.TextInputFormat"
+    output_format = "org.apache.hadoop.hive.ql.io.IgnoreKeyTextOutputFormat"
+
+    ser_de_info {
+      name                  = "json-serde"
+      serialization_library = "org.openx.data.jsonserde.JsonSerDe"
+      parameters = {
+        "ignore.malformed.json" = "true"
+        "case.insensitive"      = "true"
+      }
+    }
+
+    columns {
+      name = "log"
+      type = "string"
+    }
+    columns {
+      name = "stream"
+      type = "string"
+    }
+    columns {
+      name = "time"
+      type = "string"
+    }
+    columns {
+      name = "host"
+      type = "string"
+    }
+    columns {
+      name = "environment"
+      type = "string"
+    }
+    columns {
+      name = "source_type"
+      type = "string"
+    }
+  }
+}
+
+resource "aws_glue_catalog_table" "logs_nginx" {
+  name          = "nginx"
+  database_name = aws_glue_catalog_database.logs_db.name
+  table_type    = "EXTERNAL_TABLE"
+
+  parameters = {
+    "classification"     = "json"
+    "compressionType"    = "gzip"
+    "has_encrypted_data" = "false"
+  }
+
+  partition_keys {
+    name = "year"
+    type = "string"
+  }
+  partition_keys {
+    name = "month"
+    type = "string"
+  }
+  partition_keys {
+    name = "day"
+    type = "string"
+  }
+  partition_keys {
+    name = "hour"
+    type = "string"
+  }
+
+  storage_descriptor {
+    location      = "s3://${local.bronze_bucket}/logs/nginx/"
+    input_format  = "org.apache.hadoop.mapred.TextInputFormat"
+    output_format = "org.apache.hadoop.hive.ql.io.IgnoreKeyTextOutputFormat"
+
+    ser_de_info {
+      name                  = "json-serde"
+      serialization_library = "org.openx.data.jsonserde.JsonSerDe"
+      parameters = {
+        "ignore.malformed.json" = "true"
+      }
+    }
+
+    columns {
+      name = "remote"
+      type = "string"
+    }
+    columns {
+      name = "host"
+      type = "string"
+    }
+    columns {
+      name = "user"
+      type = "string"
+    }
+    columns {
+      name = "time"
+      type = "string"
+    }
+    columns {
+      name = "method"
+      type = "string"
+    }
+    columns {
+      name = "path"
+      type = "string"
+    }
+    columns {
+      name = "code"
+      type = "int"
+    }
+    columns {
+      name = "size"
+      type = "int"
+    }
+    columns {
+      name = "referer"
+      type = "string"
+    }
+    columns {
+      name = "agent"
+      type = "string"
+    }
+    columns {
+      name = "level"
+      type = "string"
+    }
+    columns {
+      name = "message"
+      type = "string"
+    }
+    columns {
+      name = "environment"
+      type = "string"
+    }
+  }
+}
+
+resource "aws_glue_catalog_table" "logs_os" {
+  name          = "os"
+  database_name = aws_glue_catalog_database.logs_db.name
+  table_type    = "EXTERNAL_TABLE"
+
+  parameters = {
+    "classification"     = "json"
+    "compressionType"    = "gzip"
+    "has_encrypted_data" = "false"
+  }
+
+  partition_keys {
+    name = "year"
+    type = "string"
+  }
+  partition_keys {
+    name = "month"
+    type = "string"
+  }
+  partition_keys {
+    name = "day"
+    type = "string"
+  }
+  partition_keys {
+    name = "hour"
+    type = "string"
+  }
+
+  storage_descriptor {
+    location      = "s3://${local.bronze_bucket}/logs/os/"
+    input_format  = "org.apache.hadoop.mapred.TextInputFormat"
+    output_format = "org.apache.hadoop.hive.ql.io.IgnoreKeyTextOutputFormat"
+
+    ser_de_info {
+      name                  = "json-serde"
+      serialization_library = "org.openx.data.jsonserde.JsonSerDe"
+      parameters = {
+        "ignore.malformed.json" = "true"
+      }
+    }
+
+    columns {
+      name = "pri"
+      type = "string"
+    }
+    columns {
+      name = "time"
+      type = "string"
+    }
+    columns {
+      name = "host"
+      type = "string"
+    }
+    columns {
+      name = "ident"
+      type = "string"
+    }
+    columns {
+      name = "pid"
+      type = "string"
+    }
+    columns {
+      name = "message"
+      type = "string"
+    }
+    columns {
+      name = "environment"
+      type = "string"
+    }
+  }
+}
+
 # ── 6. Outputs ─────────────────────────────────────────────────────────────────
 output "logs_database_name" {
   description = "Nome do Database Glue exclusivo para Logs"

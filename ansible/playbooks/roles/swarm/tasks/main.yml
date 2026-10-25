@@ -1,176 +1,19 @@
 ---
 # ──────────────────────────────────────────────────────────────────────────────
-# role: swarm
-# Inicializa o Docker Swarm no Manager e faz os Workers entrarem no cluster.
-#
-# Fluxo:
-#   1. Manager (ec2-app-a): docker swarm init
-#   2. Manager: obter join-token de worker
-#   3. Workers (ec2-app-b, ec2-backend-a, ec2-backend-b): docker swarm join
-#   4. Manager: aplicar labels de placement nos nodes
-#   5. Manager: fazer docker login no ECR
-#   6. Manager: deploy do docker stack (stack.yml)
+# role: swarm (tasks/main.yml)
 # ──────────────────────────────────────────────────────────────────────────────
 
-# ── 1. Verificar se o Swarm já está ativo no Manager ─────────────────────────
-- name: Verificar estado atual do Swarm
-  ansible.builtin.command: docker info --format "{{ '{{' }}.Swarm.LocalNodeState{{ '}}' }}"
-  register: swarm_state
-  changed_when: false
+- name: Inicializar Docker Swarm no Manager
+  ansible.builtin.include_tasks: manager_init.yml
+  when: inventory_hostname == groups['app'][0]
 
-# ── 2. Inicializar Swarm no Manager ──────────────────────────────────────────
-- name: Inicializar Docker Swarm (apenas Manager)
-  ansible.builtin.command: >
-    docker swarm init
-    --advertise-addr {{ ansible_default_ipv4.address }}
-  when:
-    - inventory_hostname in groups['app']
-    - inventory_hostname == groups['app'][0]
-    - swarm_state.stdout != 'active'
-  register: swarm_init
-  changed_when: swarm_init.rc == 0
+- name: Workers entram no Swarm
+  ansible.builtin.include_tasks: worker_join.yml
+  when: inventory_hostname != groups['app'][0]
 
-# ── 3. Obter join-token de worker ─────────────────────────────────────────────
-- name: Obter join-token para workers
-  ansible.builtin.command: docker swarm join-token worker -q
-  register: swarm_worker_token
-  when:
-    - inventory_hostname in groups['app']
-    - inventory_hostname == groups['app'][0]
-  changed_when: false
-  run_once: true
+- name: Preparacao dos nos (ECR login e configuracao do Nginx)
+  ansible.builtin.include_tasks: node_prep.yml
 
-# Armazenar token e IP do manager como facts globais
-- name: Registrar token e IP do manager como fact global
-  ansible.builtin.set_fact:
-    swarm_join_token: "{{ swarm_worker_token.stdout }}"
-    swarm_manager_addr: "{{ ansible_default_ipv4.address }}:2377"
-  when:
-    - inventory_hostname in groups['app']
-    - inventory_hostname == groups['app'][0]
-  run_once: true
-
-# ── 4. Workers entram no Swarm ────────────────────────────────────────────────
-- name: Verificar se o Worker já está no Swarm
-  ansible.builtin.command: docker info --format "{{ '{{' }}.Swarm.LocalNodeState{{ '}}' }}"
-  register: worker_swarm_state
-  changed_when: false
-  when: inventory_hostname not in groups['app'] or inventory_hostname != groups['app'][0]
-
-- name: Worker entra no Swarm
-  ansible.builtin.command: >
-    docker swarm join
-    --token {{ hostvars[groups['app'][0]]['swarm_join_token'] }}
-    {{ hostvars[groups['app'][0]]['swarm_manager_addr'] }}
-  when:
-    - inventory_hostname not in groups['app'] or inventory_hostname != groups['app'][0]
-    - worker_swarm_state.stdout is defined
-    - worker_swarm_state.stdout != 'active'
-  register: swarm_join
-  changed_when: swarm_join.rc == 0
-
-# ── 5. Aplicar labels de placement nos nodes (executar no Manager) ─────────────
-- name: Aguardar todos os workers estarem no Swarm
-  ansible.builtin.pause:
-    seconds: 5
-  when:
-    - inventory_hostname in groups['app']
-    - inventory_hostname == groups['app'][0]
-
-- name: Listar nodes do Swarm com seus hostnames
-  ansible.builtin.command: docker node ls --format "{{ '{{' }}.Hostname{{ '}}' }} {{ '{{' }}.ID{{ '}}' }}"
-  register: swarm_nodes
-  when:
-    - inventory_hostname in groups['app']
-    - inventory_hostname == groups['app'][0]
-  changed_when: false
-
-- name: Aplicar labels de placement (role=app e role=backend) em todos os nodes
-  ansible.builtin.shell: |
-    for node in $(docker node ls --format '{{ '{{' }}.Hostname{{ '}}' }}'); do
-      case "$node" in
-        *10-0-1-*|*10-0-2-*)
-          docker node update --label-add role=app "$node" || true
-          ;;
-        *10-0-3-*|*10-0-4-*)
-          docker node update --label-add role=backend "$node" || true
-          ;;
-      esac
-    done
-    # Manager sempre ganha role=app
-    docker node update --label-add role=app $(docker info --format '{{ '{{' }}.Swarm.NodeID{{ '}}' }}') || true
-  when:
-    - inventory_hostname in groups['app']
-    - inventory_hostname == groups['app'][0]
-  changed_when: false
-
-# ── 6. Autenticar no ECR em TODOS os nodes do Swarm ─────────────────────────
-# O --with-registry-auth distribui o token do Manager, mas o token ECR expira
-# (~12h no AWS Lab). Cada worker precisa ter sua própria credencial renovada.
-- name: Garantir AWS CLI instalado em todos os nodes para autenticação ECR
-  ansible.builtin.shell: |
-    if ! command -v aws &>/dev/null; then
-      apt-get update -y && apt-get install -y unzip curl
-      curl -s "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "/tmp/awscliv2.zip"
-      unzip -q -o /tmp/awscliv2.zip -d /tmp
-      /tmp/aws/install --update
-      rm -rf /tmp/aws /tmp/awscliv2.zip
-    fi
-  become: true
-  when:
-    - use_ecr | default(false)
-
-- name: Autenticar Docker no ECR em todos os nodes (app + backend)
-  ansible.builtin.shell: |
-    aws ecr get-login-password --region {{ aws_region }} | docker login --username AWS --password-stdin {{ ecr_registry_url }}
-    aws ecr get-login-password --region {{ aws_region }} | sudo docker login --username AWS --password-stdin {{ ecr_registry_url }}
-  become: false
-  when:
-    - use_ecr | default(false)
-
-# ── 7. Configurar Nginx em todos os nós app ──────────────────────────────────
-- name: Criar diretorio /opt/nginx em todos os nós app
-  ansible.builtin.file:
-    path: /opt/nginx
-    state: directory
-    mode: "0755"
-  when: inventory_hostname in groups['app']
-
-- name: Renderizar default.conf do Nginx com balanceamento direto para o backend
-  ansible.builtin.template:
-    src: default.conf.j2
-    dest: /opt/nginx/default.conf
-    mode: "0644"
-  when: inventory_hostname in groups['app']
-
-# ── 8. Criar diretório e copiar stack.yml para o Manager ──────────────────────
-- name: Criar diretório do Swarm stack no Manager
-  ansible.builtin.file:
-    path: /opt/swarm
-    state: directory
-    mode: "0755"
-  when:
-    - inventory_hostname in groups['app']
-    - inventory_hostname == groups['app'][0]
-
-- name: Gerar stack.yml no Manager
-  ansible.builtin.template:
-    src: stack.yml.j2
-    dest: "{{ swarm_stack_file }}"
-    mode: "0644"
-  when:
-    - inventory_hostname in groups['app']
-    - inventory_hostname == groups['app'][0]
-
-# ── 9. Deploy da stack no Swarm ───────────────────────────────────────────────
-- name: Deploy da stack SGPJ no Swarm
-  ansible.builtin.shell: >
-    docker stack deploy
-    --with-registry-auth
-    --compose-file {{ swarm_stack_file }}
-    {{ swarm_stack_name }}
-  when:
-    - inventory_hostname in groups['app']
-    - inventory_hostname == groups['app'][0]
-  register: stack_deploy
-  changed_when: "'Updating' in stack_deploy.stdout or 'Creating' in stack_deploy.stdout"
+- name: Rotulacao dos nos e deploy da stack no Manager
+  ansible.builtin.include_tasks: deploy_stack.yml
+  when: inventory_hostname == groups['app'][0]

@@ -17,7 +17,7 @@ fluentbit_s3_total_file_size: "5M"
 
 # Habilitar/desabilitar fontes de logs
 fluentbit_collect_container_logs: true
-fluentbit_collect_nginx_logs: true
+fluentbit_collect_nginx_logs: false  # Nginx roda em container Docker; logs já são capturados em containers_log_path
 fluentbit_collect_os_logs: true
 
 # Caminhos de logs no sistema

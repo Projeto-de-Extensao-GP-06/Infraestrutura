@@ -2,24 +2,43 @@
 # ──────────────────────────────────────────────────────────────────────────────
 # Playbook: swarm.yml
 # Inicializa o Docker Swarm e faz o deploy da stack SGPJ.
-# Roda em TODOS os nodes (app + backend) — o role filtra por grupo internamente.
+# Executa em fases ordenadas para garantir que todos os workers estejam conectados
+# e rotulados antes do docker stack deploy.
 # ──────────────────────────────────────────────────────────────────────────────
-- name: Inicializar Docker Swarm e fazer deploy da stack SGPJ
+
+- name: 1. Inicializar Docker Swarm no Manager
+  hosts: "{{ groups['app'][0] }}"
+  become: true
+  tasks:
+    - name: Executar inicializacao do Manager
+      ansible.builtin.include_role:
+        name: swarm
+        tasks_from: manager_init.yml
+
+- name: 2. Conectar Workers ao Swarm
   hosts: app:backend
   become: true
-  serial:
-    - 1       # Primeiro o manager (app[0])
-    - "100%"  # Depois todos os workers em paralelo
+  tasks:
+    - name: Executar entrada dos Workers
+      ansible.builtin.include_role:
+        name: swarm
+        tasks_from: worker_join.yml
+      when: inventory_hostname != groups['app'][0]
 
-  pre_tasks:
-    - name: Carregar segredos locais (secrets.yml) se existirem
-      ansible.builtin.include_vars:
-        file: "{{ item }}"
-      with_first_found:
-        - files:
-            - "{{ playbook_dir }}/../secrets.yml"
-            - "{{ playbook_dir }}/secrets.yml"
-          skip: true
+- name: 3. Pre-requisitos dos nos (ECR login e configuracao do Nginx)
+  hosts: app:backend
+  become: true
+  tasks:
+    - name: Executar preparacao dos nos
+      ansible.builtin.include_role:
+        name: swarm
+        tasks_from: node_prep.yml
 
-  roles:
-    - swarm
+- name: 4. Manager rotula nos e faz deploy da stack SGPJ
+  hosts: "{{ groups['app'][0] }}"
+  become: true
+  tasks:
+    - name: Executar rotulacao e deploy da stack
+      ansible.builtin.include_role:
+        name: swarm
+        tasks_from: deploy_stack.yml

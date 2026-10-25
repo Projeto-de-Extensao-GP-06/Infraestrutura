@@ -11,3 +11,15 @@
 
   roles:
     - fluentbit
+
+  post_tasks:
+    - name: Registrar particoes dos logs no AWS Athena (MSCK REPAIR TABLE)
+      ansible.builtin.shell: |
+        aws athena start-query-execution --query-string "MSCK REPAIR TABLE sgpj_logs_bronze.containers" --work-group sgpj-logs-analytics || true
+        aws athena start-query-execution --query-string "MSCK REPAIR TABLE sgpj_logs_bronze.nginx" --work-group sgpj-logs-analytics || true
+        aws athena start-query-execution --query-string "MSCK REPAIR TABLE sgpj_logs_bronze.os" --work-group sgpj-logs-analytics || true
+      become: false
+      when:
+        - inventory_hostname in groups['app']
+        - inventory_hostname == groups['app'][0]
+      ignore_errors: true

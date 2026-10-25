@@ -72,9 +72,20 @@
     Record environment  production
     Record source_type  fluentbit
 
-# ── 5. OUTPUTS: Carregamento no Bucket Bronze Tier (S3) ───────────────────────
+# ── 5. OUTPUTS: Carregamento no Bucket Bronze Tier (S3) e Loki ──────────────────
 
-# Output dedicado para Logs de Containers
+{% if enable_observability | default(false) | bool %}
+# Output para Loki — Observabilidade de Logs em tempo real no Grafana
+[OUTPUT]
+    Name                   loki
+    Match                  containers.*
+    Host                   {{ observability_host }}
+    Port                   3100
+    Labels                 job=docker, host={{ inventory_hostname }}, environment=production
+    Auto_Kubernetes_Labels Off
+{% endif %}
+
+# Output dedicado para Logs de Containers (S3 Bronze Data Lake)
 [OUTPUT]
     Name                         s3
     Match                        containers.*
