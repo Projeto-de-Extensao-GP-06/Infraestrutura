@@ -48,7 +48,7 @@ services:
         delay: 5s
         max_attempts: 3
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:80"]
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:80"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -76,29 +76,37 @@ services:
       SPRING_DATASOURCE_DRIVER_CLASS_NAME: "com.mysql.cj.jdbc.Driver"
       SPRING_JPA_DATABASE_PLATFORM: "org.hibernate.dialect.MySQLDialect"
       SERVER_PORT: "8080"
-{% if backend_jwt_secret is defined and backend_jwt_secret %}
-      JWT_SECRET: "{{ backend_jwt_secret }}"
+{% set _jwt = backend_jwt_secret | default(jwt_secret, true) %}
+{% if _jwt %}
+      JWT_SECRET: "{{ _jwt }}"
 {% endif %}
-{% if backend_client_id is defined and backend_client_id %}
-      CLIENT_ID: "{{ backend_client_id }}"
+{% set _client_id = backend_client_id | default(client_id, true) %}
+{% if _client_id %}
+      CLIENT_ID: "{{ _client_id }}"
 {% endif %}
-{% if backend_client_secret is defined and backend_client_secret %}
-      CLIENT_SECRET: "{{ backend_client_secret }}"
+{% set _client_secret = backend_client_secret | default(client_secret, true) %}
+{% if _client_secret %}
+      CLIENT_SECRET: "{{ _client_secret }}"
 {% endif %}
-{% if backend_tenant_id is defined and backend_tenant_id %}
-      TENANT_ID: "{{ backend_tenant_id }}"
+{% set _tenant_id = backend_tenant_id | default(tenant_id, true) %}
+{% if _tenant_id %}
+      TENANT_ID: "{{ _tenant_id }}"
 {% endif %}
-{% if backend_redirect_uri is defined and backend_redirect_uri %}
-      REDIRECT_URI: "{{ backend_redirect_uri }}"
+{% set _redirect_uri = backend_redirect_uri | default(redirect_uri, true) %}
+{% if _redirect_uri %}
+      REDIRECT_URI: "{{ _redirect_uri }}"
 {% endif %}
-{% if backend_cookie_secure is defined %}
-      COOKIE_SECURE: "{{ backend_cookie_secure }}"
+{% set _cookie_secure = backend_cookie_secure | default(cookie_secure, true) %}
+{% if _cookie_secure is defined and _cookie_secure != '' %}
+      COOKIE_SECURE: "{{ _cookie_secure }}"
 {% endif %}
-{% if backend_datajud_api_key is defined and backend_datajud_api_key %}
-      DATAJUD_API_KEY: "{{ backend_datajud_api_key }}"
+{% set _datajud = backend_datajud_api_key | default(datajud_api_key, true) %}
+{% if _datajud %}
+      DATAJUD_API_KEY: "{{ _datajud }}"
 {% endif %}
-{% if backend_cloudflare_secret_key is defined and backend_cloudflare_secret_key %}
-      CLOUDFLARE_SECRET_KEY: "{{ backend_cloudflare_secret_key }}"
+{% set _cf_key = backend_cloudflare_secret_key | default(cloudflare_secret_key, true) %}
+{% if _cf_key %}
+      CLOUDFLARE_SECRET_KEY: "{{ _cf_key }}"
 {% endif %}
 {% if enable_observability | default(false) | bool and observability_host is defined %}
       # OpenTelemetry: envia traces para o Alloy local da EC2 (porta 4318 HTTP)

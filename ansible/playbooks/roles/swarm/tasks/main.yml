@@ -128,6 +128,7 @@
 - name: Autenticar Docker no ECR em todos os nodes (app + backend)
   ansible.builtin.shell: |
     aws ecr get-login-password --region {{ aws_region }} | docker login --username AWS --password-stdin {{ ecr_registry_url }}
+    aws ecr get-login-password --region {{ aws_region }} | sudo docker login --username AWS --password-stdin {{ ecr_registry_url }}
   become: false
   when:
     - use_ecr | default(false)

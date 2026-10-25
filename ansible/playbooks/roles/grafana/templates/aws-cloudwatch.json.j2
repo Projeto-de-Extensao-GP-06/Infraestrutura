@@ -2,10 +2,10 @@
   "id": null,
   "uid": "aws-cloudwatch",
   "title": "AWS CloudWatch",
-  "tags": ["aws", "cloudwatch", "alb", "rds", "efs"],
+  "tags": ["aws", "cloudwatch", "alb", "efs"],
   "timezone": "browser",
   "schemaVersion": 39,
-  "version": 1,
+  "version": 2,
   "refresh": "1m",
   "time": {
     "from": "now-1h",
@@ -67,81 +67,8 @@
     {
       "id": 4,
       "type": "timeseries",
-      "title": "RDS — CPU %",
-      "gridPos": {"h": 8, "w": 8, "x": 0, "y": 8},
-      "datasource": {"type": "prometheus", "uid": "prometheus"},
-      "fieldConfig": {
-        "defaults": {
-          "unit": "percent",
-          "min": 0,
-          "max": 100
-        }
-      },
-      "targets": [
-        {
-          "expr": "aws_rds_cpuutilization_average",
-          "legendFormat": "RDS CPU",
-          "refId": "A"
-        }
-      ]
-    },
-    {
-      "id": 5,
-      "type": "timeseries",
-      "title": "RDS — Conexões ativas",
-      "gridPos": {"h": 8, "w": 8, "x": 8, "y": 8},
-      "datasource": {"type": "prometheus", "uid": "prometheus"},
-      "targets": [
-        {
-          "expr": "aws_rds_database_connections_average",
-          "legendFormat": "Conexões",
-          "refId": "A"
-        }
-      ]
-    },
-    {
-      "id": 6,
-      "type": "timeseries",
-      "title": "RDS — Armazenamento livre",
-      "gridPos": {"h": 8, "w": 8, "x": 16, "y": 8},
-      "datasource": {"type": "prometheus", "uid": "prometheus"},
-      "fieldConfig": {
-        "defaults": {
-          "unit": "bytes"
-        }
-      },
-      "targets": [
-        {
-          "expr": "aws_rds_free_storage_space_average",
-          "legendFormat": "Free Storage",
-          "refId": "A"
-        }
-      ]
-    },
-    {
-      "id": 7,
-      "type": "timeseries",
-      "title": "RDS — Memória disponível",
-      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 16},
-      "datasource": {"type": "prometheus", "uid": "prometheus"},
-      "fieldConfig": {
-        "defaults": {
-          "unit": "bytes"
-        }
-      },
-      "targets": [
-        {
-          "expr": "aws_rds_freeable_memory_average",
-          "legendFormat": "Freeable Memory",
-          "refId": "A"
-        }
-      ]
-    },
-    {
-      "id": 8,
-      "type": "timeseries",
       "title": "EFS — IO Limit %",
-      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 16},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
       "datasource": {"type": "prometheus", "uid": "prometheus"},
       "fieldConfig": {
         "defaults": {
@@ -154,6 +81,25 @@
         {
           "expr": "aws_efs_percent_iolimit_average",
           "legendFormat": "EFS IO Limit",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "EFS — Taxa de Transferência Permitida (Throughput)",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps"
+        }
+      },
+      "targets": [
+        {
+          "expr": "aws_efs_permitted_throughput_average",
+          "legendFormat": "Permitted Throughput",
           "refId": "A"
         }
       ]

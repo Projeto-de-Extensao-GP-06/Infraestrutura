@@ -191,11 +191,7 @@ terraform state rm aws_ecr_lifecycle_policy.frontend aws_ecr_lifecycle_policy.ba
 ```bash
 cd infra/terraform
 
-terraform state rm \
-  aws_ecr_lifecycle_policy.frontend \
-  aws_ecr_lifecycle_policy.backend \
-  aws_ecr_repository.frontend \
-  aws_ecr_repository.backend
+terraform state rm aws_ecr_lifecycle_policy.frontend aws_ecr_lifecycle_policy.backend aws_ecr_repository.frontend aws_ecr_repository.backend
 ```
 > **O que isso faz:** O Terraform apenas remove esses recursos do seu arquivo de estado local (`terraform.tfstate`). Os repositórios ECR e todas as imagens Docker permanecem **vivos e preservados na sua conta AWS** (custando apenas centavos de storage).
 
