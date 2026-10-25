@@ -167,18 +167,66 @@ O banco de dados roda isolado em Docker puro na `ec2-db` (fora do Swarm, garanti
 
 ---
 
-## 5) `terraform destroy` e Proteção do ECR
+## 5) `terraform destroy` sem Perder as Imagens do ECR
 
-Caso precise destruir a infraestrutura para economizar horas no AWS Academy:
+Por padrão, os repositórios ECR (`sgpj-frontend` e `sgpj-backend`) possuem a diretiva de segurança `lifecycle { prevent_destroy = true }` no arquivo `ecr.tf`. 
 
-```bash
+> [!WARNING]
+> Se você tentar rodar `terraform destroy` diretamente, o Terraform **bloqueará a execução** com o erro:
+> `Error: Instance cannot be destroyed ... has lifecycle.prevent_destroy set to true.`
+> Isso é uma **trava de segurança intencional** para impedir a perda acidental das imagens Docker que você compilou e enviou.
+
+Para destruir toda a infraestrutura cara (EC2s, ALB, NAT Gateway, EFS) e **manter o ECR e suas imagens 100% intactos e salvos na AWS**, siga o procedimento abaixo:
+
+### Passo 5.1 — Remover o ECR do controle do Terraform (sem apagar na AWS)
+
+No **PowerShell** (Windows):
+```powershell
 cd infra/terraform
-terraform destroy --auto-approve
+
+terraform state rm aws_ecr_lifecycle_policy.frontend aws_ecr_lifecycle_policy.backend aws_ecr_repository.frontend aws_ecr_repository.backend
 ```
 
-### O que acontece:
-- **Destruído:** EC2s, VPC, Subnets, Security Groups, ALB, EFS.
-- **Protegido:** Os repositórios ECR (`sgpj-frontend` e `sgpj-backend`) e suas imagens **NÃO são apagados**, pois possuem a diretiva `lifecycle { prevent_destroy = true }`.
+*(Ou no terminal **WSL / Linux**)*:
+```bash
+cd infra/terraform
+
+terraform state rm \
+  aws_ecr_lifecycle_policy.frontend \
+  aws_ecr_lifecycle_policy.backend \
+  aws_ecr_repository.frontend \
+  aws_ecr_repository.backend
+```
+> **O que isso faz:** O Terraform apenas remove esses recursos do seu arquivo de estado local (`terraform.tfstate`). Os repositórios ECR e todas as imagens Docker permanecem **vivos e preservados na sua conta AWS** (custando apenas centavos de storage).
+
+### Passo 5.2 — Destruir a Infraestrutura Restante
+
+Agora o Terraform destruirá todo o restante (EC2s, ALB, VPC, EFS, Banco) zerando os custos de computação:
+
+```powershell
+terraform destroy -auto-approve
+```
+
+---
+
+### Como Subir a Infraestrutura Novamente no Futuro (Reconectar ECR existente)
+
+Quando você for subir tudo de novo no próximo laboratório/sessão do AWS Academy:
+
+1. **Reconecte o Terraform aos repositórios ECR existentes** (leva 5 segundos):
+   ```powershell
+   cd infra/terraform
+
+   terraform import aws_ecr_repository.frontend sgpj-frontend
+   terraform import aws_ecr_repository.backend sgpj-backend
+   terraform import aws_ecr_lifecycle_policy.frontend sgpj-frontend
+   terraform import aws_ecr_lifecycle_policy.backend sgpj-backend
+   ```
+2. **Suba toda a infraestrutura:**
+   ```powershell
+   terraform apply -auto-approve
+   ```
+   > Como as imagens Docker já estavam salvas no ECR, o Swarm subirá instantaneamente puxando as imagens prontas sem você precisar compilar tudo do zero de novo!
 
 ---
 
