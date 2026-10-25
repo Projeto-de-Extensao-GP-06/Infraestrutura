@@ -110,30 +110,25 @@
   changed_when: false
 
 # ── 6. Autenticar no ECR no Manager ──────────────────────────────────────────
-# Roda o aws cli diretamente na EC2 Manager (que tem LabInstanceProfile / IAM Role)
-# em vez de delegate_to: localhost, evitando problema com credenciais no WSL.
-- name: Obter token ECR na EC2 Manager (via IAM Role da instancia)
-  ansible.builtin.command:
-    cmd: "aws ecr get-login-password --region {{ aws_region }}"
-  register: ecr_token
-  become: false
-  run_once: true
+# Garante awscli instalado no Manager para obter credencial do ECR via IAM Role
+- name: Garantir AWS CLI instalado no Manager para autenticação no ECR
+  ansible.builtin.apt:
+    name: awscli
+    state: present
+  become: true
   when:
     - use_ecr | default(false)
     - inventory_hostname in groups['app']
     - inventory_hostname == groups['app'][0]
-  no_log: true
 
 - name: Autenticar Docker no ECR no Manager (para --with-registry-auth)
   ansible.builtin.shell: |
-    echo "{{ ecr_token.stdout }}" | docker login --username AWS --password-stdin {{ ecr_registry_url }}
+    aws ecr get-login-password --region {{ aws_region }} | docker login --username AWS --password-stdin {{ ecr_registry_url }}
+  become: false
   when:
     - use_ecr | default(false)
     - inventory_hostname in groups['app']
     - inventory_hostname == groups['app'][0]
-    - ecr_token is defined
-    - ecr_token.stdout is defined
-  no_log: true
 
 # ── 7. Criar diretório e copiar stack.yml para o Manager ──────────────────────
 - name: Criar diretório do Swarm stack no Manager
