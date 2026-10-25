@@ -18,14 +18,20 @@ resource "null_resource" "s3_athena_results" {
   provisioner "local-exec" {
     interpreter = ["PowerShell", "-Command"]
     command     = <<-EOT
-      $ErrorActionPreference = 'Stop'
       $region = '${var.region}'
       $bucket = '${local.athena_results_bucket}'
 
+      # head-bucket retorna exit code != 0 se o bucket nao existe — isso e esperado, nao um erro.
+      # Usar $ErrorActionPreference = 'Continue' para nao abortar no head-bucket.
+      $ErrorActionPreference = 'Continue'
       aws s3api head-bucket --bucket $bucket 2>$null
-      if ($LASTEXITCODE -ne 0) {
+      $bucketExists = ($LASTEXITCODE -eq 0)
+      $ErrorActionPreference = 'Stop'
+
+      if (-not $bucketExists) {
         Write-Host "Criando bucket do Athena Results: $bucket..."
         aws s3api create-bucket --bucket $bucket --region $region
+        if ($LASTEXITCODE -ne 0) { throw "Falha ao criar bucket $bucket" }
       } else {
         Write-Host "Bucket do Athena Results $bucket ja existe."
       }

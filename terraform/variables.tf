@@ -121,3 +121,26 @@ variable "rds_password" {
   type        = string
   sensitive   = true
 }
+
+# ── Credenciais AWS (usadas para propagar ao WSL no provisioner local-exec) ────
+# Lidas automaticamente das variaveis de ambiente AWS_ACCESS_KEY_ID etc.
+variable "aws_access_key_id" {
+  description = "AWS Access Key ID (propagado automaticamente do ambiente)"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "aws_secret_access_key" {
+  description = "AWS Secret Access Key (propagado automaticamente do ambiente)"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "aws_session_token" {
+  description = "AWS Session Token (propagado automaticamente do ambiente, necessario no AWS Academy)"
+  type        = string
+  default     = ""
+  sensitive   = true
+}

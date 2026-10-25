@@ -62,6 +62,10 @@ resource "null_resource" "run_ansible" {
 
   provisioner "local-exec" {
     working_dir = "${path.module}/../ansible"
-    command     = "wsl -e bash -c \"./run_ansible.sh\""
+    # O Terraform (local-exec) roda no PowerShell. O WSL nao herda variaveis de
+    # ambiente automaticamente, entao usamos o run_ansible.sh que faz o fallback
+    # via aws configure, e o ECR token agora e obtido na EC2 Manager (nao mais
+    # via delegate_to: localhost) — eliminando a dependencia de credenciais no WSL.
+    command = "wsl -e bash -c \"./run_ansible.sh\""
   }
 }

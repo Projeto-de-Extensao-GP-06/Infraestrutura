@@ -110,11 +110,12 @@
   changed_when: false
 
 # ── 6. Autenticar no ECR no Manager ──────────────────────────────────────────
-- name: Obter token ECR localmente
+# Roda o aws cli diretamente na EC2 Manager (que tem LabInstanceProfile / IAM Role)
+# em vez de delegate_to: localhost, evitando problema com credenciais no WSL.
+- name: Obter token ECR na EC2 Manager (via IAM Role da instancia)
   ansible.builtin.command:
     cmd: "aws ecr get-login-password --region {{ aws_region }}"
   register: ecr_token
-  delegate_to: localhost
   become: false
   run_once: true
   when:
