@@ -2,44 +2,7 @@
 # Pipeline Dedicado de Logs (AWS Glue + AWS Athena + S3 Bronze Tier)
 # ──────────────────────────────────────────────────────────────────────────────
 
-locals {
-  athena_results_bucket     = "sgpj-athena-results-${data.aws_caller_identity.current.account_id}"
-  athena_results_bucket_arn = "arn:aws:s3:::${local.athena_results_bucket}"
-}
-
-# ── 1. Bucket S3 para Resultados das Queries do Athena (via AWS CLI) ───────────
-# O provider nativo aws_s3_bucket dispara GetObjectLockConfiguration no refresh,
-# operacao bloqueada pelo SCP no AWS Academy. Usar null_resource evita esse bloqueio.
-resource "null_resource" "s3_athena_results" {
-  triggers = {
-    athena_bucket = local.athena_results_bucket
-  }
-
-  provisioner "local-exec" {
-    interpreter = ["PowerShell", "-Command"]
-    command     = <<-EOT
-      $region = '${var.region}'
-      $bucket = '${local.athena_results_bucket}'
-
-      # head-bucket retorna exit code != 0 se o bucket nao existe — isso e esperado, nao um erro.
-      # Usar $ErrorActionPreference = 'Continue' para nao abortar no head-bucket.
-      $ErrorActionPreference = 'Continue'
-      aws s3api head-bucket --bucket $bucket 2>$null
-      $bucketExists = ($LASTEXITCODE -eq 0)
-      $ErrorActionPreference = 'Stop'
-
-      if (-not $bucketExists) {
-        Write-Host "Criando bucket do Athena Results: $bucket..."
-        aws s3api create-bucket --bucket $bucket --region $region
-        if ($LASTEXITCODE -ne 0) { throw "Falha ao criar bucket $bucket" }
-      } else {
-        Write-Host "Bucket do Athena Results $bucket ja existe."
-      }
-    EOT
-  }
-}
-
-# ── 2. Glue Catalog Database Dedicado aos Logs ─────────────────────────────────
+# ── 1. Glue Catalog Database Dedicado aos Logs ─────────────────────────────────
 resource "aws_glue_catalog_database" "logs_db" {
   name        = "sgpj_logs_bronze"
   description = "Database dedicado exclusivamente para armazenamento e catalogo de logs (Bronze Tier)"
@@ -173,14 +136,12 @@ resource "aws_athena_workgroup" "logs_workgroup" {
     publish_cloudwatch_metrics_enabled = true
 
     result_configuration {
-      output_location = "s3://${local.athena_results_bucket}/logs-queries/"
+      output_location = "s3://${local.bronze_bucket}/athena-results/"
       encryption_configuration {
         encryption_option = "SSE_S3"
       }
     }
   }
-
-  depends_on = [null_resource.s3_athena_results]
 
   tags = {
     Pipeline = "logs"
@@ -518,5 +479,5 @@ output "athena_logs_workgroup_name" {
 
 output "athena_results_bucket" {
   description = "Bucket S3 com os resultados do Athena"
-  value       = local.athena_results_bucket
+  value       = local.bronze_bucket
 }
