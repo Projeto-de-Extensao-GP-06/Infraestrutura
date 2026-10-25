@@ -109,9 +109,10 @@
     - inventory_hostname == groups['app'][0]
   changed_when: false
 
-# ── 6. Autenticar no ECR no Manager ──────────────────────────────────────────
-# Instala o AWS CLI v2 oficial na EC2 Manager para obter credencial do ECR via IAM Role
-- name: Garantir AWS CLI instalado no Manager para autenticação no ECR
+# ── 6. Autenticar no ECR em TODOS os nodes do Swarm ─────────────────────────
+# O --with-registry-auth distribui o token do Manager, mas o token ECR expira
+# (~12h no AWS Lab). Cada worker precisa ter sua própria credencial renovada.
+- name: Garantir AWS CLI instalado em todos os nodes para autenticação ECR
   ansible.builtin.shell: |
     if ! command -v aws &>/dev/null; then
       apt-get update -y && apt-get install -y unzip curl
@@ -123,17 +124,13 @@
   become: true
   when:
     - use_ecr | default(false)
-    - inventory_hostname in groups['app']
-    - inventory_hostname == groups['app'][0]
 
-- name: Autenticar Docker no ECR no Manager (para --with-registry-auth)
+- name: Autenticar Docker no ECR em todos os nodes (app + backend)
   ansible.builtin.shell: |
     aws ecr get-login-password --region {{ aws_region }} | docker login --username AWS --password-stdin {{ ecr_registry_url }}
   become: false
   when:
     - use_ecr | default(false)
-    - inventory_hostname in groups['app']
-    - inventory_hostname == groups['app'][0]
 
 # ── 7. Criar diretório e copiar stack.yml para o Manager ──────────────────────
 - name: Criar diretório do Swarm stack no Manager
