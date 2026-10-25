@@ -75,7 +75,7 @@
             "resultReuseEnabled": false
           },
           "format": 1,
-          "rawSQL": "SELECT CAST(code AS VARCHAR) as status_code, count(*) as total FROM sgpj_logs_bronze.nginx GROUP BY code",
+          "rawSQL": "SELECT regexp_extract(log, 'HTTP/[0-9.]+\" ([0-9]{3})', 1) as status_code, count(*) as total FROM sgpj_logs_bronze.containers WHERE regexp_like(log, 'HTTP/[0-9.]+\" [0-9]{3}') GROUP BY 1 ORDER BY total DESC",
           "refId": "A"
         }
       ],
