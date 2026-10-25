@@ -14,12 +14,20 @@
       when:
         - enable_observability | default(false) | bool
         - has_obs
+        - inventory_hostname != observability_primary_host
 
 - name: Deploy de observabilidade com Prometheus, Loki, Alloy e Grafana
   hosts: observability
   become: true
   vars:
     observability_primary_host: "{{ groups['observability'][0] if (groups['observability'] is defined and groups['observability'] | length > 0) else '' }}"
+
+  pre_tasks:
+    - name: Garantir que container do Alloy nao esteja rodando no host de observabilidade (evita conflito na porta 4317 com o Tempo)
+      community.docker.docker_container:
+        name: alloy
+        state: absent
+      ignore_errors: true
 
   roles:
     - role: loki
