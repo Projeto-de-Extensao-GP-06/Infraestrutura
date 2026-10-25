@@ -107,15 +107,40 @@ if $DEPLOY_BACKEND && [[ ! -d "$BACKEND_PATH" ]]; then
   error "Diretório do backend não encontrado: $BACKEND_PATH"
 fi
 
-# ── Verificar dependências ────────────────────────────────────────────────────
-command -v docker &>/dev/null || error "Docker não encontrado. Instale o Docker no WSL."
-command -v aws    &>/dev/null || error "AWS CLI não encontrado. Instale com: pip install awscli"
+# ── Verificar dependências (com suporte a Windows executado via WSL/Git Bash) ──
+find_tool() {
+  local tool="$1"
+  if command -v "$tool" &>/dev/null; then
+    echo "$tool"
+  elif command -v "${tool}.exe" &>/dev/null; then
+    echo "${tool}.exe"
+  elif command -v "${tool}.cmd" &>/dev/null; then
+    echo "${tool}.cmd"
+  elif [[ "$tool" == "aws" && -f "/mnt/c/Program Files/Amazon/AWSCLIV2/aws.exe" ]]; then
+    echo "/mnt/c/Program Files/Amazon/AWSCLIV2/aws.exe"
+  else
+    echo ""
+  fi
+}
+
+DOCKER_BIN=$(find_tool docker)
+AWS_BIN=$(find_tool aws)
+NPM_BIN=$(find_tool npm)
+MVN_BIN=$(find_tool mvn)
+
+[[ -z "$DOCKER_BIN" ]] && error "Docker não encontrado. Instale o Docker ou ative o Docker Desktop."
+[[ -z "$AWS_BIN" ]]    && error "AWS CLI não encontrado. Instale o AWS CLI ou execute pelo PowerShell via: .\deploy.ps1 all"
+
+docker() { "$DOCKER_BIN" "$@"; }
+aws()    { "$AWS_BIN" "$@"; }
 
 if $DEPLOY_FRONTEND; then
-  command -v npm  &>/dev/null || error "npm não encontrado. Instale o Node.js no WSL: sudo apt install nodejs npm"
+  [[ -z "$NPM_BIN" ]] && error "npm não encontrado. Instale o Node.js no WSL ou execute pelo PowerShell via: .\deploy.ps1 all"
+  npm() { "$NPM_BIN" "$@"; }
 fi
 if $DEPLOY_BACKEND; then
-  command -v mvn  &>/dev/null || error "Maven não encontrado. Instale com: sudo apt install maven"
+  [[ -z "$MVN_BIN" ]] && error "Maven não encontrado. Instale com: sudo apt install maven ou execute pelo PowerShell via: .\deploy.ps1 all"
+  mvn() { "$MVN_BIN" "$@"; }
 fi
 
 # ── Verificar credenciais AWS ─────────────────────────────────────────────────

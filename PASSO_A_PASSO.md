@@ -91,8 +91,14 @@ terraform apply \
 
 ### Passo 1.2 — Fazer o Build e Push Inicial das Imagens para o ECR
 
-No PowerShell (ou no WSL):
+No **PowerShell** (Windows nativo — recomendado, pois usa seu Docker Desktop e AWS CLI do Windows):
 ```powershell
+cd ../scripts
+.\deploy.ps1 all
+```
+
+*(Ou via **WSL / Git Bash**)*:
+```bash
 cd ../scripts
 bash deploy.sh all
 ```
