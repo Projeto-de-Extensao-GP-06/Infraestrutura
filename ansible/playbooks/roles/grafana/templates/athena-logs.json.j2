@@ -33,6 +33,12 @@
       "targets": [
         {
           "datasource": { "type": "grafana-athena-datasource", "uid": "athena" },
+          "connectionArgs": {
+            "catalog": "AwsDataCatalog",
+            "database": "sgpj_logs_bronze",
+            "region": "{{ aws_region | default('us-east-1') }}",
+            "resultReuseEnabled": false
+          },
           "format": 1,
           "rawSQL": "SELECT host, count(*) as total_logs FROM sgpj_logs_bronze.containers GROUP BY host ORDER BY total_logs DESC",
           "refId": "A"
@@ -62,6 +68,12 @@
       "targets": [
         {
           "datasource": { "type": "grafana-athena-datasource", "uid": "athena" },
+          "connectionArgs": {
+            "catalog": "AwsDataCatalog",
+            "database": "sgpj_logs_bronze",
+            "region": "{{ aws_region | default('us-east-1') }}",
+            "resultReuseEnabled": false
+          },
           "format": 1,
           "rawSQL": "SELECT CAST(code AS VARCHAR) as status_code, count(*) as total FROM sgpj_logs_bronze.nginx GROUP BY code",
           "refId": "A"
@@ -85,6 +97,12 @@
       "targets": [
         {
           "datasource": { "type": "grafana-athena-datasource", "uid": "athena" },
+          "connectionArgs": {
+            "catalog": "AwsDataCatalog",
+            "database": "sgpj_logs_bronze",
+            "region": "{{ aws_region | default('us-east-1') }}",
+            "resultReuseEnabled": false
+          },
           "format": 1,
           "rawSQL": "SELECT time, host, stream, log FROM sgpj_logs_bronze.containers ORDER BY time DESC LIMIT 50",
           "refId": "A"
@@ -103,5 +121,5 @@
   "timezone": "browser",
   "title": "AWS Athena — Fluent Bit Logs",
   "uid": "sgpj-athena-logs",
-  "version": 1
+  "version": 2
 }

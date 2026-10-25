@@ -85,33 +85,20 @@
     - inventory_hostname == groups['app'][0]
   changed_when: false
 
-- name: Aplicar label role=app nos nodes app
+- name: Aplicar labels de placement (role=app e role=backend) em todos os nodes
   ansible.builtin.shell: |
     for node in $(docker node ls --format '{{ '{{' }}.Hostname{{ '}}' }}'); do
-      {% for host in groups['app'] %}
-      TARGET_IP="ip-{{ hostvars[host]['ansible_host'] | default(hostvars[host]['ansible_default_ipv4']['address'] | default('')) | replace('.', '-') }}"
-      if [ "$node" = "$TARGET_IP" ] || echo "$node" | grep -q "{{ hostvars[host]['ansible_host'] | default('') }}"; then
-        docker node update --label-add role=app "$node" || true
-      fi
-      {% endfor %}
+      case "$node" in
+        *10-0-1-*|*10-0-2-*)
+          docker node update --label-add role=app "$node" || true
+          ;;
+        *10-0-3-*|*10-0-4-*)
+          docker node update --label-add role=backend "$node" || true
+          ;;
+      esac
     done
-    # O próprio manager sempre ganha role=app
+    # Manager sempre ganha role=app
     docker node update --label-add role=app $(docker info --format '{{ '{{' }}.Swarm.NodeID{{ '}}' }}') || true
-  when:
-    - inventory_hostname in groups['app']
-    - inventory_hostname == groups['app'][0]
-  changed_when: false
-
-- name: Aplicar label role=backend nos nodes backend
-  ansible.builtin.shell: |
-    for node in $(docker node ls --format '{{ '{{' }}.Hostname{{ '}}' }}'); do
-      {% for host in groups['backend'] %}
-      TARGET_IP="ip-{{ hostvars[host]['ansible_host'] | default(hostvars[host]['ansible_default_ipv4']['address'] | default('')) | replace('.', '-') }}"
-      if [ "$node" = "$TARGET_IP" ] || echo "$node" | grep -q "{{ hostvars[host]['ansible_host'] | default('') }}"; then
-        docker node update --label-add role=backend "$node" || true
-      fi
-      {% endfor %}
-    done
   when:
     - inventory_hostname in groups['app']
     - inventory_hostname == groups['app'][0]
@@ -141,7 +128,22 @@
   when:
     - use_ecr | default(false)
 
-# ── 7. Criar diretório e copiar stack.yml para o Manager ──────────────────────
+# ── 7. Configurar Nginx em todos os nós app ──────────────────────────────────
+- name: Criar diretorio /opt/nginx em todos os nós app
+  ansible.builtin.file:
+    path: /opt/nginx
+    state: directory
+    mode: "0755"
+  when: inventory_hostname in groups['app']
+
+- name: Renderizar default.conf do Nginx com balanceamento direto para o backend
+  ansible.builtin.template:
+    src: default.conf.j2
+    dest: /opt/nginx/default.conf
+    mode: "0644"
+  when: inventory_hostname in groups['app']
+
+# ── 8. Criar diretório e copiar stack.yml para o Manager ──────────────────────
 - name: Criar diretório do Swarm stack no Manager
   ansible.builtin.file:
     path: /opt/swarm
@@ -160,7 +162,7 @@
     - inventory_hostname in groups['app']
     - inventory_hostname == groups['app'][0]
 
-# ── 8. Deploy da stack no Swarm ───────────────────────────────────────────────
+# ── 9. Deploy da stack no Swarm ───────────────────────────────────────────────
 - name: Deploy da stack SGPJ no Swarm
   ansible.builtin.shell: >
     docker stack deploy

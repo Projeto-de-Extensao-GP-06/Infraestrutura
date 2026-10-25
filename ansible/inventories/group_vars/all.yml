@@ -5,10 +5,10 @@
 # ──────────────────────────────────────────────────────────────────────────────
 
 aws_region: "us-east-1"
-efs_dns: "fs-05809ef718050fcec.efs.us-east-1.amazonaws.com"
+efs_dns: "fs-07c727838cf63d2f6.efs.us-east-1.amazonaws.com"
 
 # ── Conectividade entre Camadas (Service Discovery Automático) ────────────────
-db_host: "10.0.5.196"
+db_host: "10.0.5.148"
 db_port: 3306
 mysql_database: "sgpj"
 mysql_user: "admin"
@@ -16,8 +16,8 @@ mysql_password: "sgpj96321"
 mysql_root_password: "sgpj96321"
 
 backend_hosts:
-  - "10.0.3.193"
-  - "10.0.4.212"
+  - "10.0.3.21"
+  - "10.0.4.57"
 
 # ── Repositórios de Imagens Docker (Amazon ECR) ───────────────────────────────
 use_ecr: true
@@ -26,7 +26,7 @@ ecr_frontend_image: "487375662162.dkr.ecr.us-east-1.amazonaws.com/sgpj-frontend:
 ecr_backend_image: "487375662162.dkr.ecr.us-east-1.amazonaws.com/sgpj-backend:latest"
 
 # ── Docker Swarm ──────────────────────────────────────────────────────────────
-swarm_manager_ip: "10.0.1.186"
+swarm_manager_ip: "10.0.1.158"
 
 # ── Data Lake / Logs S3 (Fluent Bit) ──────────────────────────────────────────
 bronze_bucket: "sgpj-bronze-487375662162"
@@ -34,4 +34,4 @@ s3_bronze_bucket: "sgpj-bronze-487375662162"
 
 # ── Configuração de Observabilidade (Opcional) ────────────────────────────────
 enable_observability: true
-observability_host: "10.0.7.49"
+observability_host: "10.0.7.89"
