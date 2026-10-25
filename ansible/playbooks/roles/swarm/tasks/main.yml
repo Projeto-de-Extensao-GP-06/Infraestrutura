@@ -110,11 +110,16 @@
   changed_when: false
 
 # ── 6. Autenticar no ECR no Manager ──────────────────────────────────────────
-# Garante awscli instalado no Manager para obter credencial do ECR via IAM Role
+# Instala o AWS CLI v2 oficial na EC2 Manager para obter credencial do ECR via IAM Role
 - name: Garantir AWS CLI instalado no Manager para autenticação no ECR
-  ansible.builtin.apt:
-    name: awscli
-    state: present
+  ansible.builtin.shell: |
+    if ! command -v aws &>/dev/null; then
+      apt-get update -y && apt-get install -y unzip curl
+      curl -s "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "/tmp/awscliv2.zip"
+      unzip -q -o /tmp/awscliv2.zip -d /tmp
+      /tmp/aws/install --update
+      rm -rf /tmp/aws /tmp/awscliv2.zip
+    fi
   become: true
   when:
     - use_ecr | default(false)
