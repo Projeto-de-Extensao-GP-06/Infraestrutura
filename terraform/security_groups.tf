@@ -52,22 +52,6 @@ resource "aws_security_group" "app" {
     cidr_blocks = [var.vpc_cidr]
   }
 
-  ingress {
-    description = "OTLP gRPC - traces (frontend to observability)"
-    from_port   = 4317
-    to_port     = 4317
-    protocol    = "tcp"
-    cidr_blocks = [var.vpc_cidr]
-  }
-
-  ingress {
-    description = "OTLP HTTP - traces (frontend to observability)"
-    from_port   = 4318
-    to_port     = 4318
-    protocol    = "tcp"
-    cidr_blocks = [var.vpc_cidr]
-  }
-
   # ── Portas Docker Swarm ───────────────────────────────────────────────────
   ingress {
     description = "Swarm Manager API (entre nodes)"
@@ -276,30 +260,6 @@ resource "aws_security_group" "observability" {
     description = "Loki ingest (agents da VPC)"
     from_port   = 3100
     to_port     = 3100
-    protocol    = "tcp"
-    cidr_blocks = [var.vpc_cidr]
-  }
-
-  ingress {
-    description = "OTLP gRPC - traces da VPC (backend/frontend)"
-    from_port   = 4317
-    to_port     = 4317
-    protocol    = "tcp"
-    cidr_blocks = [var.vpc_cidr]
-  }
-
-  ingress {
-    description = "OTLP HTTP - traces da VPC (backend/frontend)"
-    from_port   = 4318
-    to_port     = 4318
-    protocol    = "tcp"
-    cidr_blocks = [var.vpc_cidr]
-  }
-
-  ingress {
-    description = "Tempo HTTP - Grafana access"
-    from_port   = 3200
-    to_port     = 3200
     protocol    = "tcp"
     cidr_blocks = [var.vpc_cidr]
   }

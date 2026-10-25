@@ -87,11 +87,16 @@
 
 - name: Aplicar label role=app nos nodes app
   ansible.builtin.shell: |
-    NODE_ID=$(docker node ls --format '{{ '{{' }}.Hostname{{ '}}' }} {{ '{{' }}.ID{{ '}}' }}' | grep "^{{ item | regex_replace('\\..+', '') }}" | awk '{print $2}')
-    if [ -n "$NODE_ID" ]; then
-      docker node update --label-add role=app "$NODE_ID" || true
-    fi
-  loop: "{{ groups['app'] | map('extract', hostvars, 'ansible_hostname') | list }}"
+    for node in $(docker node ls --format '{{ '{{' }}.Hostname{{ '}}' }}'); do
+      {% for host in groups['app'] %}
+      TARGET_IP="ip-{{ hostvars[host]['ansible_host'] | default(hostvars[host]['ansible_default_ipv4']['address'] | default('')) | replace('.', '-') }}"
+      if [ "$node" = "$TARGET_IP" ] || echo "$node" | grep -q "{{ hostvars[host]['ansible_host'] | default('') }}"; then
+        docker node update --label-add role=app "$node" || true
+      fi
+      {% endfor %}
+    done
+    # O próprio manager sempre ganha role=app
+    docker node update --label-add role=app $(docker info --format '{{ '{{' }}.Swarm.NodeID{{ '}}' }}') || true
   when:
     - inventory_hostname in groups['app']
     - inventory_hostname == groups['app'][0]
@@ -99,11 +104,14 @@
 
 - name: Aplicar label role=backend nos nodes backend
   ansible.builtin.shell: |
-    NODE_ID=$(docker node ls --format '{{ '{{' }}.Hostname{{ '}}' }} {{ '{{' }}.ID{{ '}}' }}' | grep "^{{ item | regex_replace('\\..+', '') }}" | awk '{print $2}')
-    if [ -n "$NODE_ID" ]; then
-      docker node update --label-add role=backend "$NODE_ID" || true
-    fi
-  loop: "{{ groups['backend'] | map('extract', hostvars, 'ansible_hostname') | list }}"
+    for node in $(docker node ls --format '{{ '{{' }}.Hostname{{ '}}' }}'); do
+      {% for host in groups['backend'] %}
+      TARGET_IP="ip-{{ hostvars[host]['ansible_host'] | default(hostvars[host]['ansible_default_ipv4']['address'] | default('')) | replace('.', '-') }}"
+      if [ "$node" = "$TARGET_IP" ] || echo "$node" | grep -q "{{ hostvars[host]['ansible_host'] | default('') }}"; then
+        docker node update --label-add role=backend "$node" || true
+      fi
+      {% endfor %}
+    done
   when:
     - inventory_hostname in groups['app']
     - inventory_hostname == groups['app'][0]

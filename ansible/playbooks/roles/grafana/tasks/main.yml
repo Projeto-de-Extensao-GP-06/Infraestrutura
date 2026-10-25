@@ -5,9 +5,11 @@
 
 - name: Criar diretorio de dados do Grafana
   ansible.builtin.file:
-    path: "{{ grafana_data_dir }}"
+    path: "{{ grafana_data_dir }}/data"
     state: directory
-    mode: "0775"
+    mode: "0777"
+    owner: "472"
+    group: "472"
 
 - name: Criar diretorio de provisioning do Grafana
   ansible.builtin.file:
@@ -27,7 +29,7 @@
     state: directory
     mode: "0755"
 
-- name: Renderizar datasources do Grafana
+- name: Renderizar datasources do Grafana (Prometheus, Loki, Athena)
   ansible.builtin.template:
     src: datasources.yml.j2
     dest: "{{ grafana_provisioning_dir }}/datasources/datasources.yml"
@@ -57,10 +59,10 @@
     dest: "{{ grafana_dashboards_dir }}/{{ grafana_dashboard_cloudwatch_file }}"
     mode: "0644"
 
-- name: Copiar dashboard de Tracing (Tempo)
-  ansible.builtin.copy:
-    src: tracing-overview.json
-    dest: "{{ grafana_dashboards_dir }}/{{ grafana_dashboard_tracing_file }}"
+- name: Renderizar dashboard AWS Athena (Logs Fluent Bit)
+  ansible.builtin.template:
+    src: athena-logs.json.j2
+    dest: "{{ grafana_dashboards_dir }}/athena-logs.json"
     mode: "0644"
 
 - name: Criar diretorio de provisioning de alerting do Grafana
@@ -81,7 +83,7 @@
     dest: "{{ grafana_provisioning_dir }}/alerting/notification-policies.yml"
     mode: "0644"
 
-- name: Subir container do Grafana
+- name: Subir container do Grafana com plugin do Athena
   community.docker.docker_container:
     name: "{{ grafana_container_name }}"
     image: "{{ grafana_image }}"
@@ -94,12 +96,13 @@
     ports:
       - "{{ grafana_host_port }}:{{ grafana_container_port }}"
     volumes:
-      - "{{ grafana_data_dir }}:/var/lib/grafana"
+      - "{{ grafana_data_dir }}/data:/var/lib/grafana"
       - "{{ grafana_provisioning_dir }}:/etc/grafana/provisioning:ro"
       - "{{ grafana_dashboards_dir }}:/var/lib/grafana/dashboards:ro"
     env:
       GF_SECURITY_ADMIN_USER: "{{ grafana_admin_user }}"
       GF_SECURITY_ADMIN_PASSWORD: "{{ grafana_admin_password }}"
+      GF_INSTALL_PLUGINS: "grafana-athena-datasource"
       GF_UNIFIED_ALERTING_ENABLED: "true"
       GF_ALERTING_ENABLED: "false"
       GF_SMTP_ENABLED: "{{ grafana_smtp_enabled }}"

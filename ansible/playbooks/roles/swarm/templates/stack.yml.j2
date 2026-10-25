@@ -3,14 +3,6 @@ version: "3.9"
 # ──────────────────────────────────────────────────────────────────────────────
 # Docker Swarm Stack — SGPJ
 # Gerado pelo Ansible (roles/swarm/templates/stack.yml.j2)
-# NÃO EDITE MANUALMENTE.
-#
-# Arquitetura de rede:
-#   [ALB :80] → [nginx service :80] → proxy /api/ → [backend service :8080]
-#                                   → serve static → /usr/share/nginx/html/
-#
-# O nginx.conf do Frontend usa "api.backend" como hostname do backend.
-# O alias de rede abaixo faz o Swarm resolver "api.backend" → serviço backend.
 # ──────────────────────────────────────────────────────────────────────────────
 
 networks:
@@ -21,25 +13,22 @@ networks:
 services:
 
   # ── Nginx / Frontend React ─────────────────────────────────────────────────
-  # Imagem construída com:
-  #   nginx.conf  → proxy /api/ para api.backend:8080
-  #   dist/       → arquivos estáticos do npm run build
   nginx:
     image: {{ ecr_frontend_image }}
     networks:
       - sgpj_net
     ports:
-      - "80:80"        # ALB aponta para porta 80 das EC2 app
+      - "80:80"
     deploy:
       replicas: 2
       placement:
         constraints:
           - node.labels.role == app
       update_config:
-        parallelism: 1          # atualiza 1 réplica por vez
+        parallelism: 1
         delay: 10s
         failure_action: rollback
-        order: start-first      # sobe novo antes de parar o antigo (zero-downtime)
+        order: start-first
       rollback_config:
         parallelism: 1
         delay: 5s
@@ -55,14 +44,12 @@ services:
       start_period: 15s
 
   # ── Backend Spring Boot ────────────────────────────────────────────────────
-  # Imagem construída com:
-  #   mvn package → target/*.jar copiado como app.jar
   backend:
     image: {{ ecr_backend_image }}
     networks:
       sgpj_net:
         aliases:
-          - api.backend    # permite que o nginx resolva "api.backend" via DNS do Swarm
+          - api.backend
     ports:
       - "8080:8080"
     environment:
@@ -76,6 +63,7 @@ services:
       SPRING_DATASOURCE_DRIVER_CLASS_NAME: "com.mysql.cj.jdbc.Driver"
       SPRING_JPA_DATABASE_PLATFORM: "org.hibernate.dialect.MySQLDialect"
       SERVER_PORT: "8080"
+      MANAGEMENT_HEALTH_MAIL_ENABLED: "false"
 {% set _jwt = backend_jwt_secret | default(jwt_secret, true) %}
 {% if _jwt %}
       JWT_SECRET: "{{ _jwt }}"
@@ -108,23 +96,16 @@ services:
 {% if _cf_key %}
       CLOUDFLARE_SECRET_KEY: "{{ _cf_key }}"
 {% endif %}
-{% if enable_observability | default(false) | bool and observability_host is defined %}
-      # OpenTelemetry: envia traces para o Alloy local da EC2 (porta 4318 HTTP)
-      # O Alloy recebe e repassa para o Tempo na ec2-observability via gRPC 4317
-      OTEL_EXPORTER_OTLP_ENDPOINT: "http://{{ observability_host }}:4318"
-      OTEL_SERVICE_NAME: "sgpj-backend"
-      OTEL_TRACES_EXPORTER: "otlp"
-{% endif %}
     deploy:
       replicas: 2
       placement:
         constraints:
           - node.labels.role == backend
       update_config:
-        parallelism: 1          # atualiza 1 réplica por vez
+        parallelism: 1
         delay: 15s
         failure_action: rollback
-        order: start-first      # zero-downtime
+        order: start-first
       rollback_config:
         parallelism: 1
         delay: 5s
@@ -132,9 +113,3 @@ services:
         condition: any
         delay: 10s
         max_attempts: 5
-    healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:8080/actuator/health"]
-      interval: 30s
-      timeout: 15s
-      retries: 5
-      start_period: 60s

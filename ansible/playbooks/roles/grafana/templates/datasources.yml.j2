@@ -16,21 +16,16 @@ datasources:
     url: {{ grafana_loki_url }}
     editable: true
 
-  - name: Tempo
-    uid: tempo
-    type: tempo
+  - name: Athena
+    uid: athena
+    type: grafana-athena-datasource
     access: proxy
-    url: {{ grafana_tempo_url }}
+    isDefault: false
     editable: true
     jsonData:
-      httpMethod: GET
-      serviceMap:
-        datasourceUid: prometheus
-      nodeGraph:
-        enabled: true
-      traceQuery:
-        timeShiftEnabled: true
-        spanStartTimeShift: 1h
-        spanEndTimeShift: -1h
-      lokiSearch:
-        datasourceUid: loki
+      authType: default
+      defaultRegion: {{ aws_region | default('us-east-1') }}
+      catalog: AwsDataCatalog
+      database: sgpj_logs_bronze
+      workgroup: primary
+      outputLocation: "s3://{{ bronze_bucket | default('sgpj-bronze') }}/athena-results/"

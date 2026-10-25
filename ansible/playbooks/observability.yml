@@ -1,33 +1,16 @@
 ---
-- name: Deploy de coletores base (Node Exporter + Alloy)
+- name: Deploy de coletores base (Node Exporter)
   hosts: all
   become: true
-  vars:
-    has_obs: "{{ groups['observability'] is defined and (groups['observability'] | length > 0) }}"
-    observability_primary_host: "{{ groups['observability'][0] if (groups['observability'] is defined and groups['observability'] | length > 0) else '' }}"
-    alloy_loki_url: "{{ ('http://loki:3100/loki/api/v1/push' if inventory_hostname == observability_primary_host else 'http://' ~ (hostvars[observability_primary_host].ansible_default_ipv4.address | default(hostvars[observability_primary_host].ansible_host)) ~ ':3100/loki/api/v1/push') if has_obs else '' }}"
-
   roles:
     - role: node_exporter
       when: enable_observability | default(false) | bool
-    - role: alloy
-      when:
-        - enable_observability | default(false) | bool
-        - has_obs
-        - inventory_hostname != observability_primary_host
 
-- name: Deploy de observabilidade com Prometheus, Loki, Alloy e Grafana
+- name: Deploy de observabilidade com Prometheus, Loki, CloudWatch Exporter e Grafana
   hosts: observability
   become: true
   vars:
     observability_primary_host: "{{ groups['observability'][0] if (groups['observability'] is defined and groups['observability'] | length > 0) else '' }}"
-
-  pre_tasks:
-    - name: Garantir que container do Alloy nao esteja rodando no host de observabilidade (evita conflito na porta 4317 com o Tempo)
-      community.docker.docker_container:
-        name: alloy
-        state: absent
-      ignore_errors: true
 
   roles:
     - role: loki
@@ -35,10 +18,6 @@
         - enable_observability | default(false) | bool
         - inventory_hostname == observability_primary_host
     - role: alertmanager
-      when:
-        - enable_observability | default(false) | bool
-        - inventory_hostname == observability_primary_host
-    - role: tempo
       when:
         - enable_observability | default(false) | bool
         - inventory_hostname == observability_primary_host
@@ -50,7 +29,6 @@
       when:
         - enable_observability | default(false) | bool
         - inventory_hostname == observability_primary_host
-        - observability_aws_auth_enabled | default(false) | bool
     - role: grafana
       when:
         - enable_observability | default(false) | bool
