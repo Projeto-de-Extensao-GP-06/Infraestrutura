@@ -100,6 +100,13 @@ services:
 {% if backend_cloudflare_secret_key is defined and backend_cloudflare_secret_key %}
       CLOUDFLARE_SECRET_KEY: "{{ backend_cloudflare_secret_key }}"
 {% endif %}
+{% if enable_observability | default(false) | bool and observability_host is defined %}
+      # OpenTelemetry: envia traces para o Alloy local da EC2 (porta 4318 HTTP)
+      # O Alloy recebe e repassa para o Tempo na ec2-observability via gRPC 4317
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://{{ observability_host }}:4318"
+      OTEL_SERVICE_NAME: "sgpj-backend"
+      OTEL_TRACES_EXPORTER: "otlp"
+{% endif %}
     deploy:
       replicas: 2
       placement:
