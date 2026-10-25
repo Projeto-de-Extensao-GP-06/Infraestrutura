@@ -127,6 +127,11 @@ DOCKER_BIN=$(find_tool docker)
 AWS_BIN=$(find_tool aws)
 NPM_BIN=$(find_tool npm)
 MVN_BIN=$(find_tool mvn)
+if [[ -z "$MVN_BIN" && -f "$BACKEND_PATH/mvnw" ]]; then
+  MVN_BIN="$BACKEND_PATH/mvnw"
+elif [[ -z "$MVN_BIN" && -f "$BACKEND_PATH/mvnw.cmd" ]]; then
+  MVN_BIN="$BACKEND_PATH/mvnw.cmd"
+fi
 
 [[ -z "$DOCKER_BIN" ]] && error "Docker não encontrado. Instale o Docker ou ative o Docker Desktop."
 [[ -z "$AWS_BIN" ]]    && error "AWS CLI não encontrado. Instale o AWS CLI ou execute pelo PowerShell via: .\deploy.ps1 all"
@@ -139,8 +144,22 @@ if $DEPLOY_FRONTEND; then
   npm() { "$NPM_BIN" "$@"; }
 fi
 if $DEPLOY_BACKEND; then
-  [[ -z "$MVN_BIN" ]] && error "Maven não encontrado. Instale com: sudo apt install maven ou execute pelo PowerShell via: .\deploy.ps1 all"
-  mvn() { "$MVN_BIN" "$@"; }
+  if [[ -z "$MVN_BIN" ]]; then
+    # Verifica se já existe um JAR compilado no target/
+    if compgen -G "$BACKEND_PATH/target/*.jar" > /dev/null; then
+      warn "Maven não encontrado, mas detectado JAR existente em target/. O build usará o JAR existente."
+      MVN_BIN="SKIP"
+    else
+      error "Maven não encontrado e nenhum JAR em target/. Instale o Maven ou execute pelo PowerShell via: .\deploy.ps1 all"
+    fi
+  fi
+  mvn() {
+    if [[ "$MVN_BIN" == "SKIP" ]]; then
+      info "Reaproveitando JAR existente em target/..."
+    else
+      "$MVN_BIN" "$@"
+    fi
+  }
 fi
 
 # ── Verificar credenciais AWS ─────────────────────────────────────────────────

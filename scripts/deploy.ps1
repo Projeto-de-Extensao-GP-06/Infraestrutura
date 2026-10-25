@@ -48,8 +48,23 @@ if (-not (Get-Command aws -ErrorAction SilentlyContinue)) {
 if ($DeployFrontend -and -not (Get-Command npm -ErrorAction SilentlyContinue)) {
     Write-Err "npm / Node.js nao encontrado no PATH."
 }
-if ($DeployBackend -and -not (Get-Command mvn -ErrorAction SilentlyContinue)) {
-    Write-Err "Maven (mvn) nao encontrado no PATH."
+
+# Maven: suporta mvn global, Maven Wrapper (mvnw.cmd) ou reaproveita target/*.jar existente
+$MvnCmd = "mvn"
+if ($DeployBackend) {
+    if (-not (Get-Command mvn -ErrorAction SilentlyContinue)) {
+        $mvnwPath = Join-Path $BackendPath "mvnw.cmd"
+        if (Test-Path $mvnwPath) {
+            $MvnCmd = $mvnwPath
+        } else {
+            $existingJar = Get-ChildItem (Join-Path $BackendPath "target") -Filter "*.jar" -ErrorAction SilentlyContinue | Select-Object -First 1
+            if ($existingJar) {
+                $MvnCmd = "SKIP_EXISTING_JAR"
+            } else {
+                Write-Err "Maven (mvn ou mvnw.cmd) nao encontrado para compilar o backend."
+            }
+        }
+    }
 }
 
 # ------------------------------------------------------------------------------
@@ -172,12 +187,22 @@ if ($DeployFrontend) {
 if ($DeployBackend) {
     if (-not (Test-Path $BackendPath)) { Write-Err "Pasta do backend nao encontrada: $BackendPath" }
 
-    Write-Info "Compilando Backend Spring Boot (mvn package)..."
     Push-Location $BackendPath
     try {
-        mvn clean package -DskipTests
-        if ($LASTEXITCODE -ne 0) { Write-Err "Falha no build do Backend (mvn package)." }
-        Write-Success "Backend compilado com sucesso (.jar gerado)!"
+        if ($MvnCmd -eq "SKIP_EXISTING_JAR") {
+            $existingJar = (Get-ChildItem "target" -Filter "*.jar" | Select-Object -First 1).Name
+            Write-Info "Reaproveitando JAR existente em target/: $existingJar"
+        } elseif ($MvnCmd -match "mvnw") {
+            Write-Info "Compilando Backend Spring Boot via Maven Wrapper (.\mvnw.cmd package)..."
+            & $MvnCmd clean package -DskipTests
+            if ($LASTEXITCODE -ne 0) { Write-Err "Falha no build do Backend via mvnw.cmd." }
+            Write-Success "Backend compilado com sucesso (.jar gerado)!"
+        } else {
+            Write-Info "Compilando Backend Spring Boot (mvn package)..."
+            mvn clean package -DskipTests
+            if ($LASTEXITCODE -ne 0) { Write-Err "Falha no build do Backend (mvn package)." }
+            Write-Success "Backend compilado com sucesso (.jar gerado)!"
+        }
 
         Write-Info "Criando imagem Docker do Backend..."
         docker build --platform linux/amd64 -t "${EcrBackendRepo}:latest" .
