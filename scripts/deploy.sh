@@ -107,24 +107,6 @@ if $DEPLOY_BACKEND && [[ ! -d "$BACKEND_PATH" ]]; then
   error "Diretório do backend não encontrado: $BACKEND_PATH"
 fi
 
-# ── Detectar configurações geradas pelo Terraform ─────────────────────────────
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ALL_VARS="$SCRIPT_DIR/../ansible/inventories/group_vars/all.yml"
-INVENTORY="$SCRIPT_DIR/../ansible/inventories/production.ini"
-
-if [[ ! -f "$ALL_VARS" ]]; then
-  error "Inventário não encontrado: $ALL_VARS\n   Execute primeiro:\n   terraform apply -target=aws_ecr_repository.frontend -target=aws_ecr_repository.backend --auto-approve"
-fi
-
-AWS_REGION=$(grep "^aws_region:"       "$ALL_VARS" | awk '{print $2}' | tr -d '"')
-ECR_REGISTRY=$(grep "^ecr_registry_url:" "$ALL_VARS" | awk '{print $2}' | tr -d '"')
-ECR_FRONTEND_REPO="${ECR_REGISTRY}/sgpj-frontend"
-ECR_BACKEND_REPO="${ECR_REGISTRY}/sgpj-backend"
-
-# IP do Manager (ec2-app-a) e chave SSH
-MANAGER_IP=$(grep -A5 "\[app\]" "$INVENTORY" 2>/dev/null | grep "ansible_host=" | head -1 | grep -oP "ansible_host=\K[0-9.]+" || true)
-KEY_FILE=$(grep "ansible_ssh_private_key_file=" "$INVENTORY" 2>/dev/null | head -1 | grep -oP "ansible_ssh_private_key_file=\K\S+" || true)
-
 # ── Verificar dependências ────────────────────────────────────────────────────
 command -v docker &>/dev/null || error "Docker não encontrado. Instale o Docker no WSL."
 command -v aws    &>/dev/null || error "AWS CLI não encontrado. Instale com: pip install awscli"
@@ -138,7 +120,7 @@ fi
 
 # ── Verificar credenciais AWS ─────────────────────────────────────────────────
 info "Verificando credenciais AWS..."
-aws sts get-caller-identity &>/dev/null || {
+CALLER_IDENTITY=$(aws sts get-caller-identity --output json 2>/dev/null) || {
   echo ""
   echo "  As credenciais AWS não estão configuradas ou expiraram."
   echo "  Cole as credenciais do AWS Academy no terminal antes de rodar o script:"
@@ -149,7 +131,46 @@ aws sts get-caller-identity &>/dev/null || {
   echo ""
   error "Credenciais AWS inválidas ou expiradas."
 }
-success "Credenciais AWS válidas"
+ACCOUNT_ID=$(echo "$CALLER_IDENTITY" | grep -oP '"Account":\s*"\K[0-9]+' || echo "")
+success "Credenciais AWS válidas (Conta: $ACCOUNT_ID)"
+
+# ── Detectar configurações geradas pelo Terraform / Ansible ───────────────────
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ALL_VARS="$SCRIPT_DIR/../ansible/inventories/group_vars/all.yml"
+INVENTORY="$SCRIPT_DIR/../ansible/inventories/production.ini"
+
+AWS_REGION=""
+ECR_REGISTRY=""
+
+if [[ -f "$ALL_VARS" ]]; then
+  AWS_REGION=$(grep "^aws_region:" "$ALL_VARS" 2>/dev/null | awk '{print $2}' | tr -d '"' || true)
+  ECR_REGISTRY=$(grep "^ecr_registry_url:" "$ALL_VARS" 2>/dev/null | awk '{print $2}' | tr -d '"' || true)
+fi
+
+# Fallback automático: se all.yml ainda não existir (1ª execução antes do cluster EC2),
+# detecta a região e o repositório ECR diretamente da conta AWS:
+if [[ -z "$AWS_REGION" ]]; then
+  AWS_REGION="${AWS_DEFAULT_REGION:-$(aws configure get region 2>/dev/null || echo 'us-east-1')}"
+fi
+
+if [[ -z "$ECR_REGISTRY" ]]; then
+  if [[ -n "$ACCOUNT_ID" ]]; then
+    ECR_REGISTRY="${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+  else
+    error "Não foi possível determinar o ECR Registry. Execute o terraform apply inicial primeiro."
+  fi
+fi
+
+ECR_FRONTEND_REPO="${ECR_REGISTRY}/sgpj-frontend"
+ECR_BACKEND_REPO="${ECR_REGISTRY}/sgpj-backend"
+
+# IP do Manager (ec2-app-a) e chave SSH (só existirão quando o cluster estiver no ar)
+MANAGER_IP=""
+KEY_FILE=""
+if [[ -f "$INVENTORY" ]]; then
+  MANAGER_IP=$(grep -A5 "\[app\]" "$INVENTORY" 2>/dev/null | grep "ansible_host=" | head -1 | grep -oP "ansible_host=\K[0-9.]+" || true)
+  KEY_FILE=$(grep "ansible_ssh_private_key_file=" "$INVENTORY" 2>/dev/null | head -1 | grep -oP "ansible_ssh_private_key_file=\K\S+" || true)
+fi
 
 # ── Banner ────────────────────────────────────────────────────────────────────
 echo ""

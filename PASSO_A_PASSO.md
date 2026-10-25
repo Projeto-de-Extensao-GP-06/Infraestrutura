@@ -67,24 +67,36 @@ rds_username = "admin"
 Como a stack do Docker Swarm precisa puxar as imagens do ECR no momento da inicialização das instâncias, a ordem de provisionamento inicial segue 3 passos simples:
 
 ### Passo 1.1 — Criar os Repositórios ECR (Apenas 1x na vida)
+
+No **PowerShell** (Windows), as aspas duplas em cada `-target` são obrigatórias para evitar que o ponto seja interpretado:
+
+```powershell
+cd infra/terraform
+
+terraform apply -target="aws_ecr_repository.frontend" -target="aws_ecr_repository.backend" -target="aws_ecr_lifecycle_policy.frontend" -target="aws_ecr_lifecycle_policy.backend" -auto-approve
+```
+
+*(Se preferir rodar no terminal **WSL / Linux**)*:
 ```bash
 cd infra/terraform
 
 terraform apply \
-  -target=aws_ecr_repository.frontend \
-  -target=aws_ecr_repository.backend \
-  -target=aws_ecr_lifecycle_policy.frontend \
-  -target=aws_ecr_lifecycle_policy.backend \
-  --auto-approve
+  -target="aws_ecr_repository.frontend" \
+  -target="aws_ecr_repository.backend" \
+  -target="aws_ecr_lifecycle_policy.frontend" \
+  -target="aws_ecr_lifecycle_policy.backend" \
+  -auto-approve
 ```
-> Isso cria os repositórios ECR vazios no AWS (~30s). **Nunca mais precisará rodar com `-target`.**
+> Isso cria os repositórios ECR vazios na AWS (~30s). **Nunca mais precisará rodar com `-target`.**
 
 ### Passo 1.2 — Fazer o Build e Push Inicial das Imagens para o ECR
-```bash
+
+No PowerShell (ou no WSL):
+```powershell
 cd ../scripts
-./deploy.sh all
+bash deploy.sh all
 ```
-> O script automatiza tudo: compila React (`dist/`), empacota Spring Boot (`.jar`), cria imagens Docker e faz o push para o ECR. Como detecta que o Swarm ainda não está no ar, ele envia as imagens e aguarda a criação da infra.
+> O script automatiza tudo: compila React (`dist/`), empacota Spring Boot (`.jar`), cria imagens Docker e faz o push para o ECR. Ele detecta automaticamente o ID da sua conta AWS e a região, e como o Swarm ainda não está no ar, ele apenas envia as imagens com sucesso e avisa para você prosseguir para o Passo 1.3!
 
 ### Passo 1.3 — Subir Toda a Infraestrutura (EC2s + Swarm + Stack + Observabilidade + Fluent Bit)
 ```bash
