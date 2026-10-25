@@ -164,8 +164,14 @@ Write-Host ""
 # 4. Login no ECR
 # ------------------------------------------------------------------------------
 Write-Info "Autenticando no Amazon ECR..."
-$loginPassword = aws ecr get-login-password --region $AwsRegion
-$loginPassword | docker login --username AWS --password-stdin $EcrRegistry
+$loginPassword = (aws ecr get-login-password --region $AwsRegion).Trim()
+
+# No Windows PowerShell, o pipe '|' injeta quebra de linha (\r\n) que causa 400 Bad Request no ECR.
+# Passar diretamente via --password ou via cmd.exe resolve o problema:
+docker login --username AWS --password $loginPassword $EcrRegistry
+if ($LASTEXITCODE -ne 0) {
+    cmd.exe /c "aws ecr get-login-password --region $AwsRegion | docker login --username AWS --password-stdin $EcrRegistry"
+}
 if ($LASTEXITCODE -ne 0) { Write-Err "Falha na autenticacao com o ECR." }
 Write-Success "Autenticado no ECR com sucesso!"
 
