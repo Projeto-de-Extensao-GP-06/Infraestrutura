@@ -11,16 +11,26 @@
     state: directory
     mode: "0755"
 
+- name: Verificar se ponto de montagem do EFS está acessível
+  ansible.builtin.stat:
+    path: /mnt/efs-sgpj
+  register: efs_mount_check
+
+- name: Validar montagem do EFS antes de criar estrutura do Backend
+  ansible.builtin.assert:
+    that:
+      - efs_mount_check.stat.exists
+      - efs_mount_check.stat.isdir
+    fail_msg: "O ponto de montagem do EFS (/mnt/efs-sgpj) não foi encontrado ou não está montado. Verifique a configuração do EFS."
+
 - name: Criar diretório de logs do Backend no EFS
   ansible.builtin.file:
     path: /mnt/efs-sgpj/volumes/backend/logs
     state: directory
     mode: "0777"
-  ignore_errors: true
 
 - name: Criar diretório de uploads do Backend no EFS
   ansible.builtin.file:
     path: /mnt/efs-sgpj/volumes/backend/uploads
     state: directory
     mode: "0777"
-  ignore_errors: true

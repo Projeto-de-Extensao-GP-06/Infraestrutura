@@ -50,7 +50,8 @@
 
 - name: Aguardar o MySQL aceitar conexoes autenticadas e estar pronto
   ansible.builtin.command: >
-    docker exec {{ mysql_container_name }} mysqladmin ping -h 127.0.0.1 -u {{ mysql_user }} -p{{ mysql_password }}
+    docker exec -e MYSQL_PWD={{ mysql_password }} {{ mysql_container_name }} mysqladmin ping -h 127.0.0.1 -u {{ mysql_user }}
+  no_log: true
   register: db_ping
   until: db_ping.rc == 0
   retries: 30
@@ -59,15 +60,17 @@
 
 - name: Garantir schema e dados populados em UTF-8 no MySQL
   ansible.builtin.shell: >
-    docker exec -i {{ mysql_container_name }} mysql --default-character-set=utf8mb4 -u root -p{{ mysql_root_password }} < {{ mysql_init_dir }}/01-schema.sql
+    docker exec -i -e MYSQL_PWD={{ mysql_root_password }} {{ mysql_container_name }} mysql --default-character-set=utf8mb4 -u root < {{ mysql_init_dir }}/01-schema.sql
+  no_log: true
 
 - name: Garantir permissoes totais do usuario da aplicacao a partir de qualquer host
   ansible.builtin.shell: >
-    docker exec -i {{ mysql_container_name }} mysql -u root -p{{ mysql_root_password }} -e "
+    docker exec -i -e MYSQL_PWD={{ mysql_root_password }} {{ mysql_container_name }} mysql -u root -e "
     CREATE USER IF NOT EXISTS '{{ mysql_user }}'@'%' IDENTIFIED BY '{{ mysql_password }}';
     ALTER USER '{{ mysql_user }}'@'%' IDENTIFIED BY '{{ mysql_password }}';
     GRANT ALL PRIVILEGES ON {{ mysql_database }}.* TO '{{ mysql_user }}'@'%';
     FLUSH PRIVILEGES;
     "
+  no_log: true
 
 

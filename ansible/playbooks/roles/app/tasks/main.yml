@@ -27,4 +27,3 @@
     dest: "{{ nginx_html_host_path }}/"
     mode: "0755"
   when: local_dist_dir.stat.exists and local_dist_dir.stat.isdir
-  ignore_errors: true
