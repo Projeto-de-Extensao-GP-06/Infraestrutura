@@ -63,3 +63,14 @@ output "ecr_backend_url" {
   description = "URL do repositório ECR do backend"
   value       = aws_ecr_repository.backend.repository_url
 }
+
+# ── Data Lake Ingestion (Lambda + S3 External) ──────────────────────────────
+output "s3_external_bucket" {
+  description = "Nome do bucket S3 de dados externos"
+  value       = local.external_bucket
+}
+
+output "lambda_ingestion_arn" {
+  description = "ARN da função Lambda de ingestão"
+  value       = var.enable_lambda_ingestion ? aws_lambda_function.data_ingestion[0].arn : ""
+}

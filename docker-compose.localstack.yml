@@ -48,6 +48,8 @@ services:
       - AWS_DEFAULT_REGION=us-east-1
     entrypoint: ""
     command: sleep infinity
+    volumes:
+      - "./scripts/localstack_init.sh:/etc/localstack/init/ready.d/localstack_init.sh"
     networks:
       - sgpj-network
 
