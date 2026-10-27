@@ -1,0 +1,125 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "id": 1,
+      "title": "Data Lake S3 / Athena — Logs Brutos (Fluent Bit)",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "grafana-athena-datasource", "uid": "athena" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "axisCenteredZero": false, "axisColorMode": "text", "drawStyle": "bars", "fillOpacity": 80 },
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 1 },
+      "id": 2,
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "single" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "grafana-athena-datasource", "uid": "athena" },
+          "connectionArgs": {
+            "catalog": "AwsDataCatalog",
+            "database": "sgpj_logs_bronze",
+            "region": "{{ aws_region | default('us-east-1') }}",
+            "resultReuseEnabled": false
+          },
+          "format": 1,
+          "rawSQL": "SELECT host, count(*) as total_logs FROM sgpj_logs_bronze.containers GROUP BY host ORDER BY total_logs DESC",
+          "refId": "A"
+        }
+      ],
+      "title": "Logs por Instância EC2 (Containers)",
+      "type": "barchart"
+    },
+    {
+      "datasource": { "type": "grafana-athena-datasource", "uid": "athena" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "hideFrom": { "legend": false, "tooltip": false, "viz": false } },
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 1 },
+      "id": 3,
+      "options": {
+        "legend": { "displayMode": "list", "placement": "right" },
+        "pieType": "pie",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "tooltip": { "mode": "single" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "grafana-athena-datasource", "uid": "athena" },
+          "connectionArgs": {
+            "catalog": "AwsDataCatalog",
+            "database": "sgpj_logs_bronze",
+            "region": "{{ aws_region | default('us-east-1') }}",
+            "resultReuseEnabled": false
+          },
+          "format": 1,
+          "rawSQL": "SELECT regexp_extract(log, 'HTTP/[0-9.]+\" ([0-9]{3})', 1) as status_code, count(*) as total FROM sgpj_logs_bronze.containers WHERE regexp_like(log, 'HTTP/[0-9.]+\" [0-9]{3}') GROUP BY 1 ORDER BY total DESC",
+          "refId": "A"
+        }
+      ],
+      "title": "Status HTTP do Nginx no Data Lake",
+      "type": "piechart"
+    },
+    {
+      "datasource": { "type": "grafana-athena-datasource", "uid": "athena" },
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "thresholds" }, "custom": { "align": "auto" } },
+        "overrides": []
+      },
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 9 },
+      "id": 4,
+      "options": {
+        "footer": { "enablePagination": true, "fields": "", "reducer": ["sum"], "show": false },
+        "showHeader": true
+      },
+      "targets": [
+        {
+          "datasource": { "type": "grafana-athena-datasource", "uid": "athena" },
+          "connectionArgs": {
+            "catalog": "AwsDataCatalog",
+            "database": "sgpj_logs_bronze",
+            "region": "{{ aws_region | default('us-east-1') }}",
+            "resultReuseEnabled": false
+          },
+          "format": 1,
+          "rawSQL": "SELECT time, host, stream, log FROM sgpj_logs_bronze.containers ORDER BY time DESC LIMIT 50",
+          "refId": "A"
+        }
+      ],
+      "title": "Últimos Logs Armazenados no S3 (Athena SQL Query)",
+      "type": "table"
+    }
+  ],
+  "refresh": "1m",
+  "schemaVersion": 38,
+  "style": "dark",
+  "tags": ["athena", "fluentbit", "datalake", "sgpj"],
+  "time": { "from": "now-6h", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "AWS Athena — Fluent Bit Logs",
+  "uid": "sgpj-athena-logs",
+  "version": 2
+}

@@ -1,0 +1,7 @@
+---
+- name: Deploy do banco de dados MySQL em container
+  hosts: db
+  become: true
+
+  roles:
+    - db

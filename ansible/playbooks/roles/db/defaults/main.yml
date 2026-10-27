@@ -1,0 +1,11 @@
+---
+mysql_image: "mysql:8.0"
+mysql_container_name: "sgpj-mysql"
+mysql_data_dir: "/opt/mysql/data"
+mysql_init_dir: "/opt/mysql/init"
+mysql_host_port: 3306
+mysql_container_port: 3306
+mysql_database: "sgpj"
+mysql_user: "admin"
+mysql_password: "ChangeMe123!"
+mysql_root_password: "ChangeMe123!"

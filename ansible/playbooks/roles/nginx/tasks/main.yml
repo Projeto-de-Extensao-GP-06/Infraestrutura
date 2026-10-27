@@ -24,12 +24,12 @@
     mode: "0644"
     force: false
 
-- name: Publicar configuracao padrao do Nginx no EFS (somente se nao existir)
-  ansible.builtin.copy:
-    src: default.conf
+- name: Publicar configuracao dinâmica do Nginx com upstream dos backends
+  ansible.builtin.template:
+    src: default.conf.j2
     dest: "{{ nginx_conf_host_path }}/default.conf"
     mode: "0644"
-    force: false
+    force: true
 
 - name: Baixar imagem do Nginx
   community.docker.docker_image:

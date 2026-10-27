@@ -1,86 +1,87 @@
 # ── Data Lake S3 Buckets (Bronze, Silver, Gold) ────────────────────────────────
-resource "aws_s3_bucket" "bronze" {
-  bucket = "sgpj-bronze"
+# Nomes incluem account_id para garantir unicidade global no S3.
+#
+# IMPORTANTE (AWS Academy): O provider aws_s3_bucket chama GetObjectLockConfiguration
+# durante o refresh, operação bloqueada pelo SCP da organização do Academy.
+# Solução: usar null_resource + AWS CLI para criar e configurar os buckets.
+# ARNs são calculados via locals (formato determinístico — não precisamos do provider).
 
-  tags = {
-    Name        = "sgpj-bronze"
-    Environment = "data-lake"
-    Layer       = "bronze"
-  }
+data "aws_caller_identity" "current" {}
+
+locals {
+  account_id = data.aws_caller_identity.current.account_id
+
+  bronze_bucket   = "sgpj-bronze-${local.account_id}"
+  silver_bucket   = "sgpj-silver-${local.account_id}"
+  gold_bucket     = "sgpj-gold-${local.account_id}"
+  external_bucket = "sgpj-external-${local.account_id}"
+
+  # ARNs calculados sem depender do recurso aws_s3_bucket
+  bronze_bucket_arn   = "arn:aws:s3:::${local.bronze_bucket}"
+  silver_bucket_arn   = "arn:aws:s3:::${local.silver_bucket}"
+  gold_bucket_arn     = "arn:aws:s3:::${local.gold_bucket}"
+  external_bucket_arn = "arn:aws:s3:::${local.external_bucket}"
 }
 
-resource "aws_s3_bucket_versioning" "bronze" {
-  bucket = aws_s3_bucket.bronze.id
-  versioning_configuration {
-    status = "Enabled"
+# ── Criação e configuração dos buckets via AWS CLI ─────────────────────────────
+# null_resource não faz refresh — nunca chama GetObjectLockConfiguration.
+resource "null_resource" "s3_data_lake" {
+  triggers = {
+    bronze_bucket   = local.bronze_bucket
+    silver_bucket   = local.silver_bucket
+    gold_bucket     = local.gold_bucket
+    external_bucket = local.external_bucket
   }
-}
 
-resource "aws_s3_bucket_server_side_encryption_configuration" "bronze" {
-  bucket = aws_s3_bucket.bronze.id
+  provisioner "local-exec" {
+    interpreter = ["PowerShell", "-Command"]
+    command     = <<-EOT
+      $ErrorActionPreference = 'Stop'
+      $region  = 'us-east-1'
+      $buckets = @('${local.external_bucket}', '${local.bronze_bucket}', '${local.silver_bucket}', '${local.gold_bucket}')
 
-  rule {
-    apply_server_side_encryption_by_default {
-      sse_algorithm = "AES256"
-    }
-  }
-}
+      # Cria arquivo temporario com JSON de criptografia e formata path com barras normais para o AWS CLI
+      $encFile = [System.IO.Path]::GetTempFileName()
+      Set-Content -Path $encFile -Value '{"Rules":[{"ApplyServerSideEncryptionByDefault":{"SSEAlgorithm":"AES256"},"BucketKeyEnabled":false}]}'
+      $encFilePath = $encFile.Replace('\', '/')
 
-resource "aws_s3_bucket" "silver" {
-  bucket = "sgpj-silver"
+      try {
+        foreach ($bucket in $buckets) {
+          Write-Host ">>> Configurando bucket: $bucket"
 
-  tags = {
-    Name        = "sgpj-silver"
-    Environment = "data-lake"
-    Layer       = "silver"
-  }
-}
+          # Verifica se o bucket ja existe antes de criar
+          aws s3api head-bucket --bucket $bucket 2>$null
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "Criando bucket $bucket..."
+            aws s3api create-bucket --bucket $bucket --region $region
+            if ($LASTEXITCODE -ne 0) { throw "Falha ao criar bucket $bucket" }
+          } else {
+            Write-Host "Bucket $bucket ja existe, pulando criacao."
+          }
 
-resource "aws_s3_bucket_versioning" "silver" {
-  bucket = aws_s3_bucket.silver.id
-  versioning_configuration {
-    status = "Enabled"
-  }
-}
+          # Habilita versionamento
+          Write-Host "Habilitando versionamento em $bucket..."
+          aws s3api put-bucket-versioning --bucket $bucket --versioning-configuration Status=Enabled
+          if ($LASTEXITCODE -ne 0) { throw "Falha no versionamento de $bucket" }
 
-resource "aws_s3_bucket_server_side_encryption_configuration" "silver" {
-  bucket = aws_s3_bucket.silver.id
+          # Habilita criptografia AES256
+          Write-Host "Habilitando criptografia em $bucket..."
+          aws s3api put-bucket-encryption --bucket $bucket --server-side-encryption-configuration "file://$encFilePath"
+          if ($LASTEXITCODE -ne 0) { throw "Falha na criptografia de $bucket" }
 
-  rule {
-    apply_server_side_encryption_by_default {
-      sse_algorithm = "AES256"
-    }
-  }
-}
+          Write-Host ">>> Bucket $bucket OK"
+        }
+      } finally {
+        if (Test-Path $encFile) { Remove-Item $encFile -Force }
+      }
 
-resource "aws_s3_bucket" "gold" {
-  bucket = "sgpj-gold"
-
-  tags = {
-    Name        = "sgpj-gold"
-    Environment = "data-lake"
-    Layer       = "gold"
-  }
-}
-
-resource "aws_s3_bucket_versioning" "gold" {
-  bucket = aws_s3_bucket.gold.id
-  versioning_configuration {
-    status = "Enabled"
-  }
-}
-
-resource "aws_s3_bucket_server_side_encryption_configuration" "gold" {
-  bucket = aws_s3_bucket.gold.id
-
-  rule {
-    apply_server_side_encryption_by_default {
-      sse_algorithm = "AES256"
-    }
+      Write-Host ">>> Todos os buckets configurados com sucesso"
+    EOT
   }
 }
 
 # ── IAM Role for Glue Crawlers ─────────────────────────────────────────────────
+# Protegido por enable_data_lake_iam (AWS Academy bloqueia iam:CreateRole)
 data "aws_iam_policy_document" "glue_assume_role" {
   statement {
     effect = "Allow"
@@ -93,6 +94,7 @@ data "aws_iam_policy_document" "glue_assume_role" {
 }
 
 resource "aws_iam_role" "glue_crawler_role" {
+  count              = var.enable_data_lake_iam ? 1 : 0
   name               = "sgpj-glue-crawler-role"
   assume_role_policy = data.aws_iam_policy_document.glue_assume_role.json
   tags               = { Name = "sgpj-glue-crawler-role" }
@@ -108,13 +110,14 @@ data "aws_iam_policy_document" "glue_crawler_policy" {
       "s3:ListBucket",
       "s3:GetBucketLocation"
     ]
+    # Usa locals em vez de aws_s3_bucket.*.arn
     resources = [
-      aws_s3_bucket.bronze.arn,
-      "${aws_s3_bucket.bronze.arn}/*",
-      aws_s3_bucket.silver.arn,
-      "${aws_s3_bucket.silver.arn}/*",
-      aws_s3_bucket.gold.arn,
-      "${aws_s3_bucket.gold.arn}/*"
+      local.bronze_bucket_arn,
+      "${local.bronze_bucket_arn}/*",
+      local.silver_bucket_arn,
+      "${local.silver_bucket_arn}/*",
+      local.gold_bucket_arn,
+      "${local.gold_bucket_arn}/*"
     ]
   }
 
@@ -131,8 +134,9 @@ data "aws_iam_policy_document" "glue_crawler_policy" {
 }
 
 resource "aws_iam_role_policy" "glue_crawler_policy" {
+  count  = var.enable_data_lake_iam ? 1 : 0
   name   = "sgpj-glue-crawler-policy"
-  role   = aws_iam_role.glue_crawler_role.id
+  role   = aws_iam_role.glue_crawler_role[0].id
   policy = data.aws_iam_policy_document.glue_crawler_policy.json
 }
 
@@ -155,17 +159,17 @@ resource "aws_glue_catalog_database" "gold_db" {
   catalog_id  = data.aws_caller_identity.current.account_id
 }
 
-data "aws_caller_identity" "current" {}
-
 # ── Glue Crawlers ──────────────────────────────────────────────────────────────
+# Só criados quando enable_data_lake_iam = true (requer IAM role criada)
 resource "aws_glue_crawler" "bronze_crawler" {
+  count         = var.enable_data_lake_iam ? 1 : 0
   name          = "sgpj-bronze-crawler"
-  role          = aws_iam_role.glue_crawler_role.arn
+  role          = aws_iam_role.glue_crawler_role[0].arn
   database_name = aws_glue_catalog_database.bronze_db.name
   description   = "Crawler for bronze layer raw data"
 
   s3_target {
-    path = "s3://${aws_s3_bucket.bronze.bucket}/"
+    path = "s3://${local.bronze_bucket}/"
   }
 
   schema_change_policy {
@@ -194,13 +198,14 @@ resource "aws_glue_crawler" "bronze_crawler" {
 }
 
 resource "aws_glue_crawler" "silver_crawler" {
+  count         = var.enable_data_lake_iam ? 1 : 0
   name          = "sgpj-silver-crawler"
-  role          = aws_iam_role.glue_crawler_role.arn
+  role          = aws_iam_role.glue_crawler_role[0].arn
   database_name = aws_glue_catalog_database.silver_db.name
   description   = "Crawler for silver layer cleaned data"
 
   s3_target {
-    path = "s3://${aws_s3_bucket.silver.bucket}/"
+    path = "s3://${local.silver_bucket}/"
   }
 
   schema_change_policy {
@@ -229,13 +234,14 @@ resource "aws_glue_crawler" "silver_crawler" {
 }
 
 resource "aws_glue_crawler" "gold_crawler" {
+  count         = var.enable_data_lake_iam ? 1 : 0
   name          = "sgpj-gold-crawler"
-  role          = aws_iam_role.glue_crawler_role.arn
+  role          = aws_iam_role.glue_crawler_role[0].arn
   database_name = aws_glue_catalog_database.gold_db.name
   description   = "Crawler for gold layer aggregated data"
 
   s3_target {
-    path = "s3://${aws_s3_bucket.gold.bucket}/"
+    path = "s3://${local.gold_bucket}/"
   }
 
   schema_change_policy {
@@ -276,6 +282,7 @@ data "aws_iam_policy_document" "glue_job_assume_role" {
 }
 
 resource "aws_iam_role" "glue_job_role" {
+  count              = var.enable_data_lake_iam ? 1 : 0
   name               = "sgpj-glue-job-role"
   assume_role_policy = data.aws_iam_policy_document.glue_job_assume_role.json
   tags               = { Name = "sgpj-glue-job-role" }
@@ -292,12 +299,12 @@ data "aws_iam_policy_document" "glue_job_policy" {
       "s3:GetBucketLocation"
     ]
     resources = [
-      aws_s3_bucket.bronze.arn,
-      "${aws_s3_bucket.bronze.arn}/*",
-      aws_s3_bucket.silver.arn,
-      "${aws_s3_bucket.silver.arn}/*",
-      aws_s3_bucket.gold.arn,
-      "${aws_s3_bucket.gold.arn}/*"
+      local.bronze_bucket_arn,
+      "${local.bronze_bucket_arn}/*",
+      local.silver_bucket_arn,
+      "${local.silver_bucket_arn}/*",
+      local.gold_bucket_arn,
+      "${local.gold_bucket_arn}/*"
     ]
   }
 
@@ -316,41 +323,43 @@ data "aws_iam_policy_document" "glue_job_policy" {
 }
 
 resource "aws_iam_role_policy" "glue_job_policy" {
+  count  = var.enable_data_lake_iam ? 1 : 0
   name   = "sgpj-glue-job-policy"
-  role   = aws_iam_role.glue_job_role.id
+  role   = aws_iam_role.glue_job_role[0].id
   policy = data.aws_iam_policy_document.glue_job_policy.json
 }
 
 # ── Glue ETL Job: Bronze → Silver ───────────────────────────────────────────────
 resource "aws_glue_job" "bronze_to_silver" {
+  count       = var.enable_data_lake_iam ? 1 : 0
   name        = "sgpj-bronze-to-silver"
   description = "ETL job to transform bronze raw data to silver curated format"
-  role_arn    = aws_iam_role.glue_job_role.arn
+  role_arn    = aws_iam_role.glue_job_role[0].arn
 
   command {
     name            = "glueetl"
-    script_location = "s3://${aws_s3_bucket.silver.bucket}/scripts/bronze_to_silver.py"
+    script_location = "s3://${local.silver_bucket}/scripts/bronze_to_silver.py"
     python_version  = "3"
   }
 
   default_arguments = {
-    "--job-language"           = "python"
+    "--job-language"                     = "python"
     "--enable-continuous-cloudwatch-log" = "true"
-    "--enable-metrics"         = ""
-    "--enable-spark-ui"        = "true"
-    "--spark-event-logs-path"  = "s3://${aws_s3_bucket.silver.bucket}/logs/spark/"
-    "--TempDir"                = "s3://${aws_s3_bucket.silver.bucket}/tmp/"
-    "--source_bucket"          = aws_s3_bucket.bronze.bucket
-    "--target_bucket"          = aws_s3_bucket.silver.bucket
-    "--source_database"        = aws_glue_catalog_database.bronze_db.name
-    "--target_database"        = aws_glue_catalog_database.silver_db.name
+    "--enable-metrics"                   = ""
+    "--enable-spark-ui"                  = "true"
+    "--spark-event-logs-path"            = "s3://${local.silver_bucket}/logs/spark/"
+    "--TempDir"                          = "s3://${local.silver_bucket}/tmp/"
+    "--source_bucket"                    = local.bronze_bucket
+    "--target_bucket"                    = local.silver_bucket
+    "--source_database"                  = aws_glue_catalog_database.bronze_db.name
+    "--target_database"                  = aws_glue_catalog_database.silver_db.name
   }
 
-  max_retries    = 0
-  timeout        = 120
-  glue_version   = "4.0"
+  max_retries       = 0
+  timeout           = 120
+  glue_version      = "4.0"
   number_of_workers = 2
-  worker_type    = "Standard"
+  worker_type       = "Standard"
 
   tags = {
     Name        = "sgpj-bronze-to-silver"
@@ -361,34 +370,35 @@ resource "aws_glue_job" "bronze_to_silver" {
 
 # ── Glue ETL Job: Silver → Gold ─────────────────────────────────────────────────
 resource "aws_glue_job" "silver_to_gold" {
+  count       = var.enable_data_lake_iam ? 1 : 0
   name        = "sgpj-silver-to-gold"
   description = "ETL job to aggregate silver data into gold business metrics"
-  role_arn    = aws_iam_role.glue_job_role.arn
+  role_arn    = aws_iam_role.glue_job_role[0].arn
 
   command {
     name            = "glueetl"
-    script_location = "s3://${aws_s3_bucket.gold.bucket}/scripts/silver_to_gold.py"
+    script_location = "s3://${local.gold_bucket}/scripts/silver_to_gold.py"
     python_version  = "3"
   }
 
   default_arguments = {
-    "--job-language"           = "python"
+    "--job-language"                     = "python"
     "--enable-continuous-cloudwatch-log" = "true"
-    "--enable-metrics"         = ""
-    "--enable-spark-ui"        = "true"
-    "--spark-event-logs-path"  = "s3://${aws_s3_bucket.gold.bucket}/logs/spark/"
-    "--TempDir"                = "s3://${aws_s3_bucket.gold.bucket}/tmp/"
-    "--source_bucket"          = aws_s3_bucket.silver.bucket
-    "--target_bucket"          = aws_s3_bucket.gold.bucket
-    "--source_database"        = aws_glue_catalog_database.silver_db.name
-    "--target_database"        = aws_glue_catalog_database.gold_db.name
+    "--enable-metrics"                   = ""
+    "--enable-spark-ui"                  = "true"
+    "--spark-event-logs-path"            = "s3://${local.gold_bucket}/logs/spark/"
+    "--TempDir"                          = "s3://${local.gold_bucket}/tmp/"
+    "--source_bucket"                    = local.silver_bucket
+    "--target_bucket"                    = local.gold_bucket
+    "--source_database"                  = aws_glue_catalog_database.silver_db.name
+    "--target_database"                  = aws_glue_catalog_database.gold_db.name
   }
 
-  max_retries    = 0
-  timeout        = 120
-  glue_version   = "4.0"
+  max_retries       = 0
+  timeout           = 120
+  glue_version      = "4.0"
   number_of_workers = 2
-  worker_type    = "Standard"
+  worker_type       = "Standard"
 
   tags = {
     Name        = "sgpj-silver-to-gold"
@@ -397,42 +407,40 @@ resource "aws_glue_job" "silver_to_gold" {
   }
 }
 
-
-
 # ── Outputs ────────────────────────────────────────────────────────────────────
 output "bronze_bucket_name" {
   description = "Nome do bucket bronze"
-  value       = aws_s3_bucket.bronze.bucket
+  value       = local.bronze_bucket
 }
 
 output "silver_bucket_name" {
   description = "Nome do bucket silver"
-  value       = aws_s3_bucket.silver.bucket
+  value       = local.silver_bucket
 }
 
 output "gold_bucket_name" {
   description = "Nome do bucket gold"
-  value       = aws_s3_bucket.gold.bucket
+  value       = local.gold_bucket
 }
 
 output "bronze_bucket_arn" {
   description = "ARN do bucket bronze"
-  value       = aws_s3_bucket.bronze.arn
+  value       = local.bronze_bucket_arn
 }
 
 output "silver_bucket_arn" {
   description = "ARN do bucket silver"
-  value       = aws_s3_bucket.silver.arn
+  value       = local.silver_bucket_arn
 }
 
 output "gold_bucket_arn" {
   description = "ARN do bucket gold"
-  value       = aws_s3_bucket.gold.arn
+  value       = local.gold_bucket_arn
 }
 
 output "glue_crawler_role_arn" {
-  description = "ARN do role IAM para Glue Crawlers"
-  value       = aws_iam_role.glue_crawler_role.arn
+  description = "ARN do role IAM para Glue Crawlers (null se enable_data_lake_iam=false)"
+  value       = var.enable_data_lake_iam ? aws_iam_role.glue_crawler_role[0].arn : null
 }
 
 output "bronze_database_name" {
@@ -446,18 +454,18 @@ output "silver_database_name" {
 }
 
 output "bronze_crawler_name" {
-  description = "Nome do crawler bronze"
-  value       = aws_glue_crawler.bronze_crawler.name
+  description = "Nome do crawler bronze (null se enable_data_lake_iam=false)"
+  value       = var.enable_data_lake_iam ? aws_glue_crawler.bronze_crawler[0].name : null
 }
 
 output "silver_crawler_name" {
-  description = "Nome do crawler silver"
-  value       = aws_glue_crawler.silver_crawler.name
+  description = "Nome do crawler silver (null se enable_data_lake_iam=false)"
+  value       = var.enable_data_lake_iam ? aws_glue_crawler.silver_crawler[0].name : null
 }
 
 output "gold_crawler_name" {
-  description = "Nome do crawler gold"
-  value       = aws_glue_crawler.gold_crawler.name
+  description = "Nome do crawler gold (null se enable_data_lake_iam=false)"
+  value       = var.enable_data_lake_iam ? aws_glue_crawler.gold_crawler[0].name : null
 }
 
 output "gold_database_name" {
@@ -466,16 +474,16 @@ output "gold_database_name" {
 }
 
 output "glue_job_role_arn" {
-  description = "ARN do role IAM para Glue Jobs"
-  value       = aws_iam_role.glue_job_role.arn
+  description = "ARN do role IAM para Glue Jobs (null se enable_data_lake_iam=false)"
+  value       = var.enable_data_lake_iam ? aws_iam_role.glue_job_role[0].arn : null
 }
 
 output "bronze_to_silver_job_name" {
-  description = "Nome do job Glue Bronze → Silver"
-  value       = aws_glue_job.bronze_to_silver.name
+  description = "Nome do job Glue Bronze → Silver (null se enable_data_lake_iam=false)"
+  value       = var.enable_data_lake_iam ? aws_glue_job.bronze_to_silver[0].name : null
 }
 
 output "silver_to_gold_job_name" {
-  description = "Nome do job Glue Silver → Gold"
-  value       = aws_glue_job.silver_to_gold.name
+  description = "Nome do job Glue Silver → Gold (null se enable_data_lake_iam=false)"
+  value       = var.enable_data_lake_iam ? aws_glue_job.silver_to_gold[0].name : null
 }

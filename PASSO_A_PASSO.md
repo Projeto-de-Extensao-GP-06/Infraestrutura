@@ -1,437 +1,308 @@
-# Passo a passo oficial - Nginx neutro com EFS
+# Passo a Passo — Infraestrutura SGPJ (Grupo 06)
 
-Este guia segue a arquitetura final oficial:
-
-- Nginx neutro (porta 80) nas instâncias app
-- Conteudo e configuracao do Nginx fora da imagem, montados do EFS
-- EFS montado em app e backend para volumes compartilhados
-- Sem deploy oficial da role app no pipeline
-
-- debug: curl -s https://ifconfig.me/ip;
-- Gerar dados no alb: for i in $(seq 1 200); do curl -s -o /dev/null -w "%{http_code}\n" http://alb-app-2096086600.us-east-1.elb.amazonaws.com/; done
+> **Arquitetura Atualizada (Docker Swarm + AWS ECR + Observabilidade & Fluent Bit):**
+> - **Orquestração:** Docker Swarm em cluster (`ec2-app-a` Manager; `ec2-app-b`, `ec2-backend-a/b` Workers).
+> - **Repositório de Imagens:** AWS ECR (`sgpj-frontend` e `sgpj-backend`).
+> - **Deploy de Aplicação:** Stack Swarm com Rolling Update (zero downtime), alias de rede overlay `api.backend` e healthchecks.
+> - **Banco:** MySQL 8.0 em container Docker na `ec2-db` (fora do Swarm por segurança/estado).
+> - **Proxy / Ingress:** ALB na porta 80 balanceando para o serviço `nginx` (React SPA + Proxy reverso `/api/` para `api.backend:8080`).
+> - **Observabilidade Ativa:** Grafana (`3001`) + Loki (`3100`) + Prometheus (`9090`) liberados para acesso público na EC2 de observabilidade.
+> - **Log Shipping & Data Lake:** Fluent Bit instalado em todas as EC2, enviando logs compactados em Gzip para o S3 Bronze Tier (`s3://sgpj-bronze-<account-id>/logs/`), catalogados via AWS Glue e consultáveis via AWS Athena.
 
 ---
 
-## 0) Configurar credenciais antes de comecar
+## 0) Pré-requisitos e Configuração Inicial
 
-Antes de rodar qualquer playbook, preencha os arquivos abaixo com suas proprias credenciais.
-**Nao commite esses valores reais no Git.**
+### 0.1 Credenciais AWS e Chave SSH
 
-### 0.1 Senha do banco de dados — `terraform/terraform.tfvars`
+Coloque sua chave privada na pasta `~/.ssh/` no WSL:
 
-Este arquivo **nao e versionado** (esta no `.gitignore`). Crie-o na pasta `terraform/`:
+```bash
+mkdir -p ~/.ssh
+cp "/mnt/c/Users/compu/OneDrive - SPTech School/GitHub/Grupo06/infra/vockey.pem" ~/.ssh/vockey.pem
+chmod 400 ~/.ssh/vockey.pem
+```
+
+Configure as credenciais AWS no terminal (copie do Vocareum/AWS Academy):
+
+```bash
+export AWS_ACCESS_KEY_ID="..."
+export AWS_SECRET_ACCESS_KEY="..."
+export AWS_SESSION_TOKEN="..."
+```
+
+> [!WARNING]
+> As credenciais do AWS Academy expiram a cada ~4 horas. Sempre que renovar a sessão, repita o `export` acima.
+
+### 0.2 Arquivo de variáveis do Terraform — `terraform/terraform.tfvars`
+
+Configurado em `infra/terraform/terraform.tfvars`:
 
 ```hcl
-Key-All                    = "Key-All"           # nome do Key Pair na AWS
-region                     = "us-east-1"
-rds_password               = "SUA_SENHA_DO_BANCO"
-rds_db_name                = "sgpj"
-rds_username               = "admin"
-rds_instance_class         = "db.t3.micro"
-rds_allocated_storage      = 20
-observability_allowed_cidr = "SEU_IP_PUBLICO/32"  # curl https://ifconfig.me/ip
+Key-All = "vockey"
+region  = "us-east-1"
+
+# ── Observabilidade (Grafana, Prometheus, Loki) ─────────────────
+# Habilitado com acesso publico (0.0.0.0/0) para demonstracao e avaliacao
+enable_observability       = true
+observability_allowed_cidr = "0.0.0.0/0"
+observability_existing_instance_profile_name = "LabInstanceProfile"
+
+# ── Execucao Automatica do Ansible pelo Terraform ────────────
+auto_run_ansible = true
+
+# ── Data Lake IAM (Glue Crawlers/Jobs - bloqueado no AWS Academy) ─
+enable_data_lake_iam = false
+
+# ── Banco de Dados MySQL na EC2 db ───────────────────────────
+rds_password = "sgpj96321"
+rds_db_name  = "sgpj"
+rds_username = "admin"
 ```
-
-> **Como descobrir seu IP publico:** rode `curl https://ifconfig.me/ip` no terminal.
-
-### 0.2 Alertas por e-mail (SMTP Gmail)
-
-Edite os dois arquivos abaixo substituindo os placeholders:
-
-**`ansible/playbooks/roles/alertmanager/defaults/main.yml`**
-
-```yaml
-alertmanager_smtp_from: "SEU_EMAIL@gmail.com"
-alertmanager_smtp_user: "SEU_EMAIL@gmail.com"
-alertmanager_smtp_password: "SENHA_APP_GMAIL" # ver instrucao abaixo
-alertmanager_alert_email: "EMAIL_DESTINO@gmail.com"
-```
-
-**`ansible/playbooks/roles/grafana/defaults/main.yml`**
-
-```yaml
-grafana_smtp_user: "SEU_EMAIL@gmail.com"
-grafana_smtp_password: "SENHA_APP_GMAIL"
-grafana_smtp_from_address: "SEU_EMAIL@gmail.com"
-grafana_alert_email: "EMAIL_DESTINO@gmail.com"
-```
-
-> **Como gerar a App Password do Gmail:**
->
-> 1. Acesse [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords)
-> 2. Selecione "Outro (nome personalizado)" e crie com o nome "Grafana"
-> 3. Copie os 16 caracteres gerados (ex: `abcd efgh ijkl mnop`)
-> 4. Use esse valor em `smtp_password` (com ou sem espacos, ambos funcionam)
->
-> A conta Gmail deve ter **verificacao em duas etapas ativada** para criar App Passwords.
-
-### 0.3 Inventario Ansible — IPs das instancias
-
-O arquivo `ansible/inventories/production.ini` contem os IPs das suas EC2.
-A forma mais facil e gera-lo automaticamente apos o `terraform apply` (veja secao 2).
-
-Se preferir preencher manualmente, substitua os placeholders `<IP_...>`:
-
-```ini
-[app]
-ec2-app-a ansible_host=<IP_APP_A>
-ec2-app-b ansible_host=<IP_APP_B>
-
-[observability]
-ec2-observability ansible_host=<IP_OBSERVABILITY>
-```
-
-> Os IPs publicos das EC2 aparecem na saida do `terraform output` ou no console da AWS.
-> Os IPs privados de backend e db (10.0.x.x) nao mudam entre sessoes.
 
 ---
 
-Depois de ajustar os arquivos em `infra/terraform`, rode:
+## 1) Primeira Vez (Do Zero — Infraestrutura ainda não existe)
 
+Como a stack do Docker Swarm precisa puxar as imagens do ECR no momento da inicialização das instâncias, a ordem de provisionamento inicial segue 3 passos simples:
+
+### Passo 1.1 — Criar os Repositórios ECR (Apenas 1x na vida)
+
+No **PowerShell** (Windows), as aspas duplas em cada `-target` são obrigatórias para evitar que o ponto seja interpretado:
+
+```powershell
+cd infra/terraform
+
+terraform apply -target="aws_ecr_repository.frontend" -target="aws_ecr_repository.backend" -target="aws_ecr_lifecycle_policy.frontend" -target="aws_ecr_lifecycle_policy.backend" -auto-approve
+```
+
+*(Se preferir rodar no terminal **WSL / Linux**)*:
 ```bash
 cd infra/terraform
-terraform init
-terraform plan -var-file=terraform.tfvars
-terraform apply -var-file=terraform.tfvars
+
+terraform apply \
+  -target="aws_ecr_repository.frontend" \
+  -target="aws_ecr_repository.backend" \
+  -target="aws_ecr_lifecycle_policy.frontend" \
+  -target="aws_ecr_lifecycle_policy.backend" \
+  -auto-approve
+```
+> Isso cria os repositórios ECR vazios na AWS (~30s). **Nunca mais precisará rodar com `-target`.**
+
+### Passo 1.2 — Fazer o Build e Push Inicial das Imagens para o ECR
+
+No **PowerShell** (Windows nativo — recomendado, pois usa seu Docker Desktop e AWS CLI do Windows):
+```powershell
+cd ../scripts
+.\deploy.ps1 all
 ```
 
-Conferir outputs principais:
+*(Ou via **WSL / Git Bash**)*:
+```bash
+cd ../scripts
+bash deploy.sh all
+```
+> O script automatiza tudo: compila React (`dist/`), empacota Spring Boot (`.jar`), cria imagens Docker e faz o push para o ECR. Ele detecta automaticamente o ID da sua conta AWS e a região, e como o Swarm ainda não está no ar, ele apenas envia as imagens com sucesso e avisa para você prosseguir para o Passo 1.3!
+
+### Passo 1.3 — Subir Toda a Infraestrutura (EC2s + Swarm + Stack + Observabilidade + Fluent Bit)
+```bash
+cd ../terraform
+terraform apply --auto-approve
+```
+O Terraform criará:
+1. VPC, subnets, Security Groups (com portas do Swarm `2377`, `7946`, `4789` e Observabilidade pública `3001`, `9090`) e Internet Gateway
+2. EC2s: `ec2-app-a`, `ec2-app-b`, `ec2-backend-a`, `ec2-backend-b`, `ec2-db` e `ec2-observability`
+3. Application Load Balancer (ALB) e EFS compartilhado
+4. Repositórios ECR e Buckets S3 (Bronze, Silver, Gold e Athena Results)
+5. Glue Catalog Database `sgpj_logs_bronze` e Athena Workgroup `sgpj-logs-analytics`
+6. Gera dinamicamente `ansible/inventories/production.ini` e `group_vars/all.yml`
+7. **Dispara o Ansible automaticamente:**
+   - Instala Docker e monta o EFS
+   - Sobe o MySQL 8.0 na `ec2-db` e roda `schema.sql`
+   - Inicializa o **Docker Swarm**: `ec2-app-a` vira Manager, as outras EC2 viram Workers
+   - Autentica no ECR e faz o `docker stack deploy` da aplicação SGPJ
+   - Provisiona o stack de Observabilidade (Grafana, Loki, Prometheus, Alertmanager)
+   - Instala e inicia o **Fluent Bit** em todas as máquinas para enviar logs ao S3 Bronze
+
+---
+
+## 2) Atualizações de Código no Dia a Dia (Deploy Contínuo)
+
+Com a infraestrutura já rodando na AWS, **você não precisa mexer no Terraform**. Sempre que alterar código no Frontend ou Backend:
 
 ```bash
-terraform output
+# 1. Certifique-se de que as credenciais AWS estão exportadas no terminal
+export AWS_ACCESS_KEY_ID=...
+export AWS_SECRET_ACCESS_KEY=...
+export AWS_SESSION_TOKEN=...
+
+# 2. Execute o deploy simplificado
+cd infra/scripts
+./deploy.sh all
 ```
 
-## 2) Gerar inventario Ansible automaticamente
+---
 
-Rode apos cada `terraform apply`:
+## 3) Referência de Comandos do `deploy.sh`
 
+```bash
+./deploy.sh           # Build + push + update de Frontend e Backend (padrão)
+./deploy.sh all       # Mesmo comportamento de ./deploy.sh
+./deploy.sh frontend  # Build e deploy exclusivo do Frontend
+./deploy.sh backend   # Build e deploy exclusivo do Backend
+./deploy.sh db        # Re-executa o provisionamento do MySQL e schema.sql via Ansible
+```
+
+---
+
+## 4) Gerenciamento do Banco de Dados (MySQL)
+
+O banco de dados roda isolado em Docker puro na `ec2-db` (fora do Swarm, garantindo consistência de volume e estado).
+
+| O que você quer alterar | Onde editar | Como aplicar |
+| :--- | :--- | :--- |
+| Tabelas, schema ou inserts iniciais | [`infra/scripts/test/schema.sql`](file:///c:/Users/compu/OneDrive%20-%20SPTech%20School/GitHub/Grupo06/infra/scripts/test/schema.sql) | `./deploy.sh db` |
+| Versão da imagem MySQL ou portas | [`infra/ansible/playbooks/roles/db/defaults/main.yml`](file:///c:/Users/compu/OneDrive%20-%20SPTech%20School/GitHub/Grupo06/infra/ansible/playbooks/roles/db/defaults/main.yml) | `./deploy.sh db` |
+| Configurações do mysqld / charset | [`infra/ansible/playbooks/roles/db/tasks/main.yml`](file:///c:/Users/compu/OneDrive%20-%20SPTech%20School/GitHub/Grupo06/infra/ansible/playbooks/roles/db/tasks/main.yml) | `./deploy.sh db` |
+
+---
+
+## 5) `terraform destroy` sem Perder as Imagens do ECR
+
+Por padrão, os repositórios ECR (`sgpj-frontend` e `sgpj-backend`) possuem a diretiva de segurança `lifecycle { prevent_destroy = true }` no arquivo `ecr.tf`. 
+
+> [!WARNING]
+> Se você tentar rodar `terraform destroy` diretamente, o Terraform **bloqueará a execução** com o erro:
+> `Error: Instance cannot be destroyed ... has lifecycle.prevent_destroy set to true.`
+> Isso é uma **trava de segurança intencional** para impedir a perda acidental das imagens Docker que você compilou e enviou.
+
+Para destruir toda a infraestrutura cara (EC2s, ALB, NAT Gateway, EFS) e **manter o ECR e suas imagens 100% intactos e salvos na AWS**, siga o procedimento abaixo:
+
+### Passo 5.1 — Remover o ECR do controle do Terraform (sem apagar na AWS)
+
+No **PowerShell** (Windows):
+```powershell
+cd infra/terraform
+
+terraform state rm aws_ecr_lifecycle_policy.frontend aws_ecr_lifecycle_policy.backend aws_ecr_repository.frontend aws_ecr_repository.backend
+```
+
+*(Ou no terminal **WSL / Linux**)*:
 ```bash
 cd infra/terraform
-terraform output -json | py ../scripts/gen_inventory.py ../ansible/inventories/production.ini
+
+terraform state rm aws_ecr_lifecycle_policy.frontend aws_ecr_lifecycle_policy.backend aws_ecr_repository.frontend aws_ecr_repository.backend
 ```
+> **O que isso faz:** O Terraform apenas remove esses recursos do seu arquivo de estado local (`terraform.tfstate`). Os repositórios ECR e todas as imagens Docker permanecem **vivos e preservados na sua conta AWS** (custando apenas centavos de storage).
 
-Obs.: o script agora usa `efs_dns_name` do Terraform (sem hardcode).
+### Passo 5.2 — Destruir a Infraestrutura Restante
 
----
+Agora o Terraform destruirá todo o restante (EC2s, ALB, VPC, EFS, Banco) zerando os custos de computação:
 
-Inventarios disponiveis:
-
-Exemplo rapido para usar outro ambiente:
-
-```WSL
-mkdir -p ~/.ssh
-cp "/mnt/c/Users/compu/OneDrive - SPTech School/GitHub/Grupo06/infra/Key-All.pem" ~/.ssh/Key-All.pem
-chmod 600 ~/.ssh/Key-All.pem
-
-ansible all -i inventories/production.ini -m ping
+```powershell
+terraform destroy -auto-approve
 ```
 
 ---
 
-## 4) Instalar dependencias do Ansible (opcional)
+### Como Subir a Infraestrutura Novamente no Futuro (Reconectar ECR existente)
 
-Agora a instalacao usa arquivo padrao:
+Quando você for subir tudo de novo no próximo laboratório/sessão do AWS Academy:
 
-```bash
-cd infra/ansible
-ansible-galaxy collection install -r requirements.yml
-```
+1. **Reconecte o Terraform aos repositórios ECR existentes** (leva 5 segundos):
+   ```powershell
+   cd infra/terraform
 
-- Em maquina/runner novo: sim, pelo menos uma vez.
-- Em maquina ja preparada: so quando atualizar o `requirements.yml` ou limpar ambiente.
-
-## 5) Aplicar playbooks na ordem correta
-
-### 5.1 Docker + montagem EFS (app e backend)
-
-```bash
-cd infra/ansible
-ansible-playbook -i inventories/production.ini playbooks/docker.yml
-
-```
-
-Esse playbook:
-
-1. Instala Docker em todos os hosts
-2. Monta EFS em app e backend (quando `efs_dns` existe)
-3. Cria estrutura padrao no EFS:
-   - `/mnt/efs-sgpj/volumes/nginx/html`
-   - `/mnt/efs-sgpj/volumes/nginx/conf`
-   - `/mnt/efs-sgpj/volumes/backend/uploads`
-   - `/mnt/efs-sgpj/volumes/backend/logs`
-   - `/mnt/efs-sgpj/volumes/shared`
-
-### 5.2 Nginx neutro (conteudo e conf no EFS)
-
-```bash
-cd infra/ansible
-ansible-playbook -i inventories/production.ini playbooks/nginx.yml
-```
-
-Se quiser fazer teste de A/B:
-
-````bash
-Esse playbook:
-
-1. Sobe Nginx oficial (`nginx:stable-alpine`) na porta 80
-2. Monta `html` do EFS em `/usr/share/nginx/html`
-3. Monta `conf` do EFS em `/etc/nginx/conf.d`
-4. Cria `default.conf` e `index.html` no EFS apenas se nao existirem
-
-### 5.3 Observabilidade (opcional)
-
-```bash
-cd infra/ansible
-ansible-playbook -i inventories/production.ini playbooks/observability.yml
-```
-
-Portas:
-
-- Prometheus: `9090`
-- Grafana: `3001`
-- Alertmanager: `9093`
-- Loki: `3100` (ingest para Alloy na VPC)
-- CloudWatch Exporter: `9106`
-
-Esse playbook agora sobe:
-
-1. Prometheus (metricas)
-2. Loki (logs)
-3. Alertmanager (roteamento de alertas via SMTP/e-mail)
-4. Grafana Alloy em todas as instancias (coleta logs Docker)
-5. Node Exporter em todas as instancias (app, backend, db)
-6. CloudWatch Exporter no host principal (ALB/RDS/EFS)
-7. Grafana com data sources provisionados automaticamente (Prometheus e Loki)
-
-Observacao sobre credenciais AWS (Academy/Vocareum):
-
-- As credenciais expiram a cada ~4 horas.
-- O CloudWatch Exporter recebe as credenciais via variaveis de ambiente.
-- O Ansible le automaticamente o `~/.aws/credentials` local (WSL) a cada execucao.
-- Ao renovar credenciais no portal Vocareum, atualize `~/.aws/credentials` e reaplique.
-
-Observacao sobre alertas por e-mail:
-
-- Os alertas sao enviados via Alertmanager -> SMTP (Gmail).
-- Antes de rodar este playbook, preencha as credenciais SMTP — veja **secao 0** deste guia.
-
-### 5.4 Acesso local sem abrir portas no Security Group
-
-Se voce nao liberou `9090` e `3001` no Security Group, use tunel SSH:
-
-```bash
-ssh -i ~/.ssh/Key-All.pem -L 9090:localhost:9090 -L 3001:localhost:3001 ubuntu@IP_PUBLICO_APP_A
-```
-
-Depois abra no navegador local:
-
-- `http://ip_app:9090`
-- `http://ip_app:3001`
-
-### 5.5 Grafana sem dados: por que acontece e como resolver
-
-Se o Grafana abrir mas os paineis estiverem vazios, normalmente falta conectar a fonte de dados.
-
-Se aparecer erro de pagina no Grafana (frontend), tente abrir em guia anonima primeiro.
-Em alguns casos, cache/extensoes do navegador quebram a renderizacao da interface.
-
-Passos:
-
-1. Entrar no Grafana (`admin/admin`, se voce nao alterou)
-2. Ir em Connections > Data sources
-3. Confirmar se aparecem `Prometheus` e `Loki`
-4. Se nao aparecerem, rodar novamente `playbooks/observability.yml`
-
-Validacao rapida no Explore/Query:
-
-- Query: `up`
-- Resultado esperado: pelo menos 1 serie com valor `1`
-
-Validacao rapida de logs (Explore > data source Loki):
-
-- Query: `{job="docker"}`
-- Query (somente nginx): `{job="docker"} |= "nginx"`
-- Resultado esperado: linhas de log dos containers
-
-Observacao importante:
-
-- No estado atual, o Prometheus coleta Prometheus, Loki, CloudWatch Exporter e Node Exporter.
-- Metricas da AWS podem levar alguns minutos para aparecer apos deploy.
-
-### 5.6 Metricas e alertas como codigo (sem depender da interface)
-
-Este projeto agora provisiona automaticamente:
-
-1. Data sources do Grafana (`Prometheus` e `Loki`) com URLs internas Docker (`http://prometheus:9090`, `http://loki:3100`)
-2. Tres dashboards provisionados automaticamente:
-   - `Observability Overview` — saude da stack de monitoramento e logs
-   - `EC2 Node Exporter` — CPU, memoria, disco, rede e load average por instancia
-   - `AWS CloudWatch` — ALB, RDS e EFS
-3. Regras de alerta no Prometheus com severidade (critical/high/warning)
-4. Alertas para camadas: observability, EC2, ALB, RDS e EFS
-5. Roteamento de alertas no Alertmanager via SMTP/e-mail (SNS requer implementacao Terraform)
-6. Integracao Grafana <-> Alertmanager externo via `GF_UNIFIED_ALERTING_ALERTMANAGER_URL`
-
-Para aplicar/atualizar:
-
-```bash
-cd infra/ansible
-ansible-playbook -i inventories/production.ini playbooks/observability.yml
-```
-
-Validar no Prometheus (localhost:9090):
-
-1. Status > Targets
-2. Alerts
-
-Queries de validacao (Prometheus):
-
-- `up`
-- `aws_applicationelb_request_count_sum`
-- `aws_rds_database_connections_average`
-- `aws_efs_percent_iolimit_average`
-- `node_memory_MemAvailable_bytes`
-
-### 5.7 Habilitar e-mail via SNS (opcional)
-
-No estado atual deste repositório, o envio de alertas por SNS **nao esta implementado** no Terraform.
-O caminho suportado hoje para e-mail e via SMTP no Alertmanager (secao 0.2).
-
-Se voce quiser SNS, precisa primeiro adicionar os recursos/variaveis de SNS no Terraform
-(topic, subscription e output do topic ARN), aplicar, e depois reaplicar a observabilidade.
-
-Aplicar:
-
-```bash
-cd infra/terraform
-terraform plan -var-file=terraform.tfvars
-terraform apply -var-file=terraform.tfvars
-```
-
-Confirmar o e-mail enviado pela AWS SNS (subscription confirmation), depois:
-
-```bash
-cd infra/terraform
-terraform output -json | py ../scripts/gen_inventory.py ../ansible/inventories/production.ini
-
-cd ../ansible
-ansible-playbook -i inventories/production.ini playbooks/observability.yml
-```
-
-Alertas configurados para envio por e-mail (todos os 15):
-
-```
-PrometheusTargetDown|LokiDown|PrometheusMemoryHigh|ScrapeDurationHigh|
-NodeCpuHigh|NodeMemoryLow|NodeDiskLow|
-AlbUnhealthyHosts|Alb5xxRateHigh|AlbLatencyHigh|
-RdsConnectionsHigh|RdsFreeStorageLow|RdsCpuHigh|RdsFreeableMemoryLow|
-EfsIoLimitHigh
-```
-
-Tempo estimado do evento ate o e-mail:
-
-| Alerta | for: | Total aprox. |
-|---|---|---|
-| PrometheusTargetDown | 2m | ~3 min |
-| NodeDiskLow | 5m | ~6 min |
-| AlbUnhealthyHosts | 2m | ~3 min |
-| RdsFreeStorageLow | 5m | ~6 min |
-
-Validar no Grafana (localhost:3001):
-
-1. Dashboards > folder `Observability`
-2. Dashboards: `Observability Overview`, `EC2 Node Exporter`, `AWS CloudWatch`
-3. Explore com Loki: `{job="docker"} |= "nginx"`
+   terraform import aws_ecr_repository.frontend sgpj-frontend
+   terraform import aws_ecr_repository.backend sgpj-backend
+   terraform import aws_ecr_lifecycle_policy.frontend sgpj-frontend
+   terraform import aws_ecr_lifecycle_policy.backend sgpj-backend
+   ```
+2. **Suba toda a infraestrutura:**
+   ```powershell
+   terraform apply -auto-approve
+   ```
+   > Como as imagens Docker já estavam salvas no ECR, o Swarm subirá instantaneamente puxando as imagens prontas sem você precisar compilar tudo do zero de novo!
 
 ---
 
-## 7) Como alterar a pagina sem rebuild de imagem
+## 6) Como Acessar e Usar a Observabilidade (Grafana)
 
-Com Nginx neutro, basta alterar arquivos no EFS.
+A instância de observabilidade está configurada com acesso liberado (`0.0.0.0/0`):
 
-No host app:
+1. Obtenha o IP público da instância de observabilidade:
+   ```bash
+   cd infra/terraform
+   terraform output observability_public_ip
+   ```
+2. Abra no navegador:
+   - **Grafana:** `http://<IP_OBSERVABILITY>:3001` (Usuário: `admin` / Senha: `admin`)
+   - **Prometheus:** `http://<IP_OBSERVABILITY>:9090`
+   - **Alertmanager:** `http://<IP_OBSERVABILITY>:9093`
+3. No Grafana:
+   - Em **Explore**, selecione **Loki** para buscar logs de containers em tempo real (ex: `{job="docker"}`).
+   - Selecione **Prometheus** para visualizar métricas de CPU, memória e rede via Node Exporter.
 
-- Conteudo: `/mnt/efs-sgpj/volumes/nginx/html/index.html`
-- Config: `/mnt/efs-sgpj/volumes/nginx/conf/default.conf`
+---
 
-Exemplo de mudanca:
+## 7) Pipeline de Logs com Fluent Bit e AWS Athena
 
-1. editar `index.html`
-2. salvar
-3. recarregar Nginx (se alterar apenas html, geralmente nem precisa)
+### 7.1 Como funciona
+- O **Fluent Bit** roda como serviço nativo em cada EC2.
+- Ele coleta logs locais de:
+  - Containers Docker: `/var/lib/docker/containers/*/*-json.log`
+  - Nginx: `/var/log/nginx/`
+  - Sistema Operacional: `/var/log/syslog` e `/var/log/auth.log`
+- Comprime em Gzip e descarrega automaticamente no S3 Bronze:
+  `s3://sgpj-bronze-<account-id>/logs/` particionado em Hive (`year=YYYY/month=MM/day=DD/hour=HH/`).
 
-Para aplicar mudanca de configuracao com seguranca:
+### 7.2 Como consultar no AWS Athena (Web Console)
+1. Acesse o **AWS Athena** no console AWS da sua conta.
+2. No menu superior direito do Athena, mude o **Workgroup** para:
+   `sgpj-logs-analytics`
+3. Selecione o banco de dados:
+   `sgpj_logs_bronze`
+4. Na aba **Saved Queries**, você já encontrará consultas analíticas prontas criadas pelo Terraform:
+   - `logs_containers_erros_e_excecoes`: Lista erros e stack traces do Backend.
+   - `logs_nginx_status_distribuicao`: Estatísticas de status HTTP (200, 4xx, 5xx).
+   - `logs_nginx_top_rotas_acessadas`: Endpoints mais acessados da API.
+   - `logs_os_auditoria_falhas_ssh`: Tentativas de login inválidas no SSH.
+5. Se as tabelas ainda não tiverem sido criadas pelo Glue Crawler, crie-as executando o script SQL contido em:
+   [`infra/scripts/athena/create_tables.sql`](file:///c:/Users/compu/OneDrive%20-%20SPTech%20School/GitHub/Grupo06/infra/scripts/athena/create_tables.sql).
+
+---
+
+## 8) Verificação e Troubleshooting no Swarm
+
+Para verificar o status das réplicas e containers em produção:
 
 ```bash
-cd infra/ansible
-ansible app -i inventories/production.ini -m command -a "docker restart nginx"
+# Conectar no Manager (ec2-app-a) via SSH:
+ssh -i ~/.ssh/vockey.pem ubuntu@<IP_PUBLICO_APP_A>
+
+# Listar os nós do cluster Swarm:
+docker node ls
+
+# Listar os serviços da stack:
+docker service ls
+
+# Ver o estado do rolling update e réplicas:
+docker service ps sgpj_nginx
+docker service ps sgpj_backend
+
+# Visualizar logs em tempo real:
+docker service logs -f --tail 50 sgpj_nginx
+docker service logs -f --tail 50 sgpj_backend
+
+# Acessar a aplicação via DNS do Load Balancer:
+# http://<ALB_DNS>
 ```
 
 ---
 
-## 8) Testes rapidos recomendados
+## 9) Integração com Microsoft OneDrive (OAuth2)
 
-### Teste Docker
+- Em ambiente local (`localhost:8080`), a integração e reconexão com o OneDrive funcionam de ponta a ponta sem necessidade de SSL/HTTPS (exceção nativa da Microsoft para loopback).
+- Para produção e nuvem AWS (onde a Microsoft exige HTTPS e o ALB possui DNS efêmero que muda a cada `destroy/apply`), consulte o guia completo de arquitetura, SSL/Certificados e proxy Cloudflare em:
+  [`INTEGRACAO_ONEDRIVE.md`](file:///c:/Users/compu/OneDrive%20-%20SPTech%20School/GitHub/Grupo06/infra/INTEGRACAO_ONEDRIVE.md) (também disponível em [`Backend/docs/INTEGRACAO_ONEDRIVE.md`](file:///c:/Users/compu/OneDrive%20-%20SPTech%20School/GitHub/Grupo06/Backend/docs/INTEGRACAO_ONEDRIVE.md)).
 
-```bash
-cd infra/ansible
-ansible all -i inventories/production.ini -m command -a "docker --version"
-```
-
-### Teste mount EFS
-
-```bash
-cd infra/ansible
-ansible app,backend -i inventories/production.ini -m command -a "mount | grep efs"
-```
-
-### Teste container Nginx
-
-```bash
-cd infra/ansible
-ansible app -i inventories/production.ini -m command -a "docker ps"
-```
-
-Obs.: em comando ad-hoc do Ansible, strings com `{{ ... }}` podem ser interpretadas como template Jinja.
-Por isso, prefira `docker ps` sem `--format` aqui.
-
-### Teste de arquivos no EFS (host)
-
-```bash
-cd infra/ansible
-ansible app -i inventories/production.ini -m command -a "ls -la /mnt/efs-sgpj/volumes/nginx/html"
-ansible app -i inventories/production.ini -m command -a "ls -la /mnt/efs-sgpj/volumes/nginx/conf"
-```
-
-### Teste de arquivos dentro do container Nginx
-
-```bash
-cd infra/ansible
-ansible app -i inventories/production.ini -m command -a "docker exec nginx ls -la /usr/share/nginx/html"
-ansible app -i inventories/production.ini -m command -a "docker exec nginx ls -la /etc/nginx/conf.d"
-```
-
-### Teste funcional HTTP
-
-Abra no navegador:
-
-- `http://<ALB_DNS>`
-
----
-
-## 9) Comandos resumidos (producao)
-
-```bash
-cd infra/terraform
-terraform init
-terraform apply -var-file=terraform.tfvars
-terraform output -json | py ../scripts/gen_inventory.py ../ansible/inventories/production.ini
-
-cd ../ansible
-ansible-galaxy collection install -r requirements.yml
-ansible all -m ping -i inventories/production.ini
-ansible-playbook -i inventories/production.ini playbooks/docker.yml
-ansible-playbook -i inventories/production.ini playbooks/nginx.yml
-ansible-playbook -i inventories/production.ini playbooks/observability.yml
-```
-````

@@ -1,23 +1,23 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# CONFIGURAÇÕES
+# CONFIGURACOES
 
-APP_A_IP="98.94.22.209"
-APP_B_IP="34.207.115.38"
+APP_A_IP="3.81.108.222"
+APP_B_IP="44.193.219.76"
 
 SSH_USER="ubuntu"
-SSH_KEY="$HOME/Key-All.pem"
+SSH_KEY="$HOME/.ssh/Key-All.pem"
 
-HTML_A="./a.html"
-HTML_B="./b.html"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+FRONTEND_DIST="$SCRIPT_DIR/dist"
 
 # PATHS
 
 NGINX_CONF="/mnt/efs-sgpj/volumes/nginx/conf/default.conf"
-NGINX_CONF_BACKUP="/mnt/efs-sgpj/volumes/nginx/conf/default.conf.ab-backup"
-
+NGINX_CONF_BACKUP="/mnt/efs-sgpj/volumes/nginx/conf/default.conf.frontend-backup"
 HTML_DIR="/mnt/efs-sgpj/volumes/nginx/html"
+ARCHIVE_NAME="frontend-dist.tar.gz"
 
 # SSH
 
@@ -28,7 +28,7 @@ SSH_OPTS=(
   -o ConnectTimeout=10
 )
 
-# FUNÇÕES AUXILIARES
+# FUNCOES AUXILIARES
 
 step() {
   echo
@@ -38,87 +38,79 @@ step() {
 }
 
 validate_file() {
-  local FILE="$1"
+  local file="$1"
 
-  if [[ ! -f "$FILE" ]]; then
-    echo "[ERRO] Arquivo não encontrado: $FILE"
+  if [[ ! -f "$file" ]]; then
+    echo "[ERRO] Arquivo nao encontrado: $file"
+    exit 1
+  fi
+}
+
+validate_directory() {
+  local directory="$1"
+
+  if [[ ! -d "$directory" || ! -f "$directory/index.html" ]]; then
+    echo "[ERRO] Diretorio dist invalido (index.html nao encontrado): $directory"
     exit 1
   fi
 }
 
 remote_exec() {
-  local IP="$1"
+  local ip="$1"
   shift
 
-  ssh "${SSH_OPTS[@]}" "$SSH_USER@$IP" "$@"
+  ssh "${SSH_OPTS[@]}" "$SSH_USER@$ip" "$@"
 }
 
 send_file() {
-  local IP="$1"
-  local SRC="$2"
-  local DEST="$3"
+  local ip="$1"
+  local source="$2"
+  local destination="$3"
 
-  scp "${SSH_OPTS[@]}" "$SRC" "$SSH_USER@$IP:$DEST"
+  scp "${SSH_OPTS[@]}" "$source" "$SSH_USER@$ip:$destination"
 }
 
-# VALIDAÇÕES
+# VALIDACOES
 
 validate_file "$SSH_KEY"
-validate_file "$HTML_A"
-validate_file "$HTML_B"
+validate_directory "$FRONTEND_DIST"
 
-# DESCOBRE HOSTNAMES
+# OpenSSH recusa chaves que podem ser lidas por outros usuarios.
+chmod 600 "$SSH_KEY"
 
-step "[1/7] Descobrindo hostname dos containers"
+# EMPACOTA E PUBLICA O FRONTEND
 
-HOST_A=$(remote_exec "$APP_A_IP" "sudo docker exec nginx hostname")
-HOST_B=$(remote_exec "$APP_B_IP" "sudo docker exec nginx hostname")
+step "[1/5] Empacotando o frontend"
 
-# Remove CR/LF extras para evitar quebrar a diretiva map do Nginx.
-HOST_A="$(echo "$HOST_A" | tr -d '\r\n')"
-HOST_B="$(echo "$HOST_B" | tr -d '\r\n')"
+ARCHIVE_PATH="$(mktemp "${TMPDIR:-/tmp}/$ARCHIVE_NAME.XXXXXX")"
+trap 'rm -f "$ARCHIVE_PATH"' EXIT
+tar -C "$FRONTEND_DIST" -czf "$ARCHIVE_PATH" .
 
-echo "APP A -> $HOST_A"
-echo "APP B -> $HOST_B"
+step "[2/5] Enviando o frontend para o EFS"
 
-# ENVIA HTMLS
-
-step "[2/7] Enviando arquivos HTML"
-
-send_file "$APP_A_IP" "$HTML_A" "/tmp/a.html"
-send_file "$APP_A_IP" "$HTML_B" "/tmp/b.html"
-
-# MOVE PARA O EFS
-
-step "[3/7] Publicando HTMLs no EFS"
+send_file "$APP_A_IP" "$ARCHIVE_PATH" "/tmp/$ARCHIVE_NAME"
 
 remote_exec "$APP_A_IP" "
-  sudo mv /tmp/a.html $HTML_DIR/a.html &&
-  sudo mv /tmp/b.html $HTML_DIR/b.html
+  set -e
+  staging_dir=\$(mktemp -d)
+  trap 'rm -rf \"\$staging_dir\" /tmp/$ARCHIVE_NAME' EXIT
+  tar -xzf /tmp/$ARCHIVE_NAME -C \"\$staging_dir\"
+  sudo mkdir -p $HTML_DIR
+  sudo find $HTML_DIR -mindepth 1 -maxdepth 1 -exec rm -rf {} +
+  sudo cp -a \"\$staging_dir\"/. $HTML_DIR/
 "
 
-# BACKUP DO NGINX
+# CONFIGURA O NGINX
 
-step "[4/7] Backup da configuração atual"
+step "[3/5] Aplicando configuracao do Nginx para SPA"
 
 remote_exec "$APP_A_IP" "
-  if [ ! -f $NGINX_CONF_BACKUP ]; then
+  if [ -f $NGINX_CONF ] && [ ! -f $NGINX_CONF_BACKUP ]; then
     sudo cp $NGINX_CONF $NGINX_CONF_BACKUP
   fi
 "
 
-# CONFIGURAÇÃO A/B
-
-step "[5/7] Aplicando configuração A/B"
-
 remote_exec "$APP_A_IP" "cat <<'EOF' | sudo tee $NGINX_CONF > /dev/null
-
-map \$hostname \$ab_page {
-    default      /a.html;
-    $HOST_A      /a.html;
-    $HOST_B      /b.html;
-}
-
 server {
     listen 80;
     server_name _;
@@ -126,61 +118,34 @@ server {
     root /usr/share/nginx/html;
     index index.html;
 
-    location = / {
-        add_header X-App-Host \$hostname always;
-        try_files \$ab_page =404;
-    }
-
     location / {
-        add_header X-App-Host \$hostname always;
-        try_files \$uri \$uri/ =404;
+        try_files \$uri \$uri/ /index.html;
     }
 }
-
 EOF"
 
-# VALIDA NGINX
+# VALIDA E REINICIA
 
-step "[6/7] Validando configuração"
+step "[4/5] Validando e reiniciando o Nginx"
 
 remote_exec "$APP_A_IP" "sudo docker exec nginx nginx -t"
 remote_exec "$APP_B_IP" "sudo docker exec nginx nginx -t"
-
-# RESTART
-
-step "[7/7] Reiniciando containers"
-
 remote_exec "$APP_A_IP" "sudo docker restart nginx >/dev/null"
 remote_exec "$APP_B_IP" "sudo docker restart nginx >/dev/null"
 
-echo "Containers reiniciados com sucesso."
+# TESTA AS DUAS INSTANCIAS
 
-# TESTE
+step "[5/5] Testando o frontend nas duas instancias"
 
-step "Teste local das aplicações"
+for ip in "$APP_A_IP" "$APP_B_IP"; do
+  echo "Instancia $ip"
+  remote_exec "$ip" "curl -fsS --max-time 10 http://localhost/ | grep -q '<div id=\"root\"></div>'"
+  remote_exec "$ip" "curl -fsSI --max-time 10 http://localhost/ | head -n 1"
+done
 
-echo "APP A ($HOST_A)"
-remote_exec "$APP_A_IP" "curl -s http://localhost | head -n 5"
+step "Frontend publicado com sucesso"
 
-echo
-echo "APP B ($HOST_B)"
-remote_exec "$APP_B_IP" "curl -s http://localhost | head -n 5"
-
-# FINALIZAÇÃO
-
-step "Teste A/B aplicado com sucesso"
-
-echo "Resultado:"
-echo " - $HOST_A -> /a.html"
-echo " - $HOST_B -> /b.html"
-
-echo
-echo "Rollback:"
-echo
-
-echo "APP A:"
-echo "ssh ${SSH_OPTS[*]} $SSH_USER@$APP_A_IP 'sudo cp $NGINX_CONF_BACKUP $NGINX_CONF && sudo docker restart nginx >/dev/null'"
-
-echo
-echo "APP B:"
-echo "ssh ${SSH_OPTS[*]} $SSH_USER@$APP_B_IP 'sudo docker restart nginx >/dev/null'"
+echo "Dist publicado em: $HTML_DIR"
+echo "Configuracao anterior salva em: $NGINX_CONF_BACKUP"
+echo "Rollback APP A: ssh ${SSH_OPTS[*]} $SSH_USER@$APP_A_IP 'sudo cp $NGINX_CONF_BACKUP $NGINX_CONF && sudo docker restart nginx >/dev/null'"
+echo "Rollback APP B: ssh ${SSH_OPTS[*]} $SSH_USER@$APP_B_IP 'sudo docker restart nginx >/dev/null'"

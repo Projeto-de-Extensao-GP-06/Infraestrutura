@@ -52,19 +52,36 @@ resource "aws_security_group" "app" {
     cidr_blocks = [var.vpc_cidr]
   }
 
+  # ── Portas Docker Swarm ───────────────────────────────────────────────────
   ingress {
-    description = "OTLP gRPC - traces (frontend to observability)"
-    from_port   = 4317
-    to_port     = 4317
+    description = "Swarm Manager API (entre nodes)"
+    from_port   = 2377
+    to_port     = 2377
     protocol    = "tcp"
     cidr_blocks = [var.vpc_cidr]
   }
 
   ingress {
-    description = "OTLP HTTP - traces (frontend to observability)"
-    from_port   = 4318
-    to_port     = 4318
+    description = "Swarm gossip TCP (entre nodes)"
+    from_port   = 7946
+    to_port     = 7946
     protocol    = "tcp"
+    cidr_blocks = [var.vpc_cidr]
+  }
+
+  ingress {
+    description = "Swarm gossip UDP (entre nodes)"
+    from_port   = 7946
+    to_port     = 7946
+    protocol    = "udp"
+    cidr_blocks = [var.vpc_cidr]
+  }
+
+  ingress {
+    description = "Swarm overlay VXLAN UDP (entre nodes)"
+    from_port   = 4789
+    to_port     = 4789
+    protocol    = "udp"
     cidr_blocks = [var.vpc_cidr]
   }
 
@@ -105,6 +122,39 @@ resource "aws_security_group" "backend" {
     from_port   = 9100
     to_port     = 9100
     protocol    = "tcp"
+    cidr_blocks = [var.vpc_cidr]
+  }
+
+  # ── Portas Docker Swarm ───────────────────────────────────────────────────
+  ingress {
+    description = "Swarm Manager API (entre nodes)"
+    from_port   = 2377
+    to_port     = 2377
+    protocol    = "tcp"
+    cidr_blocks = [var.vpc_cidr]
+  }
+
+  ingress {
+    description = "Swarm gossip TCP (entre nodes)"
+    from_port   = 7946
+    to_port     = 7946
+    protocol    = "tcp"
+    cidr_blocks = [var.vpc_cidr]
+  }
+
+  ingress {
+    description = "Swarm gossip UDP (entre nodes)"
+    from_port   = 7946
+    to_port     = 7946
+    protocol    = "udp"
+    cidr_blocks = [var.vpc_cidr]
+  }
+
+  ingress {
+    description = "Swarm overlay VXLAN UDP (entre nodes)"
+    from_port   = 4789
+    to_port     = 4789
+    protocol    = "udp"
     cidr_blocks = [var.vpc_cidr]
   }
 
@@ -158,8 +208,9 @@ resource "aws_security_group" "db" {
   tags = { Name = "db-private" }
 }
 
-# ── EC2 Observabilidade ─────────────────────────────────────────────────────
+# ── EC2 Observabilidade (Opcional) ──────────────────────────────────────────
 resource "aws_security_group" "observability" {
+  count       = var.enable_observability ? 1 : 0
   name        = "observability"
   description = "Security group da instancia dedicada de observabilidade"
   vpc_id      = aws_vpc.sgpj_vpc.id
@@ -214,30 +265,6 @@ resource "aws_security_group" "observability" {
   }
 
   ingress {
-    description = "OTLP gRPC - traces da VPC (backend/frontend)"
-    from_port   = 4317
-    to_port     = 4317
-    protocol    = "tcp"
-    cidr_blocks = [var.vpc_cidr]
-  }
-
-  ingress {
-    description = "OTLP HTTP - traces da VPC (backend/frontend)"
-    from_port   = 4318
-    to_port     = 4318
-    protocol    = "tcp"
-    cidr_blocks = [var.vpc_cidr]
-  }
-
-  ingress {
-    description = "Tempo HTTP - Grafana access"
-    from_port   = 3200
-    to_port     = 3200
-    protocol    = "tcp"
-    cidr_blocks = [var.vpc_cidr]
-  }
-
-  ingress {
     description = "Node Exporter (scrape local via VPC)"
     from_port   = 9100
     to_port     = 9100
@@ -277,36 +304,4 @@ resource "aws_security_group" "efs" {
   }
 
   tags = { Name = "efs" }
-}
-
-# ── RDS MySQL ────────────────────────────────────────────────────────────────
-resource "aws_security_group" "rds" {
-  name        = "rds-mysql"
-  description = "Security group do RDS MySQL - acesso apenas do backend e da ec2-db"
-  vpc_id      = aws_vpc.sgpj_vpc.id
-
-  ingress {
-    description     = "MySQL do backend"
-    from_port       = 3306
-    to_port         = 3306
-    protocol        = "tcp"
-    security_groups = [aws_security_group.backend.id]
-  }
-
-  ingress {
-    description     = "MySQL da ec2-db (admin/migrations)"
-    from_port       = 3306
-    to_port         = 3306
-    protocol        = "tcp"
-    security_groups = [aws_security_group.db.id]
-  }
-
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  tags = { Name = "rds-mysql" }
 }

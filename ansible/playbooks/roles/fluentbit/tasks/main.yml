@@ -1,0 +1,70 @@
+---
+- name: Instalar dependencias para adicionar repositorio
+  ansible.builtin.apt:
+    name:
+      - curl
+      - gnupg
+      - apt-transport-https
+      - lsb-release
+    state: present
+    update_cache: true
+
+- name: Criar diretorio para keyrings do apt
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: "0755"
+
+- name: Baixar chave GPG do repositorio oficial do Fluent Bit
+  ansible.builtin.get_url:
+    url: https://packages.fluentbit.io/fluentbit.key
+    dest: /etc/apt/keyrings/fluentbit-keyring.asc
+    mode: "0644"
+
+- name: Adicionar repositorio APT oficial do Fluent Bit
+  ansible.builtin.apt_repository:
+    repo: "deb [signed-by=/etc/apt/keyrings/fluentbit-keyring.asc] https://packages.fluentbit.io/ubuntu/{{ ansible_distribution_release }} {{ ansible_distribution_release }} main"
+    state: present
+    filename: fluent-bit
+
+- name: Instalar pacote fluent-bit
+  ansible.builtin.apt:
+    name: "{{ fluentbit_package_name }}"
+    state: latest
+    update_cache: true
+
+- name: Garantir diretorios de configuracao e buffers do Fluent Bit
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  loop:
+    - /etc/fluent-bit
+    - /var/log/fluent-bit
+    - /var/log/fluent-bit/buffer
+
+- name: Configurar parsers.conf
+  ansible.builtin.template:
+    src: parsers.conf.j2
+    dest: /etc/fluent-bit/parsers.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reiniciar fluent-bit
+
+- name: Configurar fluent-bit.conf
+  ansible.builtin.template:
+    src: fluent-bit.conf.j2
+    dest: /etc/fluent-bit/fluent-bit.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reiniciar fluent-bit
+
+- name: Habilitar e iniciar servico fluent-bit
+  ansible.builtin.systemd:
+    name: fluent-bit
+    enabled: true
+    state: started

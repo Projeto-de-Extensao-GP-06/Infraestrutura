@@ -1,5 +1,5 @@
 ---
-tempo_image: grafana/tempo:latest
+tempo_image: grafana/tempo:2.6.1
 tempo_container_name: tempo
 tempo_network: observability
 tempo_config_dir: /opt/tempo/config

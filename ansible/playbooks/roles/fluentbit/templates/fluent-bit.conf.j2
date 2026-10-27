@@ -1,0 +1,139 @@
+[SERVICE]
+    Flush         {{ fluentbit_flush_seconds }}
+    Log_Level     {{ fluentbit_log_level }}
+    Daemon        Off
+    Parsers_File  parsers.conf
+    Storage.path  /var/log/fluent-bit/buffer
+
+# ── 1. INPUT: Logs dos Containers Docker da Aplicação ─────────────────────────
+{% if fluentbit_collect_container_logs %}
+[INPUT]
+    Name              tail
+    Tag               containers.*
+    Tag_Regex         (?<container_id>[^/]+)-json\.log$
+    Path              {{ fluentbit_containers_log_path }}
+    Parser            docker
+    DB                /var/log/fluent-bit/flb_docker.db
+    Mem_Buf_Limit     15MB
+    Skip_Long_Lines   On
+    Refresh_Interval  5
+{% endif %}
+
+# ── 2. INPUT: Logs do Servidor Web Nginx ──────────────────────────────────────
+{% if fluentbit_collect_nginx_logs %}
+[INPUT]
+    Name              tail
+    Tag               nginx.access
+    Path              {{ fluentbit_nginx_access_log_path }}
+    Parser            nginx_access
+    DB                /var/log/fluent-bit/flb_nginx_access.db
+    Mem_Buf_Limit     5MB
+    Skip_Long_Lines   On
+    Refresh_Interval  5
+
+[INPUT]
+    Name              tail
+    Tag               nginx.error
+    Path              {{ fluentbit_nginx_error_log_path }}
+    Parser            nginx_error
+    DB                /var/log/fluent-bit/flb_nginx_error.db
+    Mem_Buf_Limit     5MB
+    Skip_Long_Lines   On
+    Refresh_Interval  5
+{% endif %}
+
+# ── 3. INPUT: Logs do Sistema Operacional (Syslog & Auth) ──────────────────────
+{% if fluentbit_collect_os_logs %}
+[INPUT]
+    Name              tail
+    Tag               os.syslog
+    Path              {{ fluentbit_os_syslog_path }}
+    Parser            syslog_rfc3164
+    DB                /var/log/fluent-bit/flb_syslog.db
+    Mem_Buf_Limit     5MB
+    Skip_Long_Lines   On
+    Refresh_Interval  5
+
+[INPUT]
+    Name              tail
+    Tag               os.auth
+    Path              {{ fluentbit_os_auth_path }}
+    DB                /var/log/fluent-bit/flb_auth.db
+    Mem_Buf_Limit     5MB
+    Skip_Long_Lines   On
+    Refresh_Interval  5
+{% endif %}
+
+# ── 4. FILTERS: Enriquecimento com Metadados da Instância ─────────────────────
+[FILTER]
+    Name                record_modifier
+    Match               *
+    Record host         {{ inventory_hostname }}
+    Record environment  production
+    Record source_type  fluentbit
+
+# ── 5. OUTPUTS: Carregamento no Bucket Bronze Tier (S3) e Loki ──────────────────
+
+{% if enable_observability | default(false) | bool %}
+# Output para Loki — Observabilidade de Logs dos Containers em tempo real no Grafana
+[OUTPUT]
+    Name                   loki
+    Match                  containers.*
+    Host                   {{ observability_host }}
+    Port                   3100
+    Labels                 job=docker, host={{ inventory_hostname }}, environment=production
+    Auto_Kubernetes_Labels Off
+
+# Output para Loki — Observabilidade de Logs do Sistema Operacional (Syslog/Auth)
+[OUTPUT]
+    Name                   loki
+    Match                  os.*
+    Host                   {{ observability_host }}
+    Port                   3100
+    Labels                 job=system, host={{ inventory_hostname }}, environment=production
+    Auto_Kubernetes_Labels Off
+{% endif %}
+
+# Output dedicado para Logs de Containers (S3 Bronze Data Lake)
+[OUTPUT]
+    Name                         s3
+    Match                        containers.*
+    bucket                       {{ s3_bronze_bucket }}
+    region                       {{ aws_region }}
+    total_file_size              {{ fluentbit_s3_total_file_size }}
+    upload_timeout               {{ fluentbit_s3_upload_timeout }}
+    s3_key_format                /logs/containers/year=%Y/month=%m/day=%d/hour=%H/containers-$UUID.json.gz
+    compression                  gzip
+    content_type                 application/x-gzip
+    send_content_md5             On
+    auto_retry_requests          On
+
+# Output dedicado para Logs do Nginx (Access e Error)
+[OUTPUT]
+    Name                         s3
+    Match                        nginx.*
+    bucket                       {{ s3_bronze_bucket }}
+    region                       {{ aws_region }}
+    total_file_size              {{ fluentbit_s3_total_file_size }}
+    upload_timeout               {{ fluentbit_s3_upload_timeout }}
+    s3_key_format                /logs/nginx/year=%Y/month=%m/day=%d/hour=%H/$TAG[1]-$UUID.json.gz
+    s3_key_format_tag_delimiters .
+    compression                  gzip
+    content_type                 application/x-gzip
+    send_content_md5             On
+    auto_retry_requests          On
+
+# Output dedicado para Logs do Sistema Operacional (Syslog e Auth)
+[OUTPUT]
+    Name                         s3
+    Match                        os.*
+    bucket                       {{ s3_bronze_bucket }}
+    region                       {{ aws_region }}
+    total_file_size              {{ fluentbit_s3_total_file_size }}
+    upload_timeout               {{ fluentbit_s3_upload_timeout }}
+    s3_key_format                /logs/os/year=%Y/month=%m/day=%d/hour=%H/$TAG[1]-$UUID.json.gz
+    s3_key_format_tag_delimiters .
+    compression                  gzip
+    content_type                 application/x-gzip
+    send_content_md5             On
+    auto_retry_requests          On

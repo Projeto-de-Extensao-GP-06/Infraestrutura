@@ -42,7 +42,7 @@ variable "private_db_a_cidr" {
 }
 
 variable "private_db_b_cidr" {
-  description = "Subnet privada banco de dados AZ-b (necessária para o DB Subnet Group do RDS)"
+  description = "Subnet privada banco de dados AZ-b (reservada, não usada atualmente)"
   default     = "10.0.6.0/24"
 }
 
@@ -58,9 +58,9 @@ variable "instance_type" {
 }
 
 variable "observability_allowed_cidr" {
-  description = "CIDR autorizado para acessar Prometheus (9090) e Grafana (3001), ex: 203.0.113.10/32"
+  description = "CIDR autorizado para acessar Prometheus (9090) e Grafana (3001), ex: 0.0.0.0/0 ou 203.0.113.10/32"
   type        = string
-  default     = null
+  default     = "0.0.0.0/0"
   nullable    = true
 }
 
@@ -71,9 +71,9 @@ variable "enable_observability_iam" {
 }
 
 variable "observability_existing_instance_profile_name" {
-  description = "Nome de um Instance Profile IAM ja existente para anexar nas EC2 app (opcional)"
+  description = "Nome de um Instance Profile IAM ja existente para anexar nas EC2 (LabInstanceProfile no AWS Academy)"
   type        = string
-  default     = null
+  default     = "LabInstanceProfile"
 }
 
 variable "force_observability_aws_integrations" {
@@ -82,39 +82,65 @@ variable "force_observability_aws_integrations" {
   default     = true
 }
 
+variable "enable_observability" {
+  description = "Define se a infraestrutura de observabilidade (EC2 Grafana/Prometheus/Loki) deve ser provisionada"
+  type        = bool
+  default     = true
+}
+
+variable "auto_run_ansible" {
+  description = "Dispara a execucao do Ansible Playbook automaticamente apos provisionar o Terraform"
+  type        = bool
+  default     = true
+}
+
+variable "enable_data_lake_iam" {
+  description = "Cria IAM roles para Glue Crawlers e Jobs (bloqueado no AWS Academy - requer permissao iam:CreateRole)"
+  type        = bool
+  default     = false
+}
+
 variable "Key-All" {
   description = "Nome do Key Pair para acesso SSH"
   type        = string
 }
 
-# ── RDS MySQL ───────────────────────────────────────────────────────────────
-variable "rds_instance_class" {
-  description = "Classe da instância RDS"
-  default     = "db.t3.micro"
-}
-
-variable "rds_allocated_storage" {
-  description = "Armazenamento inicial do RDS em GB"
-  default     = 20
-}
-
-variable "rds_max_allocated_storage" {
-  description = "Armazenamento máximo do RDS em GB (autoscaling)"
-  default     = 100
-}
-
+# ── Banco de Dados MySQL (Container Docker na EC2 db) ─────────────────────────
 variable "rds_db_name" {
   description = "Nome do banco de dados inicial"
   default     = "sgpj"
 }
 
 variable "rds_username" {
-  description = "Usuário administrador do RDS"
+  description = "Usuario administrador do MySQL"
   default     = "admin"
 }
 
 variable "rds_password" {
-  description = "Senha do administrador do RDS"
+  description = "Senha do administrador do MySQL"
   type        = string
+  sensitive   = true
+}
+
+# ── Credenciais AWS (usadas para propagar ao WSL no provisioner local-exec) ────
+# Lidas automaticamente das variaveis de ambiente AWS_ACCESS_KEY_ID etc.
+variable "aws_access_key_id" {
+  description = "AWS Access Key ID (propagado automaticamente do ambiente)"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "aws_secret_access_key" {
+  description = "AWS Secret Access Key (propagado automaticamente do ambiente)"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "aws_session_token" {
+  description = "AWS Session Token (propagado automaticamente do ambiente, necessario no AWS Academy)"
+  type        = string
+  default     = ""
   sensitive   = true
 }

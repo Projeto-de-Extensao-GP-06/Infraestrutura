@@ -1,0 +1,25 @@
+---
+# ──────────────────────────────────────────────────────────────────────────────
+# playbook: fluentbit.yml
+# Instala e configura o Fluent Bit em todas as instâncias EC2 para capturar
+# logs de containers Docker, Nginx e Sistema Operacional, enviando para o
+# bucket S3 Bronze Tier particionado.
+# ──────────────────────────────────────────────────────────────────────────────
+- name: Deploy e configuracao do Fluent Bit (Log Shipping para S3 Bronze)
+  hosts: all
+  become: true
+
+  roles:
+    - fluentbit
+
+  post_tasks:
+    - name: Registrar particoes dos logs no AWS Athena (MSCK REPAIR TABLE)
+      ansible.builtin.shell: |
+        aws athena start-query-execution --query-string "MSCK REPAIR TABLE sgpj_logs_bronze.containers" --work-group sgpj-logs-analytics || true
+        aws athena start-query-execution --query-string "MSCK REPAIR TABLE sgpj_logs_bronze.nginx" --work-group sgpj-logs-analytics || true
+        aws athena start-query-execution --query-string "MSCK REPAIR TABLE sgpj_logs_bronze.os" --work-group sgpj-logs-analytics || true
+      become: false
+      when:
+        - inventory_hostname in groups['app']
+        - inventory_hostname == groups['app'][0]
+      ignore_errors: true

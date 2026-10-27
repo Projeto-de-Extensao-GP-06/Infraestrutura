@@ -32,12 +32,11 @@ resource "aws_cloudwatch_dashboard" "sgpj" {
           period  = 60
           stat    = "Average"
           metrics = [
-            ["AWS/EC2", "CPUUtilization", "InstanceId", aws_instance.app_a.id, { label = "app-a" }],
-            ["AWS/EC2", "CPUUtilization", "InstanceId", aws_instance.app_b.id, { label = "app-b" }],
-            ["AWS/EC2", "CPUUtilization", "InstanceId", aws_instance.backend_a.id, { label = "backend-a" }],
-            ["AWS/EC2", "CPUUtilization", "InstanceId", aws_instance.backend_b.id, { label = "backend-b" }],
-            ["AWS/EC2", "CPUUtilization", "InstanceId", aws_instance.db.id, { label = "db" }],
-            ["AWS/EC2", "CPUUtilization", "InstanceId", aws_instance.observability.id, { label = "observability" }],
+            ["AWS/EC2", "CPUUtilization", "InstanceId", module.compute.app_a_id, { label = "app-a" }],
+            ["AWS/EC2", "CPUUtilization", "InstanceId", module.compute.app_b_id, { label = "app-b" }],
+            ["AWS/EC2", "CPUUtilization", "InstanceId", module.compute.backend_a_id, { label = "backend-a" }],
+            ["AWS/EC2", "CPUUtilization", "InstanceId", module.compute.backend_b_id, { label = "backend-b" }],
+            ["AWS/EC2", "CPUUtilization", "InstanceId", module.compute.db_id, { label = "db (MySQL)" }]
           ]
           yAxis = { left = { min = 0, max = 100 } }
         }
@@ -68,10 +67,10 @@ resource "aws_cloudwatch_dashboard" "sgpj" {
           period  = 60
           stat    = "Sum"
           metrics = [
-            ["AWS/EC2", "NetworkIn", "InstanceId", aws_instance.app_a.id, { label = "app-a" }],
-            ["AWS/EC2", "NetworkIn", "InstanceId", aws_instance.app_b.id, { label = "app-b" }],
-            ["AWS/EC2", "NetworkIn", "InstanceId", aws_instance.backend_a.id, { label = "backend-a" }],
-            ["AWS/EC2", "NetworkIn", "InstanceId", aws_instance.backend_b.id, { label = "backend-b" }],
+            ["AWS/EC2", "NetworkIn", "InstanceId", module.compute.app_a_id, { label = "app-a" }],
+            ["AWS/EC2", "NetworkIn", "InstanceId", module.compute.app_b_id, { label = "app-b" }],
+            ["AWS/EC2", "NetworkIn", "InstanceId", module.compute.backend_a_id, { label = "backend-a" }],
+            ["AWS/EC2", "NetworkIn", "InstanceId", module.compute.backend_b_id, { label = "backend-b" }],
           ]
         }
       },
@@ -89,10 +88,10 @@ resource "aws_cloudwatch_dashboard" "sgpj" {
           period  = 60
           stat    = "Sum"
           metrics = [
-            ["AWS/EC2", "NetworkOut", "InstanceId", aws_instance.app_a.id, { label = "app-a" }],
-            ["AWS/EC2", "NetworkOut", "InstanceId", aws_instance.app_b.id, { label = "app-b" }],
-            ["AWS/EC2", "NetworkOut", "InstanceId", aws_instance.backend_a.id, { label = "backend-a" }],
-            ["AWS/EC2", "NetworkOut", "InstanceId", aws_instance.backend_b.id, { label = "backend-b" }],
+            ["AWS/EC2", "NetworkOut", "InstanceId", module.compute.app_a_id, { label = "app-a" }],
+            ["AWS/EC2", "NetworkOut", "InstanceId", module.compute.app_b_id, { label = "app-b" }],
+            ["AWS/EC2", "NetworkOut", "InstanceId", module.compute.backend_a_id, { label = "backend-a" }],
+            ["AWS/EC2", "NetworkOut", "InstanceId", module.compute.backend_b_id, { label = "backend-b" }],
           ]
         }
       },
@@ -122,129 +121,13 @@ resource "aws_cloudwatch_dashboard" "sgpj" {
           period  = 60
           stat    = "Maximum"
           metrics = [
-            ["AWS/EC2", "StatusCheckFailed", "InstanceId", aws_instance.app_a.id, { label = "app-a" }],
-            ["AWS/EC2", "StatusCheckFailed", "InstanceId", aws_instance.app_b.id, { label = "app-b" }],
-            ["AWS/EC2", "StatusCheckFailed", "InstanceId", aws_instance.backend_a.id, { label = "backend-a" }],
-            ["AWS/EC2", "StatusCheckFailed", "InstanceId", aws_instance.backend_b.id, { label = "backend-b" }],
-            ["AWS/EC2", "StatusCheckFailed", "InstanceId", aws_instance.db.id, { label = "db" }],
-            ["AWS/EC2", "StatusCheckFailed", "InstanceId", aws_instance.observability.id, { label = "observability" }],
+            ["AWS/EC2", "StatusCheckFailed", "InstanceId", module.compute.app_a_id, { label = "app-a" }],
+            ["AWS/EC2", "StatusCheckFailed", "InstanceId", module.compute.app_b_id, { label = "app-b" }],
+            ["AWS/EC2", "StatusCheckFailed", "InstanceId", module.compute.backend_a_id, { label = "backend-a" }],
+            ["AWS/EC2", "StatusCheckFailed", "InstanceId", module.compute.backend_b_id, { label = "backend-b" }],
+            ["AWS/EC2", "StatusCheckFailed", "InstanceId", module.compute.db_id, { label = "db (MySQL)" }]
           ]
           yAxis = { left = { min = 0, max = 2 } }
-        }
-      },
-
-      # ── Seção: RDS ────────────────────────────────────────────────────────
-      {
-        type   = "text"
-        x      = 0
-        y      = 21
-        width  = 24
-        height = 1
-        properties = {
-          markdown = "## RDS — sgpj-mysql"
-        }
-      },
-      {
-        type   = "metric"
-        x      = 0
-        y      = 22
-        width  = 8
-        height = 6
-        properties = {
-          title  = "CPU Utilization (%)"
-          view   = "timeSeries"
-          region = var.region
-          period = 60
-          stat   = "Average"
-          metrics = [
-            ["AWS/RDS", "CPUUtilization", "DBInstanceIdentifier", aws_db_instance.mysql.identifier]
-          ]
-          yAxis = { left = { min = 0, max = 100 } }
-        }
-      },
-      {
-        type   = "metric"
-        x      = 8
-        y      = 22
-        width  = 8
-        height = 6
-        properties = {
-          title  = "Database Connections"
-          view   = "timeSeries"
-          region = var.region
-          period = 60
-          stat   = "Average"
-          metrics = [
-            ["AWS/RDS", "DatabaseConnections", "DBInstanceIdentifier", aws_db_instance.mysql.identifier]
-          ]
-        }
-      },
-      {
-        type   = "metric"
-        x      = 16
-        y      = 22
-        width  = 8
-        height = 6
-        properties = {
-          title  = "Free Storage Space (bytes)"
-          view   = "timeSeries"
-          region = var.region
-          period = 60
-          stat   = "Average"
-          metrics = [
-            ["AWS/RDS", "FreeStorageSpace", "DBInstanceIdentifier", aws_db_instance.mysql.identifier]
-          ]
-        }
-      },
-      {
-        type   = "metric"
-        x      = 0
-        y      = 28
-        width  = 8
-        height = 6
-        properties = {
-          title  = "Read IOPS"
-          view   = "timeSeries"
-          region = var.region
-          period = 60
-          stat   = "Average"
-          metrics = [
-            ["AWS/RDS", "ReadIOPS", "DBInstanceIdentifier", aws_db_instance.mysql.identifier]
-          ]
-        }
-      },
-      {
-        type   = "metric"
-        x      = 8
-        y      = 28
-        width  = 8
-        height = 6
-        properties = {
-          title  = "Write IOPS"
-          view   = "timeSeries"
-          region = var.region
-          period = 60
-          stat   = "Average"
-          metrics = [
-            ["AWS/RDS", "WriteIOPS", "DBInstanceIdentifier", aws_db_instance.mysql.identifier]
-          ]
-        }
-      },
-      {
-        type   = "metric"
-        x      = 16
-        y      = 28
-        width  = 8
-        height = 6
-        properties = {
-          title  = "Freeable Memory (bytes)"
-          view   = "timeSeries"
-          region = var.region
-          period = 60
-          stat   = "Average"
-          metrics = [
-            ["AWS/RDS", "FreeableMemory", "DBInstanceIdentifier", aws_db_instance.mysql.identifier]
-          ]
         }
       },
 
@@ -318,7 +201,7 @@ resource "aws_cloudwatch_dashboard" "sgpj" {
           period = 60
           stat   = "Sum"
           metrics = [
-            ["AWS/ApplicationELB", "RequestCount", "LoadBalancer", aws_lb.app.arn_suffix]
+            ["AWS/ApplicationELB", "RequestCount", "LoadBalancer", module.compute.alb_arn_suffix]
           ]
         }
       },
@@ -335,7 +218,7 @@ resource "aws_cloudwatch_dashboard" "sgpj" {
           period = 60
           stat   = "Average"
           metrics = [
-            ["AWS/ApplicationELB", "TargetResponseTime", "LoadBalancer", aws_lb.app.arn_suffix]
+            ["AWS/ApplicationELB", "TargetResponseTime", "LoadBalancer", module.compute.alb_arn_suffix]
           ]
         }
       },
@@ -352,7 +235,7 @@ resource "aws_cloudwatch_dashboard" "sgpj" {
           period = 60
           stat   = "Sum"
           metrics = [
-            ["AWS/ApplicationELB", "ActiveConnectionCount", "LoadBalancer", aws_lb.app.arn_suffix]
+            ["AWS/ApplicationELB", "ActiveConnectionCount", "LoadBalancer", module.compute.alb_arn_suffix]
           ]
         }
       },
@@ -370,9 +253,9 @@ resource "aws_cloudwatch_dashboard" "sgpj" {
           period  = 60
           stat    = "Sum"
           metrics = [
-            ["AWS/ApplicationELB", "HTTPCode_Target_2XX_Count", "LoadBalancer", aws_lb.app.arn_suffix, { label = "2xx", color = "#2ca02c" }],
-            ["AWS/ApplicationELB", "HTTPCode_Target_4XX_Count", "LoadBalancer", aws_lb.app.arn_suffix, { label = "4xx", color = "#ff7f0e" }],
-            ["AWS/ApplicationELB", "HTTPCode_Target_5XX_Count", "LoadBalancer", aws_lb.app.arn_suffix, { label = "5xx", color = "#d62728" }],
+            ["AWS/ApplicationELB", "HTTPCode_Target_2XX_Count", "LoadBalancer", module.compute.alb_arn_suffix, { label = "2xx", color = "#2ca02c" }],
+            ["AWS/ApplicationELB", "HTTPCode_Target_4XX_Count", "LoadBalancer", module.compute.alb_arn_suffix, { label = "4xx", color = "#ff7f0e" }],
+            ["AWS/ApplicationELB", "HTTPCode_Target_5XX_Count", "LoadBalancer", module.compute.alb_arn_suffix, { label = "5xx", color = "#d62728" }],
           ]
         }
       },
@@ -389,7 +272,7 @@ resource "aws_cloudwatch_dashboard" "sgpj" {
           period = 60
           stat   = "Sum"
           metrics = [
-            ["AWS/ApplicationELB", "HTTPCode_ELB_5XX_Count", "LoadBalancer", aws_lb.app.arn_suffix, { color = "#d62728" }]
+            ["AWS/ApplicationELB", "HTTPCode_ELB_5XX_Count", "LoadBalancer", module.compute.alb_arn_suffix, { color = "#d62728" }]
           ]
         }
       },
@@ -406,8 +289,8 @@ resource "aws_cloudwatch_dashboard" "sgpj" {
           period = 60
           stat   = "Average"
           metrics = [
-            ["AWS/ApplicationELB", "HealthyHostCount", "TargetGroup", aws_lb_target_group.app.arn_suffix, "LoadBalancer", aws_lb.app.arn_suffix, { label = "Healthy", color = "#2ca02c" }],
-            ["AWS/ApplicationELB", "UnHealthyHostCount", "TargetGroup", aws_lb_target_group.app.arn_suffix, "LoadBalancer", aws_lb.app.arn_suffix, { label = "Unhealthy", color = "#d62728" }],
+            ["AWS/ApplicationELB", "HealthyHostCount", "TargetGroup", module.compute.target_group_arn_suffix, "LoadBalancer", module.compute.alb_arn_suffix, { label = "Healthy", color = "#2ca02c" }],
+            ["AWS/ApplicationELB", "UnHealthyHostCount", "TargetGroup", module.compute.target_group_arn_suffix, "LoadBalancer", module.compute.alb_arn_suffix, { label = "Unhealthy", color = "#d62728" }],
           ]
           yAxis = { left = { min = 0 } }
         }

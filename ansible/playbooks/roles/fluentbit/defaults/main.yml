@@ -1,0 +1,28 @@
+---
+# ──────────────────────────────────────────────────────────────────────────────
+# Configurações padrão para a role do Fluent Bit
+# ──────────────────────────────────────────────────────────────────────────────
+fluentbit_version: "3.2" # Versão do Fluent Bit
+fluentbit_package_name: "fluent-bit"
+
+# Configuração AWS S3
+aws_region: "{{ aws_region | default('us-east-1') }}"
+s3_bronze_bucket: "{{ bronze_bucket | default('sgpj-bronze') }}"
+
+# Flush e buffers
+fluentbit_flush_seconds: 5
+fluentbit_log_level: "info"
+fluentbit_s3_upload_timeout: "1m"
+fluentbit_s3_total_file_size: "5M"
+
+# Habilitar/desabilitar fontes de logs
+fluentbit_collect_container_logs: true
+fluentbit_collect_nginx_logs: false  # Nginx roda em container Docker; logs já são capturados em containers_log_path
+fluentbit_collect_os_logs: true
+
+# Caminhos de logs no sistema
+fluentbit_containers_log_path: "/var/lib/docker/containers/*/*-json.log"
+fluentbit_nginx_access_log_path: "/var/log/nginx/access*.log"
+fluentbit_nginx_error_log_path: "/var/log/nginx/error*.log"
+fluentbit_os_syslog_path: "/var/log/syslog"
+fluentbit_os_auth_path: "/var/log/auth.log"

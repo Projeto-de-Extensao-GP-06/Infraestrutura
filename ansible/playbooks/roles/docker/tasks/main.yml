@@ -7,6 +7,19 @@
 # Roda em: [all] — app, backend e db.
 # ──────────────────────────────────────────────────────────────────────────────
 
+- name: Forçar IPv4 no apt para evitar timeout IPv6
+  ansible.builtin.copy:
+    dest: /etc/apt/apt.conf.d/99force-ipv4
+    content: 'Acquire::ForceIPv4 "true";'
+    mode: "0644"
+
+- name: Aguardar liberacao do lock do apt e cloud-init
+  ansible.builtin.shell: |
+    while fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 || fuser /var/lib/apt/lists/lock >/dev/null 2>&1; do
+      sleep 3
+    done
+  changed_when: false
+
 - name: Instalar dependências base
   apt:
     name:
@@ -15,6 +28,10 @@
       - nfs-common
     state: present
     update_cache: yes
+  retries: 5
+  delay: 10
+  register: apt_base_result
+  until: apt_base_result is success
 
 - name: Criar diretório de keyrings
   file:
@@ -49,6 +66,10 @@
       - docker-compose-plugin
     state: present
     update_cache: yes
+  retries: 5
+  delay: 10
+  register: apt_docker_result
+  until: apt_docker_result is success
 
 - name: Habilitar e iniciar serviço Docker
   systemd:

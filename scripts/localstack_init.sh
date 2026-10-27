@@ -18,7 +18,7 @@ export AWS_DEFAULT_REGION=$REGION
 wait_for_localstack() {
     echo "Aguardando LocalStack ficar pronto..."
     for i in {1..60}; do
-        if curl -s "$ENDPOINT_URL/_localstack/health" | grep -q '"s3": "running"'; then
+        if curl -s "$ENDPOINT_URL/_localstack/health" | grep -q '"s3": "available"'; then
             echo "LocalStack está pronto!"
             return 0
         fi
@@ -268,101 +268,136 @@ create_security_groups() {
     echo "Criando Security Groups..."
     
     # ALB SG
-    SG_ALB=$(aws --endpoint-url=$ENDPOINT_URL ec2 create-security-group \
-        --group-name alb --description "Security group do Load Balancer" --vpc-id $VPC_ID \
-        --query 'GroupId' --output text)
+    SG_ALB=$(aws --endpoint-url=$ENDPOINT_URL ec2 describe-security-groups \
+        --filters Name=group-name,Values=alb Name=vpc-id,Values=$VPC_ID \
+        --query 'SecurityGroups[0].GroupId' --output text 2>/dev/null)
+    if [ -z "$SG_ALB" ]; then
+        SG_ALB=$(aws --endpoint-url=$ENDPOINT_URL ec2 create-security-group \
+            --group-name alb --description "Security group do Load Balancer" --vpc-id $VPC_ID \
+            --query 'GroupId' --output text)
+    fi
     aws --endpoint-url=$ENDPOINT_URL ec2 authorize-security-group-ingress \
-        --group-id $SG_ALB --protocol tcp --port 80 --cidr 0.0.0.0/0
+        --group-id $SG_ALB --protocol tcp --port 80 --cidr 0.0.0.0/0 2>/dev/null || true
     aws --endpoint-url=$ENDPOINT_URL ec2 authorize-security-group-egress \
-        --group-id $SG_ALB --protocol -1 --cidr 0.0.0.0/0
+        --group-id $SG_ALB --protocol -1 --cidr 0.0.0.0/0 2>/dev/null || true
     
     # App SG (Public)
-    SG_APP=$(aws --endpoint-url=$ENDPOINT_URL ec2 create-security-group \
-        --group-name app-public --description "Security group das instancias de aplicacao publica" --vpc-id $VPC_ID \
-        --query 'GroupId' --output text)
+    SG_APP=$(aws --endpoint-url=$ENDPOINT_URL ec2 describe-security-groups \
+        --filters Name=group-name,Values=app-public Name=vpc-id,Values=$VPC_ID \
+        --query 'SecurityGroups[0].GroupId' --output text 2>/dev/null)
+    if [ -z "$SG_APP" ]; then
+        SG_APP=$(aws --endpoint-url=$ENDPOINT_URL ec2 create-security-group \
+            --group-name app-public --description "Security group das instancias de aplicacao publica" --vpc-id $VPC_ID \
+            --query 'GroupId' --output text)
+    fi
     aws --endpoint-url=$ENDPOINT_URL ec2 authorize-security-group-ingress \
-        --group-id $SG_APP --protocol tcp --port 22 --cidr 0.0.0.0/0
+        --group-id $SG_APP --protocol tcp --port 22 --cidr 0.0.0.0/0 2>/dev/null || true
     aws --endpoint-url=$ENDPOINT_URL ec2 authorize-security-group-ingress \
-        --group-id $SG_APP --protocol tcp --port 80 --cidr 0.0.0.0/0
+        --group-id $SG_APP --protocol tcp --port 80 --cidr 0.0.0.0/0 2>/dev/null || true
     aws --endpoint-url=$ENDPOINT_URL ec2 authorize-security-group-ingress \
-        --group-id $SG_APP --protocol tcp --port 9100 --cidr $VPC_CIDR
+        --group-id $SG_APP --protocol tcp --port 9100 --cidr $VPC_CIDR 2>/dev/null || true
     aws --endpoint-url=$ENDPOINT_URL ec2 authorize-security-group-ingress \
-        --group-id $SG_APP --protocol tcp --port 4317 --cidr $VPC_CIDR
+        --group-id $SG_APP --protocol tcp --port 4317 --cidr $VPC_CIDR 2>/dev/null || true
     aws --endpoint-url=$ENDPOINT_URL ec2 authorize-security-group-ingress \
-        --group-id $SG_APP --protocol tcp --port 4318 --cidr $VPC_CIDR
+        --group-id $SG_APP --protocol tcp --port 4318 --cidr $VPC_CIDR 2>/dev/null || true
     aws --endpoint-url=$ENDPOINT_URL ec2 authorize-security-group-egress \
-        --group-id $SG_APP --protocol -1 --cidr 0.0.0.0/0
+        --group-id $SG_APP --protocol -1 --cidr 0.0.0.0/0 2>/dev/null || true
     
     # Backend SG (Private)
-    SG_BACKEND=$(aws --endpoint-url=$ENDPOINT_URL ec2 create-security-group \
-        --group-name backend-private --description "Security group das instancias de backend privadas" --vpc-id $VPC_ID \
-        --query 'GroupId' --output text)
+    SG_BACKEND=$(aws --endpoint-url=$ENDPOINT_URL ec2 describe-security-groups \
+        --filters Name=group-name,Values=backend-private Name=vpc-id,Values=$VPC_ID \
+        --query 'SecurityGroups[0].GroupId' --output text 2>/dev/null)
+    if [ -z "$SG_BACKEND" ]; then
+        SG_BACKEND=$(aws --endpoint-url=$ENDPOINT_URL ec2 create-security-group \
+            --group-name backend-private --description "Security group das instancias de backend privadas" --vpc-id $VPC_ID \
+            --query 'GroupId' --output text)
+    fi
     aws --endpoint-url=$ENDPOINT_URL ec2 authorize-security-group-ingress \
-        --group-id $SG_BACKEND --protocol tcp --port 22 --cidr $VPC_CIDR
+        --group-id $SG_BACKEND --protocol tcp --port 22 --cidr $VPC_CIDR 2>/dev/null || true
     aws --endpoint-url=$ENDPOINT_URL ec2 authorize-security-group-ingress \
-        --group-id $SG_BACKEND --protocol tcp --port 8080 --cidr $VPC_CIDR
+        --group-id $SG_BACKEND --protocol tcp --port 8080 --cidr $VPC_CIDR 2>/dev/null || true
     aws --endpoint-url=$ENDPOINT_URL ec2 authorize-security-group-ingress \
-        --group-id $SG_BACKEND --protocol tcp --port 9100 --cidr $VPC_CIDR
+        --group-id $SG_BACKEND --protocol tcp --port 9100 --cidr $VPC_CIDR 2>/dev/null || true
     aws --endpoint-url=$ENDPOINT_URL ec2 authorize-security-group-egress \
-        --group-id $SG_BACKEND --protocol -1 --cidr 0.0.0.0/0
+        --group-id $SG_BACKEND --protocol -1 --cidr 0.0.0.0/0 2>/dev/null || true
     
     # DB SG (Private)
-    SG_DB=$(aws --endpoint-url=$ENDPOINT_URL ec2 create-security-group \
-        --group-name db-private --description "Security group da instancia de banco de dados" --vpc-id $VPC_ID \
-        --query 'GroupId' --output text)
+    SG_DB=$(aws --endpoint-url=$ENDPOINT_URL ec2 describe-security-groups \
+        --filters Name=group-name,Values=db-private Name=vpc-id,Values=$VPC_ID \
+        --query 'SecurityGroups[0].GroupId' --output text 2>/dev/null)
+    if [ -z "$SG_DB" ]; then
+        SG_DB=$(aws --endpoint-url=$ENDPOINT_URL ec2 create-security-group \
+            --group-name db-private --description "Security group da instancia de banco de dados" --vpc-id $VPC_ID \
+            --query 'GroupId' --output text)
+    fi
     aws --endpoint-url=$ENDPOINT_URL ec2 authorize-security-group-ingress \
-        --group-id $SG_DB --protocol tcp --port 3306 --source-group $SG_BACKEND
+        --group-id $SG_DB --protocol tcp --port 3306 --source-group $SG_BACKEND 2>/dev/null || true
     aws --endpoint-url=$ENDPOINT_URL ec2 authorize-security-group-ingress \
-        --group-id $SG_DB --protocol tcp --port 22 --cidr $VPC_CIDR
+        --group-id $SG_DB --protocol tcp --port 22 --cidr $VPC_CIDR 2>/dev/null || true
     aws --endpoint-url=$ENDPOINT_URL ec2 authorize-security-group-ingress \
-        --group-id $SG_DB --protocol tcp --port 9100 --cidr $VPC_CIDR
+        --group-id $SG_DB --protocol tcp --port 9100 --cidr $VPC_CIDR 2>/dev/null || true
     aws --endpoint-url=$ENDPOINT_URL ec2 authorize-security-group-egress \
-        --group-id $SG_DB --protocol -1 --cidr 0.0.0.0/0
+        --group-id $SG_DB --protocol -1 --cidr 0.0.0.0/0 2>/dev/null || true
     
     # Observability SG
-    SG_OBS=$(aws --endpoint-url=$ENDPOINT_URL ec2 create-security-group \
-        --group-name observability --description "Security group da instancia dedicada de observabilidade" --vpc-id $VPC_ID \
-        --query 'GroupId' --output text)
+    SG_OBS=$(aws --endpoint-url=$ENDPOINT_URL ec2 describe-security-groups \
+        --filters Name=group-name,Values=observability Name=vpc-id,Values=$VPC_ID \
+        --query 'SecurityGroups[0].GroupId' --output text 2>/dev/null)
+    if [ -z "$SG_OBS" ]; then
+        SG_OBS=$(aws --endpoint-url=$ENDPOINT_URL ec2 create-security-group \
+            --group-name observability --description "Security group da instancia dedicada de observabilidade" --vpc-id $VPC_ID \
+            --query 'GroupId' --output text)
+    fi
     aws --endpoint-url=$ENDPOINT_URL ec2 authorize-security-group-ingress \
-        --group-id $SG_OBS --protocol tcp --port 22 --cidr 0.0.0.0/0
+        --group-id $SG_OBS --protocol tcp --port 22 --cidr 0.0.0.0/0 2>/dev/null || true
     aws --endpoint-url=$ENDPOINT_URL ec2 authorize-security-group-ingress \
-        --group-id $SG_OBS --protocol tcp --port 9090 --cidr 0.0.0.0/0
+        --group-id $SG_OBS --protocol tcp --port 9090 --cidr 0.0.0.0/0 2>/dev/null || true
     aws --endpoint-url=$ENDPOINT_URL ec2 authorize-security-group-ingress \
-        --group-id $SG_OBS --protocol tcp --port 3001 --cidr 0.0.0.0/0
+        --group-id $SG_OBS --protocol tcp --port 3001 --cidr 0.0.0.0/0 2>/dev/null || true
     aws --endpoint-url=$ENDPOINT_URL ec2 authorize-security-group-ingress \
-        --group-id $SG_OBS --protocol tcp --port 9093 --cidr 0.0.0.0/0
+        --group-id $SG_OBS --protocol tcp --port 9093 --cidr 0.0.0.0/0 2>/dev/null || true
     aws --endpoint-url=$ENDPOINT_URL ec2 authorize-security-group-ingress \
-        --group-id $SG_OBS --protocol tcp --port 3100 --cidr $VPC_CIDR
+        --group-id $SG_OBS --protocol tcp --port 3100 --cidr $VPC_CIDR 2>/dev/null || true
     aws --endpoint-url=$ENDPOINT_URL ec2 authorize-security-group-ingress \
-        --group-id $SG_OBS --protocol tcp --port 4317 --cidr $VPC_CIDR
+        --group-id $SG_OBS --protocol tcp --port 4317 --cidr $VPC_CIDR 2>/dev/null || true
     aws --endpoint-url=$ENDPOINT_URL ec2 authorize-security-group-ingress \
-        --group-id $SG_OBS --protocol tcp --port 4318 --cidr $VPC_CIDR
+        --group-id $SG_OBS --protocol tcp --port 4318 --cidr $VPC_CIDR 2>/dev/null || true
     aws --endpoint-url=$ENDPOINT_URL ec2 authorize-security-group-ingress \
-        --group-id $SG_OBS --protocol tcp --port 3200 --cidr $VPC_CIDR
+        --group-id $SG_OBS --protocol tcp --port 3200 --cidr $VPC_CIDR 2>/dev/null || true
     aws --endpoint-url=$ENDPOINT_URL ec2 authorize-security-group-ingress \
-        --group-id $SG_OBS --protocol tcp --port 9100 --cidr $VPC_CIDR
+        --group-id $SG_OBS --protocol tcp --port 9100 --cidr $VPC_CIDR 2>/dev/null || true
     aws --endpoint-url=$ENDPOINT_URL ec2 authorize-security-group-egress \
-        --group-id $SG_OBS --protocol -1 --cidr 0.0.0.0/0
+        --group-id $SG_OBS --protocol -1 --cidr 0.0.0.0/0 2>/dev/null || true
     
     # EFS SG
-    SG_EFS=$(aws --endpoint-url=$ENDPOINT_URL ec2 create-security-group \
-        --group-name efs --description "Security group do EFS - NFS restrito a VPC" --vpc-id $VPC_ID \
-        --query 'GroupId' --output text)
+    SG_EFS=$(aws --endpoint-url=$ENDPOINT_URL ec2 describe-security-groups \
+        --filters Name=group-name,Values=efs Name=vpc-id,Values=$VPC_ID \
+        --query 'SecurityGroups[0].GroupId' --output text 2>/dev/null)
+    if [ -z "$SG_EFS" ]; then
+        SG_EFS=$(aws --endpoint-url=$ENDPOINT_URL ec2 create-security-group \
+            --group-name efs --description "Security group do EFS - NFS restrito a VPC" --vpc-id $VPC_ID \
+            --query 'GroupId' --output text)
+    fi
     aws --endpoint-url=$ENDPOINT_URL ec2 authorize-security-group-ingress \
-        --group-id $SG_EFS --protocol tcp --port 2049 --cidr $VPC_CIDR
+        --group-id $SG_EFS --protocol tcp --port 2049 --cidr $VPC_CIDR 2>/dev/null || true
     aws --endpoint-url=$ENDPOINT_URL ec2 authorize-security-group-egress \
-        --group-id $SG_EFS --protocol -1 --cidr 0.0.0.0/0
+        --group-id $SG_EFS --protocol -1 --cidr 0.0.0.0/0 2>/dev/null || true
     
     # RDS SG
-    SG_RDS=$(aws --endpoint-url=$ENDPOINT_URL ec2 create-security-group \
-        --group-name rds-mysql --description "Security group do RDS MySQL" --vpc-id $VPC_ID \
-        --query 'GroupId' --output text)
+    SG_RDS=$(aws --endpoint-url=$ENDPOINT_URL ec2 describe-security-groups \
+        --filters Name=group-name,Values=rds-mysql Name=vpc-id,Values=$VPC_ID \
+        --query 'SecurityGroups[0].GroupId' --output text 2>/dev/null)
+    if [ -z "$SG_RDS" ]; then
+        SG_RDS=$(aws --endpoint-url=$ENDPOINT_URL ec2 create-security-group \
+            --group-name rds-mysql --description "Security group do RDS MySQL" --vpc-id $VPC_ID \
+            --query 'GroupId' --output text)
+    fi
     aws --endpoint-url=$ENDPOINT_URL ec2 authorize-security-group-ingress \
-        --group-id $SG_RDS --protocol tcp --port 3306 --source-group $SG_BACKEND
+        --group-id $SG_RDS --protocol tcp --port 3306 --source-group $SG_BACKEND 2>/dev/null || true
     aws --endpoint-url=$ENDPOINT_URL ec2 authorize-security-group-ingress \
-        --group-id $SG_RDS --protocol tcp --port 3306 --source-group $SG_DB
+        --group-id $SG_RDS --protocol tcp --port 3306 --source-group $SG_DB 2>/dev/null || true
     aws --endpoint-url=$ENDPOINT_URL ec2 authorize-security-group-egress \
-        --group-id $SG_RDS --protocol -1 --cidr 0.0.0.0/0
+        --group-id $SG_RDS --protocol -1 --cidr 0.0.0.0/0 2>/dev/null || true
     
     echo "Security Groups criados"
     export SG_ALB SG_APP SG_BACKEND SG_DB SG_OBS SG_EFS SG_RDS
@@ -374,9 +409,10 @@ create_security_groups() {
 
 create_key_pair() {
     echo "Criando Key Pair..."
+    mkdir -p $HOME/tmp
     aws --endpoint-url=$ENDPOINT_URL ec2 create-key-pair \
-        --key-name Key-All --query 'KeyMaterial' --output text > /tmp/Key-All.pem 2>/dev/null || true
-    chmod 400 /tmp/Key-All.pem 2>/dev/null || true
+        --key-name Key-All --query 'KeyMaterial' --output text > $HOME/tmp/Key-All.pem 2>/dev/null || true
+    chmod 400 $HOME/tmp/Key-All.pem 2>/dev/null || true
 }
 
 create_ec2_instances() {
@@ -396,7 +432,7 @@ systemctl start nginx
 usermod -aG docker ubuntu
 EOF
     )
-    USER_DATA_B64=$(echo "$USER_DATA" | base64 -w 0)
+    USER_DATA_B64=$(echo "$USER_DATA" | base64)
     
     # App A (Public)
     INSTANCE_APP_A=$(aws --endpoint-url=$ENDPOINT_URL ec2 run-instances \

@@ -1,6 +1,9 @@
 ---
-app_image: lpamorim/sgpj-frontend:latest
+# ECR tem prioridade; fallback para Docker Hub
+app_image: "{{ ecr_frontend_image | default('lpamorim/sgpj-frontend:latest') }}"
 app_container_name: sgpj-frontend
 app_host_port: 3000
 app_container_port: 80
 app_network: bridge
+app_dist_path: "{{ playbook_dir }}/../../scripts/test/dist"
+nginx_html_host_path: /mnt/efs-sgpj/volumes/nginx/html

@@ -1,20 +1,29 @@
 ---
-- name: Baixar imagem da aplicacao
-  community.docker.docker_image:
-    name: "{{ app_image }}"
-    source: pull
+# ──────────────────────────────────────────────────────────────────────────────
+# role: app
+# Com Docker Swarm, o deploy do container é feito pela role 'swarm'.
+# Esta role apenas prepara o EFS com os arquivos estáticos do Frontend
+# (caso exista um bundle local compilado) para o Nginx conseguir servi-los.
+# ──────────────────────────────────────────────────────────────────────────────
 
-- name: Subir container da aplicacao
-  community.docker.docker_container:
-    name: "{{ app_container_name }}"
-    image: "{{ app_image }}"
-    state: started
-    restart_policy: unless-stopped
-    recreate: true
-    pull: always
-    networks:
-      - name: "{{ app_network }}"
-    ports:
-      - "{{ app_host_port }}:{{ app_container_port }}"
-    etc_hosts:
-      host.docker.internal: host-gateway
+- name: Criar diretorio para o Frontend
+  ansible.builtin.file:
+    path: /opt/app-frontend
+    state: directory
+    mode: "0755"
+
+# Verificar se existe bundle dist local (build do React)
+- name: Verificar se bundle compilado do Frontend existe localmente
+  ansible.builtin.stat:
+    path: "{{ app_dist_path }}"
+  register: local_dist_dir
+  delegate_to: localhost
+  become: false
+
+# Sincronizar arquivos estáticos para o EFS (se existir build local)
+- name: Sincronizar arquivos estáticos do React para o EFS compartilhado do Nginx
+  ansible.builtin.copy:
+    src: "{{ app_dist_path }}/"
+    dest: "{{ nginx_html_host_path }}/"
+    mode: "0755"
+  when: local_dist_dir.stat.exists and local_dist_dir.stat.isdir

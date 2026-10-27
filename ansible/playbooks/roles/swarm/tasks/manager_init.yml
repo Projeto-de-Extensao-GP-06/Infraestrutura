@@ -1,0 +1,23 @@
+---
+- name: Verificar estado atual do Swarm no Manager
+  ansible.builtin.command: docker info --format "{{ '{{' }}.Swarm.LocalNodeState{{ '}}' }}"
+  register: swarm_state
+  changed_when: false
+
+- name: Inicializar Docker Swarm (apenas Manager)
+  ansible.builtin.command: >
+    docker swarm init
+    --advertise-addr {{ ansible_default_ipv4.address }}
+  when: swarm_state.stdout != 'active'
+  register: swarm_init
+  changed_when: swarm_init.rc == 0
+
+- name: Obter join-token para workers
+  ansible.builtin.command: docker swarm join-token worker -q
+  register: swarm_worker_token
+  changed_when: false
+
+- name: Registrar token e IP do manager como facts globais
+  ansible.builtin.set_fact:
+    swarm_join_token: "{{ swarm_worker_token.stdout }}"
+    swarm_manager_addr: "{{ ansible_default_ipv4.address }}:2377"

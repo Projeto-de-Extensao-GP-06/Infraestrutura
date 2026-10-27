@@ -1,0 +1,41 @@
+---
+- name: Aguardar nós workers estarem visíveis no Swarm
+  ansible.builtin.pause:
+    seconds: 5
+
+- name: Aplicar labels de placement (role=app e role=backend) em todos os nodes do cluster
+  ansible.builtin.shell: |
+    for node in $(docker node ls --format '{{ '{{' }}.Hostname{{ '}}' }}'); do
+      case "$node" in
+        *10-0-1-*|*10-0-2-*)
+          docker node update --label-add role=app "$node" || true
+          ;;
+        *10-0-3-*|*10-0-4-*)
+          docker node update --label-add role=backend "$node" || true
+          ;;
+      esac
+    done
+    # Manager sempre ganha role=app
+    docker node update --label-add role=app $(docker info --format '{{ '{{' }}.Swarm.NodeID{{ '}}' }}') || true
+  changed_when: false
+
+- name: Criar diretório do Swarm stack no Manager
+  ansible.builtin.file:
+    path: /opt/swarm
+    state: directory
+    mode: "0755"
+
+- name: Gerar stack.yml no Manager
+  ansible.builtin.template:
+    src: stack.yml.j2
+    dest: "{{ swarm_stack_file }}"
+    mode: "0644"
+
+- name: Deploy da stack SGPJ no Swarm
+  ansible.builtin.shell: >
+    docker stack deploy
+    --with-registry-auth
+    --compose-file {{ swarm_stack_file }}
+    {{ swarm_stack_name }}
+  register: stack_deploy
+  changed_when: "'Updating' in stack_deploy.stdout or 'Creating' in stack_deploy.stdout"
