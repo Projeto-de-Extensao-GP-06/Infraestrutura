@@ -13,6 +13,13 @@
     content: 'Acquire::ForceIPv4 "true";'
     mode: "0644"
 
+- name: Aguardar liberacao do lock do apt e cloud-init
+  ansible.builtin.shell: |
+    while fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 || fuser /var/lib/apt/lists/lock >/dev/null 2>&1; do
+      sleep 3
+    done
+  changed_when: false
+
 - name: Instalar dependências base
   apt:
     name:

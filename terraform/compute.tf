@@ -51,7 +51,7 @@ module "compute" {
     db = {
       subnet_id                   = aws_subnet.private_db_a.id
       vpc_security_group_ids      = [aws_security_group.db.id]
-      iam_instance_profile        = null
+      iam_instance_profile        = var.observability_existing_instance_profile_name
       associate_public_ip_address = false
       tags = {
         Name = "ec2-db"
@@ -77,4 +77,60 @@ module "compute" {
   alb_subnet_ids        = [aws_subnet.public_a.id, aws_subnet.public_b.id]
   vpc_id                = aws_vpc.sgpj_vpc.id
   target_instances      = ["app_a", "app_b"]
+}
+
+# ── Blocos de migração de State (Zero Downtime / Zero Destroy) ────────────────
+moved {
+  from = aws_instance.app_a
+  to   = module.compute.aws_instance.instances["app_a"]
+}
+
+moved {
+  from = aws_instance.app_b
+  to   = module.compute.aws_instance.instances["app_b"]
+}
+
+moved {
+  from = aws_instance.backend_a
+  to   = module.compute.aws_instance.instances["backend_a"]
+}
+
+moved {
+  from = aws_instance.backend_b
+  to   = module.compute.aws_instance.instances["backend_b"]
+}
+
+moved {
+  from = aws_instance.db
+  to   = module.compute.aws_instance.instances["db"]
+}
+
+moved {
+  from = aws_instance.observability[0]
+  to   = module.compute.aws_instance.observability[0]
+}
+
+moved {
+  from = aws_lb.app
+  to   = module.compute.aws_lb.app
+}
+
+moved {
+  from = aws_lb_target_group.app
+  to   = module.compute.aws_lb_target_group.app
+}
+
+moved {
+  from = aws_lb_listener.http
+  to   = module.compute.aws_lb_listener.http
+}
+
+moved {
+  from = aws_lb_target_group_attachment.app_a
+  to   = module.compute.aws_lb_target_group_attachment.app["app_a"]
+}
+
+moved {
+  from = aws_lb_target_group_attachment.app_b
+  to   = module.compute.aws_lb_target_group_attachment.app["app_b"]
 }

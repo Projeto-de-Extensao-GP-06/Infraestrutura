@@ -66,37 +66,45 @@ services:
       SPRING_JPA_DATABASE_PLATFORM: "org.hibernate.dialect.MySQLDialect"
       SERVER_PORT: "8080"
       MANAGEMENT_HEALTH_MAIL_ENABLED: "false"
-{% set _jwt = backend_jwt_secret | default(jwt_secret, true) %}
-{% if _jwt %}
-      JWT_SECRET: "{{ _jwt }}"
+{% if backend_jwt_secret is defined and backend_jwt_secret %}
+      JWT_SECRET: "{{ backend_jwt_secret }}"
+{% elif jwt_secret is defined and jwt_secret %}
+      JWT_SECRET: "{{ jwt_secret }}"
 {% endif %}
-{% set _client_id = backend_client_id | default(client_id, true) %}
-{% if _client_id %}
-      CLIENT_ID: "{{ _client_id }}"
+{% if backend_client_id is defined and backend_client_id %}
+      CLIENT_ID: "{{ backend_client_id }}"
+{% elif client_id is defined and client_id %}
+      CLIENT_ID: "{{ client_id }}"
 {% endif %}
-{% set _client_secret = backend_client_secret | default(client_secret, true) %}
-{% if _client_secret %}
-      CLIENT_SECRET: "{{ _client_secret }}"
+{% if backend_client_secret is defined and backend_client_secret %}
+      CLIENT_SECRET: "{{ backend_client_secret }}"
+{% elif client_secret is defined and client_secret %}
+      CLIENT_SECRET: "{{ client_secret }}"
 {% endif %}
-{% set _tenant_id = backend_tenant_id | default(tenant_id, true) %}
-{% if _tenant_id %}
-      TENANT_ID: "{{ _tenant_id }}"
+{% if backend_tenant_id is defined and backend_tenant_id %}
+      TENANT_ID: "{{ backend_tenant_id }}"
+{% elif tenant_id is defined and tenant_id %}
+      TENANT_ID: "{{ tenant_id }}"
 {% endif %}
-{% set _redirect_uri = backend_redirect_uri | default(redirect_uri, true) %}
-{% if _redirect_uri %}
-      REDIRECT_URI: "{{ _redirect_uri }}"
+{% if backend_redirect_uri is defined and backend_redirect_uri %}
+      REDIRECT_URI: "{{ backend_redirect_uri }}"
+{% elif redirect_uri is defined and redirect_uri %}
+      REDIRECT_URI: "{{ redirect_uri }}"
 {% endif %}
-{% set _cookie_secure = backend_cookie_secure | default(cookie_secure, true) %}
-{% if _cookie_secure is defined and _cookie_secure != '' %}
-      COOKIE_SECURE: "{{ _cookie_secure }}"
+{% if backend_cookie_secure is defined and backend_cookie_secure != '' %}
+      COOKIE_SECURE: "{{ backend_cookie_secure }}"
+{% elif cookie_secure is defined and cookie_secure != '' %}
+      COOKIE_SECURE: "{{ cookie_secure }}"
 {% endif %}
-{% set _datajud = backend_datajud_api_key | default(datajud_api_key, true) %}
-{% if _datajud %}
-      DATAJUD_API_KEY: "{{ _datajud }}"
+{% if backend_datajud_api_key is defined and backend_datajud_api_key %}
+      DATAJUD_API_KEY: "{{ backend_datajud_api_key }}"
+{% elif datajud_api_key is defined and datajud_api_key %}
+      DATAJUD_API_KEY: "{{ datajud_api_key }}"
 {% endif %}
-{% set _cf_key = backend_cloudflare_secret_key | default(cloudflare_secret_key, true) %}
-{% if _cf_key %}
-      CLOUDFLARE_SECRET_KEY: "{{ _cf_key }}"
+{% if backend_cloudflare_secret_key is defined and backend_cloudflare_secret_key %}
+      CLOUDFLARE_SECRET_KEY: "{{ backend_cloudflare_secret_key }}"
+{% elif cloudflare_secret_key is defined and cloudflare_secret_key %}
+      CLOUDFLARE_SECRET_KEY: "{{ cloudflare_secret_key }}"
 {% endif %}
     deploy:
       replicas: 2

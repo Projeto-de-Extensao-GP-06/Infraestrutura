@@ -16,7 +16,7 @@
       "id": 1,
       "type": "timeseries",
       "title": "ALB — Requisições por segundo",
-      "gridPos": {"h": 8, "w": 8, "x": 0, "y": 0},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
       "datasource": {"type": "prometheus", "uid": "prometheus"},
       "targets": [
         {
@@ -30,7 +30,7 @@
       "id": 2,
       "type": "timeseries",
       "title": "ALB — Erros 5xx por segundo",
-      "gridPos": {"h": 8, "w": 8, "x": 8, "y": 0},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
       "datasource": {"type": "prometheus", "uid": "prometheus"},
       "fieldConfig": {
         "defaults": {
@@ -41,25 +41,6 @@
         {
           "expr": "sum(rate(aws_applicationelb_httpcode_target_5_xx_count_sum[5m]))",
           "legendFormat": "5xx/s",
-          "refId": "A"
-        }
-      ]
-    },
-    {
-      "id": 3,
-      "type": "timeseries",
-      "title": "ALB — Latência média (ms)",
-      "gridPos": {"h": 8, "w": 8, "x": 16, "y": 0},
-      "datasource": {"type": "prometheus", "uid": "prometheus"},
-      "fieldConfig": {
-        "defaults": {
-          "unit": "ms"
-        }
-      },
-      "targets": [
-        {
-          "expr": "avg(aws_applicationelb_target_response_time_average) * 1000",
-          "legendFormat": "Latência média",
           "refId": "A"
         }
       ]
@@ -80,7 +61,7 @@
       "targets": [
         {
           "expr": "aws_efs_percent_iolimit_average",
-          "legendFormat": "EFS IO Limit",
+          "legendFormat": "EFS {{ '{{' }}FileSystemId{{ '}}' }}",
           "refId": "A"
         }
       ]

@@ -75,13 +75,22 @@
 # ── 5. OUTPUTS: Carregamento no Bucket Bronze Tier (S3) e Loki ──────────────────
 
 {% if enable_observability | default(false) | bool %}
-# Output para Loki — Observabilidade de Logs em tempo real no Grafana
+# Output para Loki — Observabilidade de Logs dos Containers em tempo real no Grafana
 [OUTPUT]
     Name                   loki
     Match                  containers.*
     Host                   {{ observability_host }}
     Port                   3100
     Labels                 job=docker, host={{ inventory_hostname }}, environment=production
+    Auto_Kubernetes_Labels Off
+
+# Output para Loki — Observabilidade de Logs do Sistema Operacional (Syslog/Auth)
+[OUTPUT]
+    Name                   loki
+    Match                  os.*
+    Host                   {{ observability_host }}
+    Port                   3100
+    Labels                 job=system, host={{ inventory_hostname }}, environment=production
     Auto_Kubernetes_Labels Off
 {% endif %}
 

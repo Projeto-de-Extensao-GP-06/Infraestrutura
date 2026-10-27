@@ -3,22 +3,19 @@
   ansible.builtin.pause:
     seconds: 5
 
-- name: Aplicar labels de placement (role=app e role=backend) usando os grupos do inventario
+- name: Aplicar labels de placement (role=app e role=backend) em todos os nodes do cluster
   ansible.builtin.shell: |
-    # Identifica o Docker NodeID correspondente ao hostname/IP de cada host do inventario
-    {% for host in groups['app'] %}
-    node_id=$(docker node ls --filter "name={{ hostvars[host]['ansible_hostname'] | default(host) }}" -q || true)
-    if [ -n "$node_id" ]; then
-      docker node update --label-add role=app "$node_id"
-    fi
-    {% endfor %}
-    {% for host in groups['backend'] %}
-    node_id=$(docker node ls --filter "name={{ hostvars[host]['ansible_hostname'] | default(host) }}" -q || true)
-    if [ -n "$node_id" ]; then
-      docker node update --label-add role=backend "$node_id"
-    fi
-    {% endfor %}
-    # Garante que o próprio Manager sempre receba a label role=app
+    for node in $(docker node ls --format '{{ '{{' }}.Hostname{{ '}}' }}'); do
+      case "$node" in
+        *10-0-1-*|*10-0-2-*)
+          docker node update --label-add role=app "$node" || true
+          ;;
+        *10-0-3-*|*10-0-4-*)
+          docker node update --label-add role=backend "$node" || true
+          ;;
+      esac
+    done
+    # Manager sempre ganha role=app
     docker node update --label-add role=app $(docker info --format '{{ '{{' }}.Swarm.NodeID{{ '}}' }}') || true
   changed_when: false
 
