@@ -53,8 +53,13 @@ variable "ami_id" {
 }
 
 variable "instance_type" {
-  description = "Tipo das instâncias"
+  description = "Tipo das instâncias padrão (app, db, observabilidade)"
   default     = "t3.small"
+}
+
+variable "backend_instance_type" {
+  description = "Tipo das instâncias de backend (Spring Boot + RabbitMQ)"
+  default     = "t3.medium"
 }
 
 variable "observability_allowed_cidr" {
