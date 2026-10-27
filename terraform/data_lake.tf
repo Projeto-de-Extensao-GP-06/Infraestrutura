@@ -36,7 +36,10 @@ resource "null_resource" "s3_data_lake" {
   provisioner "local-exec" {
     interpreter = ["PowerShell", "-Command"]
     command     = <<-EOT
-      $ErrorActionPreference = 'Stop'
+      $ErrorActionPreference = 'Continue'
+      if (Test-Path variable:PSNativeCommandUseErrorActionPreference) {
+        $PSNativeCommandUseErrorActionPreference = $false
+      }
       $region  = 'us-east-1'
       $buckets = @('${local.external_bucket}', '${local.bronze_bucket}', '${local.silver_bucket}', '${local.gold_bucket}')
 
@@ -49,8 +52,8 @@ resource "null_resource" "s3_data_lake" {
         foreach ($bucket in $buckets) {
           Write-Host ">>> Configurando bucket: $bucket"
 
-          # Verifica se o bucket ja existe antes de criar
-          aws s3api head-bucket --bucket $bucket 2>$null
+          # Verifica se o bucket ja existe antes de criar (usa cmd para evitar NativeCommandError do PowerShell em 404)
+          $null = & cmd /c "aws s3api head-bucket --bucket $bucket 2>nul"
           if ($LASTEXITCODE -ne 0) {
             Write-Host "Criando bucket $bucket..."
             aws s3api create-bucket --bucket $bucket --region $region

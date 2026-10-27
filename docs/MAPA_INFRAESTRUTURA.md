@@ -37,7 +37,7 @@ Este documento descreve detalhadamente o que roda em cada instância EC2, como o
      │     ec2-backend-a     │                       │     ec2-backend-b     │
      │  (Subnet Privada A)   │                       │  (Subnet Privada B)   │
      │  ✦ SWARM WORKER ✦     │                       │  ✦ SWARM WORKER ✦     │
-     │  Serviço: sgpj_backend│                       │  Serviço: sgpj_backend│
+     │  sgpj_backend / rabbit│                       │  sgpj_backend / rabbit│
      └───────────┬───────────┘                       └───────────┬───────────┘
                  │                                               │
                  └───────────────────────┬───────────────────────┘
@@ -63,6 +63,7 @@ Este documento descreve detalhadamente o que roda em cada instância EC2, como o
 ## 📦 Detalhamento por Instância
 
 ### 1. `ec2-app-a` e `ec2-app-b`
+- **Tipo de Instância:** `t3.small` (2 vCPUs, 2 GB RAM)
 - **Subnets:** `public_a` (`10.0.1.0/24`) e `public_b` (`10.0.2.0/24`)
 - **Papel no Swarm:** `ec2-app-a` é o **Swarm Manager**; `ec2-app-b` é **Swarm Worker**.
 - **Acesso:** Recebe tráfego externo balanceado pelo ALB na porta `80`.
@@ -78,6 +79,7 @@ Este documento descreve detalhadamente o que roda em cada instância EC2, como o
 ---
 
 ### 2. `ec2-backend-a` e `ec2-backend-b`
+- **Tipo de Instância:** `t3.medium` (2 vCPUs, 4 GB RAM) — dimensionadas para Spring Boot + RabbitMQ sem risco de Out of Memory (OOM).
 - **Subnets:** `private_backend_a` (`10.0.3.0/24`) e `private_backend_b` (`10.0.4.0/24`)
 - **Papel no Swarm:** **Swarm Workers** (rotulados com `node.labels.role == backend`).
 - **Acesso:** Totalmente isoladas da internet pública. Acessam a internet via **NAT Gateway** para download de pacotes e autenticação no ECR. Acesso SSH administrativo via Bastion / ProxyJump pela `ec2-app-a`.
@@ -85,6 +87,7 @@ Este documento descreve detalhadamente o que roda em cada instância EC2, como o
 | Processo / Container | Imagem / Pacote | Porta | Função |
 |---|---|---|---|
 | `sgpj_backend` (Serviço Swarm) | ECR `sgpj-backend:latest` | `8080:8080` | Aplicação Spring Boot 4.x / Java 21 com REST API e autenticação JWT. Responde pelo alias `api.backend`. |
+| `sgpj_rabbitmq` (Serviço Swarm) | `rabbitmq:4-management` | `5672`, `15672` | Message broker AMQP para filas assíncronas (e-mails, retentativas). Interface web de gestão na porta `15672`, acessível via IP público das EC2 app pelo Routing Mesh do Swarm. |
 | `fluent-bit` | Serviço nativo `systemd` | — | Coleta logs da aplicação Spring Boot e do SO, enviando para o S3 Bronze. |
 | `node-exporter` | `quay.io/prometheus/node-exporter` | `9100` | Métricas de sistema operacional do backend para o Prometheus. |
 | `alloy` | `grafana/alloy` | — | Coleta logs de stdout/stderr da JVM para o Loki. |
@@ -92,6 +95,7 @@ Este documento descreve detalhadamente o que roda em cada instância EC2, como o
 ---
 
 ### 3. `ec2-db` (Banco de Dados)
+- **Tipo de Instância:** `t3.small` (2 vCPUs, 2 GB RAM)
 - **Subnet:** `private_db_a` (`10.0.5.0/24`)
 - **Papel no Cluster:** **Fora do Docker Swarm** (mantido como Docker Standalone por segurança e integridade de volumes de banco de dados relacional).
 - **Acesso de Rede:** Porta `3306` restrita pelo Security Group apenas para o Security Group do Backend.
@@ -105,6 +109,7 @@ Este documento descreve detalhadamente o que roda em cada instância EC2, como o
 ---
 
 ### 4. `ec2-observability` (Central de Monitoramento e Alertas)
+- **Tipo de Instância:** `t3.small` (2 vCPUs, 2 GB RAM, 20 GB EBS gp3)
 - **Subnet:** `public_obs` (`10.0.7.0/24` - AZ us-east-1c)
 - **Acesso:** Aberto publicamente para avaliação e visualização dos dashboards da equipe.
 

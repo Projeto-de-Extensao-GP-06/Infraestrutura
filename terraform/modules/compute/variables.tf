@@ -29,6 +29,7 @@ variable "instances_config" {
   type = map(object({
     subnet_id                   = string
     vpc_security_group_ids      = list(string)
+    instance_type               = optional(string, null)
     iam_instance_profile        = optional(string, null)
     associate_public_ip_address = optional(bool, false)
     tags                        = map(string)

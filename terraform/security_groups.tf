@@ -45,6 +45,14 @@ resource "aws_security_group" "app" {
   }
 
   ingress {
+    description = "RabbitMQ Management UI"
+    from_port   = 15672
+    to_port     = 15672
+    protocol    = "tcp"
+    cidr_blocks = [var.observability_allowed_cidr != null && var.observability_allowed_cidr != "" ? var.observability_allowed_cidr : "0.0.0.0/0"]
+  }
+
+  ingress {
     description = "Node Exporter (apenas da VPC)"
     from_port   = 9100
     to_port     = 9100
@@ -113,6 +121,22 @@ resource "aws_security_group" "backend" {
     description = "Spring Boot"
     from_port   = 8080
     to_port     = 8080
+    protocol    = "tcp"
+    cidr_blocks = [var.vpc_cidr]
+  }
+
+  ingress {
+    description = "RabbitMQ AMQP (apenas da VPC)"
+    from_port   = 5672
+    to_port     = 5672
+    protocol    = "tcp"
+    cidr_blocks = [var.vpc_cidr]
+  }
+
+  ingress {
+    description = "RabbitMQ Management UI (apenas da VPC)"
+    from_port   = 15672
+    to_port     = 15672
     protocol    = "tcp"
     cidr_blocks = [var.vpc_cidr]
   }

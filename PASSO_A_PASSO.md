@@ -2,6 +2,7 @@
 
 > **Arquitetura Atualizada (Docker Swarm + AWS ECR + Observabilidade & Fluent Bit):**
 > - **Orquestração:** Docker Swarm em cluster (`ec2-app-a` Manager; `ec2-app-b`, `ec2-backend-a/b` Workers).
+> - **Mensageria:** RabbitMQ 4 (`rabbitmq:4-management`) no Swarm restrito aos nós de backend. AMQP na porta `5672`, painel web na porta `15672` (acessível via IP público das EC2 app).
 > - **Repositório de Imagens:** AWS ECR (`sgpj-frontend` e `sgpj-backend`).
 > - **Deploy de Aplicação:** Stack Swarm com Rolling Update (zero downtime), alias de rede overlay `api.backend` e healthchecks.
 > - **Banco:** MySQL 8.0 em container Docker na `ec2-db` (fora do Swarm por segurança/estado).
@@ -111,7 +112,7 @@ terraform apply --auto-approve
 ```
 O Terraform criará:
 1. VPC, subnets, Security Groups (com portas do Swarm `2377`, `7946`, `4789` e Observabilidade pública `3001`, `9090`) e Internet Gateway
-2. EC2s: `ec2-app-a`, `ec2-app-b`, `ec2-backend-a`, `ec2-backend-b`, `ec2-db` e `ec2-observability`
+2. EC2s: `ec2-app-a`, `ec2-app-b` (`t3.small`), `ec2-backend-a`, `ec2-backend-b` (`t3.medium` — 4 GB RAM para Spring Boot + RabbitMQ), `ec2-db`, `ec2-observability` (`t3.small`)
 3. Application Load Balancer (ALB) e EFS compartilhado
 4. Repositórios ECR e Buckets S3 (Bronze, Silver, Gold e Athena Results)
 5. Glue Catalog Database `sgpj_logs_bronze` e Athena Workgroup `sgpj-logs-analytics`
@@ -289,10 +290,15 @@ docker service ls
 # Ver o estado do rolling update e réplicas:
 docker service ps sgpj_nginx
 docker service ps sgpj_backend
+docker service ps sgpj_rabbitmq
 
 # Visualizar logs em tempo real:
 docker service logs -f --tail 50 sgpj_nginx
 docker service logs -f --tail 50 sgpj_backend
+docker service logs -f --tail 50 sgpj_rabbitmq
+
+# Acessar painel web do RabbitMQ (usuario: guest / senha: guest):
+# http://<IP_PUBLICO_APP_A>:15672
 
 # Acessar a aplicação via DNS do Load Balancer:
 # http://<ALB_DNS>

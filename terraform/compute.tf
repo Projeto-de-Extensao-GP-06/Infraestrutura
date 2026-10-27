@@ -33,6 +33,7 @@ module "compute" {
     backend_a = {
       subnet_id                   = aws_subnet.private_backend_a.id
       vpc_security_group_ids      = [aws_security_group.backend.id]
+      instance_type               = var.backend_instance_type
       iam_instance_profile        = var.observability_existing_instance_profile_name
       associate_public_ip_address = false
       tags = {
@@ -42,6 +43,7 @@ module "compute" {
     backend_b = {
       subnet_id                   = aws_subnet.private_backend_b.id
       vpc_security_group_ids      = [aws_security_group.backend.id]
+      instance_type               = var.backend_instance_type
       iam_instance_profile        = var.observability_existing_instance_profile_name
       associate_public_ip_address = false
       tags = {

@@ -10,15 +10,15 @@ Realizamos a estimativa independente utilizando duas das principais ferramentas 
 
 | Ferramenta | Total Mensal Projetado (24/7) | Custo por Hora | Status |
 |---|---|---|---|
-| **c3x** | **$ 148,61 / mês** | ~$ 0,203 / hora | ✅ Validado |
-| **Infracost** | **$ 148,98 / mês** | ~$ 0,204 / hora | ✅ Validado |
-| **Divergência entre ferramentas** | **$ 0,37 (0,25%)** | — | **Concordância de 99,75%** |
+| **c3x** | **$ 178,99 / mês** | ~$ 0,245 / hora | ✅ Validado |
+| **Infracost** | **$ 179,36 / mês** | ~$ 0,246 / hora | ✅ Validado |
+| **Divergência entre ferramentas** | **$ 0,37 (0,21%)** | — | **Concordância de 99,79%** |
 
 > [!TIP]
-> A divergência de apenas **$ 0,37 centavos** decorre exclusivamente da metodologia de cálculo do volume de disco raiz padrão (EBS de 8 GB nas instâncias EC2). Ambas as ferramentas confirmam que a infraestrutura completa consome cerca de **$ 149/mês** se mantida ligada ininterruptamente.
+> A divergência de apenas **$ 0,37 centavos** decorre exclusivamente da metodologia de cálculo do volume de disco raiz padrão (EBS de 8 GB nas instâncias EC2). Ambas as ferramentas confirmam que a infraestrutura completa consome cerca de **$ 179/mês** (incluindo backend em t3.medium) se mantida ligada ininterruptamente.
 
 ### 🎓 Viabilidade no Laboratório AWS Academy ($100 de Saldo):
-- A infraestrutura custa aproximadamente **$ 0,20 por hora**.
+- A infraestrutura custa aproximadamente **$ 0,25 por hora**.
 - Em uma sessão típica de apresentação ou testes de carga de **4 horas**:
   $$\text{Custo Real Consumido} = 4 \text{ horas} \times \$0,204 = \mathbf{\sim \$ 0,81}$$
 - Ao executar `terraform destroy` após os testes, mais de **$ 99,00** do voucher de $100 permanecem intactos.
@@ -43,7 +43,7 @@ Realizamos a estimativa independente utilizando duas das principais ferramentas 
 | `aws_efs_file_system.app_efs` | Armazenamento compartilhado NFS | Por uso ($0,16/GB) | $ 0,00 | $ 0,00 |
 | `aws_glue_catalog_database.*` | Catálogos Glue Data Lake e Logs | Por uso | $ 0,00 | $ 0,00 |
 | `aws_s3_bucket.*` & `athena` | S3 Bronze/Silver/Gold & Athena | Por uso | $ 0,00 | $ 0,00 |
-| **TOTAL GERAL** | | | **$ 148,61** | **$ 148,98** |
+| **TOTAL GERAL** | | | **$ 178,99** | **$ 179,36** |
 
 ---
 

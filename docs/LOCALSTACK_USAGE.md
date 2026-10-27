@@ -167,7 +167,7 @@ O script `localstack_init.sh` cria **todos** os recursos da sua infraestrutura T
 |---------|-----------|-------------------|
 | `alb` | Load Balancer | HTTP 80 (0.0.0.0/0) |
 | `app-public` | App público | SSH 22, HTTP 80, Node Exporter 9100, OTLP 4317/4318 (VPC) |
-| `backend-private` | Backend privado | SSH 22, Spring Boot 8080, Node Exporter 9100 (VPC) |
+| `backend-private` | Backend privado | SSH 22, Spring Boot 8080, RabbitMQ AMQP 5672, RabbitMQ UI 15672, Node Exporter 9100 (VPC) |
 | `db-private` | DB EC2 | MySQL 3306 (from backend SG), SSH 22, Node Exporter 9100 (VPC) |
 | `observability` | Observabilidade | SSH 22, Prometheus 9090, Grafana 3001, Alertmanager 9093, Loki 3100, OTLP 4317/4318, Tempo 3200, Node Exporter 9100 |
 | `efs` | EFS NFS | NFS 2049 (VPC) |
@@ -178,8 +178,8 @@ O script `localstack_init.sh` cria **todos** os recursos da sua infraestrutura T
 |------|------|--------|-----|------------|
 | `ec2-app-a` | t3.micro | public-a | app-public | Sim |
 | `ec2-app-b` | t3.micro | public-b | app-public | Sim |
-| `ec2-backend-a` | t3.micro | private-backend-a | backend-private | Não |
-| `ec2-backend-b` | t3.micro | private-backend-b | backend-private | Não |
+| `ec2-backend-a` | t3.medium | private-backend-a | backend-private | Não |
+| `ec2-backend-b` | t3.medium | private-backend-b | backend-private | Não |
 | `ec2-db` | t3.micro | private-db-a | db-private | Não |
 | `ec2-observability` | t3.micro | public-obs | observability | Sim (20GB gp3) |
 
