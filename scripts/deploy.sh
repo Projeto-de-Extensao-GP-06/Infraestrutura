@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # ──────────────────────────────────────────────────────────────────────────────
-# deploy.sh — Build completo + Push para ECR + Atualização no Docker Swarm
+# deploy.sh — Build completo + Push para ECR + Atualização via Docker Compose
 #
 # USO SIMPLES (recomendado):
 #   ./deploy.sh            → build + deploy frontend E backend
@@ -31,10 +31,10 @@ set -euo pipefail
 #     b) ./deploy.sh     ← build + push das imagens para o ECR
 #
 #     c) terraform apply --auto-approve
-#        ← sobe EC2s + inicializa Swarm + faz deploy da stack do ECR
+#        ← sobe EC2s + configura Docker Compose + faz deploy via Ansible
 #
 #   Atualizações (infra já no ar — uso do dia a dia):
-#     ./deploy.sh        ← build + push + rolling update automático no Swarm
+#     ./deploy.sh        ← build + push + roda Ansible para atualizar
 # ──────────────────────────────────────────────────────────────────────────────
 
 # ── Cores para output ─────────────────────────────────────────────────────────
@@ -221,35 +221,20 @@ fi
 ECR_FRONTEND_REPO="${ECR_REGISTRY}/sgpj-frontend"
 ECR_BACKEND_REPO="${ECR_REGISTRY}/sgpj-backend"
 
-# IP do Manager (ec2-app-a) e chave SSH (só existirão quando o cluster estiver no ar)
-MANAGER_IP=""
-KEY_FILE=""
-if [[ -f "$INVENTORY" ]]; then
-  MANAGER_IP=$(grep -A5 "\[app\]" "$INVENTORY" 2>/dev/null | grep "ansible_host=" | head -1 | grep -oP "ansible_host=\K[0-9.]+" || true)
-  KEY_FILE=$(grep "ansible_ssh_private_key_file=" "$INVENTORY" 2>/dev/null | head -1 | grep -oP "ansible_ssh_private_key_file=\K\S+" || true)
-fi
-
 # ── Banner ────────────────────────────────────────────────────────────────────
 echo ""
 echo "══════════════════════════════════════════════════════════"
-echo "  🚀 SGPJ Deploy — Build + ECR + Docker Swarm"
+echo "  🚀 SGPJ Deploy — Build + ECR + Docker Compose"
 echo "══════════════════════════════════════════════════════════"
 $DEPLOY_FRONTEND && echo "  Frontend    : $FRONTEND_PATH"
 $DEPLOY_BACKEND  && echo "  Backend     : $BACKEND_PATH"
 echo "  ECR         : $ECR_REGISTRY"
 echo "  Região AWS  : $AWS_REGION"
-[[ -n "$MANAGER_IP" ]] && echo "  Manager IP  : $MANAGER_IP" || echo "  Manager IP  : (Swarm não detectado — apenas push ECR)"
 echo "══════════════════════════════════════════════════════════"
 echo ""
 
 STEP=0
-total_steps=0
-$DEPLOY_FRONTEND && total_steps=$((total_steps + 3))  # build + docker build + push
-$DEPLOY_BACKEND  && total_steps=$((total_steps + 3))
-total_steps=$((total_steps + 1))  # login ECR (1x)
-[[ -n "$MANAGER_IP" ]] && total_steps=$((total_steps + 1))  # swarm update
-
-next_step() { STEP=$((STEP + 1)); info "[$STEP/?] $*"; }
+next_step() { STEP=$((STEP + 1)); info "[$STEP] $*"; }
 
 # ══════════════════════════════════════════════════════════════
 # FRONTEND
@@ -319,45 +304,11 @@ if $DEPLOY_BACKEND; then
 fi
 
 # ══════════════════════════════════════════════════════════════
-# ATUALIZAÇÃO NO SWARM (rolling update) — só se Swarm estiver no ar
+# FINALIZAÇÃO
 # ══════════════════════════════════════════════════════════════
-if [[ -n "$MANAGER_IP" ]]; then
-  SSH_OPTS="-o StrictHostKeyChecking=no -o ConnectTimeout=10"
-  [[ -n "$KEY_FILE" ]] && SSH_OPTS="$SSH_OPTS -i $KEY_FILE"
+warn "As imagens já estão no ECR!"
+warn "Agora rode o Ansible para atualizar as EC2s: ./run_ansible.sh"
 
-  # Verifica se o Swarm já está ativo no manager
-  SWARM_ACTIVE=$(ssh $SSH_OPTS ubuntu@"$MANAGER_IP" \
-    "docker info --format '{{.Swarm.LocalNodeState}}' 2>/dev/null" || echo "inactive")
-
-  if [[ "$SWARM_ACTIVE" == "active" ]]; then
-    next_step "Atualizando serviços no Docker Swarm (rolling update)..."
-
-    if $DEPLOY_FRONTEND; then
-      ssh $SSH_OPTS ubuntu@"$MANAGER_IP" \
-        "docker service update --image ${ECR_FRONTEND_REPO}:latest --with-registry-auth sgpj_nginx"
-      success "sgpj_nginx atualizado (zero-downtime)"
-    fi
-
-    if $DEPLOY_BACKEND; then
-      ssh $SSH_OPTS ubuntu@"$MANAGER_IP" \
-        "docker service update --image ${ECR_BACKEND_REPO}:latest --with-registry-auth sgpj_backend"
-      success "sgpj_backend atualizado (zero-downtime)"
-    fi
-
-    echo ""
-    echo "  Para acompanhar o rolling update:"
-    [[ "$DEPLOY_FRONTEND" == "true" ]] && echo "  ssh ubuntu@${MANAGER_IP} 'docker service ps sgpj_nginx'"
-    [[ "$DEPLOY_BACKEND"  == "true" ]] && echo "  ssh ubuntu@${MANAGER_IP} 'docker service ps sgpj_backend'"
-  else
-    warn "Swarm ainda não está ativo no Manager ($MANAGER_IP)."
-    warn "As imagens já estão no ECR. Rode 'terraform apply --auto-approve' para subir tudo."
-  fi
-else
-  warn "IP do Manager não detectado no inventário."
-  warn "As imagens já estão no ECR. Rode 'terraform apply --auto-approve' para subir tudo."
-fi
-
-# ══════════════════════════════════════════════════════════════
 echo ""
 echo "══════════════════════════════════════════════════════════"
 echo "  ✅ Deploy concluído com sucesso!"

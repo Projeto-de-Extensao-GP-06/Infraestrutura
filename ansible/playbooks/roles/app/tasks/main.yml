@@ -1,29 +1,28 @@
 ---
 # ──────────────────────────────────────────────────────────────────────────────
 # role: app
-# Com Docker Swarm, o deploy do container é feito pela role 'swarm'.
-# Esta role apenas prepara o EFS com os arquivos estáticos do Frontend
-# (caso exista um bundle local compilado) para o Nginx conseguir servi-los.
+# Sincroniza o build de produção do Frontend (dist) diretamente no EFS compartilhado
+# executando apenas no primeiro nó de app para evitar duplicações/conflitos.
 # ──────────────────────────────────────────────────────────────────────────────
 
-- name: Criar diretorio para o Frontend
+- name: Garantir diretório do Frontend no EFS
   ansible.builtin.file:
-    path: /opt/app-frontend
+    path: "{{ nginx_html_host_path }}"
     state: directory
-    mode: "0755"
+    mode: "0777"
 
-# Verificar se existe bundle dist local (build do React)
 - name: Verificar se bundle compilado do Frontend existe localmente
   ansible.builtin.stat:
     path: "{{ app_dist_path }}"
   register: local_dist_dir
   delegate_to: localhost
   become: false
+  run_once: true
 
-# Sincronizar arquivos estáticos para o EFS (se existir build local)
 - name: Sincronizar arquivos estáticos do React para o EFS compartilhado do Nginx
   ansible.builtin.copy:
     src: "{{ app_dist_path }}/"
     dest: "{{ nginx_html_host_path }}/"
     mode: "0755"
   when: local_dist_dir.stat.exists and local_dist_dir.stat.isdir
+  run_once: true

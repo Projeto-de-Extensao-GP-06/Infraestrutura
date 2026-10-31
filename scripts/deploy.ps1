@@ -1,5 +1,5 @@
 # ------------------------------------------------------------------------------
-# deploy.ps1 -- Build completo + Push para ECR + Atualizacao no Docker Swarm
+# deploy.ps1 -- Build completo + Push para ECR + Atualização via Docker Compose
 # Versao nativa para PowerShell (Windows)
 #
 # USO:
@@ -125,14 +125,14 @@ $EcrRegistry = "$AccountId.dkr.ecr.$AwsRegion.amazonaws.com"
 $EcrFrontendRepo = "$EcrRegistry/sgpj-frontend"
 $EcrBackendRepo  = "$EcrRegistry/sgpj-backend"
 
-# Detectar IP do Manager (se o inventario ja existir)
-$ManagerIp = ""
+# Detectar IP do primeiro App node (para SSH update via Compose)
+$AppIp = ""
 $KeyFile = ""
 if (Test-Path $InventoryFile) {
     $invLines = Get-Content $InventoryFile
     foreach ($line in $invLines) {
         if ($line -match "ansible_host=([0-9.]+)") {
-            $ManagerIp = $matches[1]
+            $AppIp = $matches[1]
             break
         }
     }
@@ -146,17 +146,12 @@ if (Test-Path $InventoryFile) {
 
 Write-Host ""
 Write-Host "==========================================================" -ForegroundColor Cyan
-Write-Host "  SGPJ Deploy (PowerShell) -- Build + ECR + Swarm" -ForegroundColor Cyan
+Write-Host "  SGPJ Deploy (PowerShell) -- Build + ECR + Compose" -ForegroundColor Cyan
 Write-Host "==========================================================" -ForegroundColor Cyan
 if ($DeployFrontend) { Write-Host "  Frontend   : $FrontendPath" }
 if ($DeployBackend)  { Write-Host "  Backend    : $BackendPath" }
 Write-Host "  ECR        : $EcrRegistry"
 Write-Host "  Regiao AWS : $AwsRegion"
-if ($ManagerIp) {
-    Write-Host "  Manager IP : $ManagerIp"
-} else {
-    Write-Host "  Manager IP : [Swarm ainda nao ativo - apenas push ECR]" -ForegroundColor Yellow
-}
 Write-Host "==========================================================" -ForegroundColor Cyan
 Write-Host ""
 
@@ -245,26 +240,11 @@ if ($DeployBackend) {
 }
 
 # ------------------------------------------------------------------------------
-# 7. ATUALIZACAO NO SWARM (Se ativo)
+# 7. Concluido - Orientar proximo passo
 # ------------------------------------------------------------------------------
-if ($ManagerIp) {
-    Write-Info "Cluster Swarm detectado no Manager ($ManagerIp). Atualizando servicos..."
-    $sshCmd = "ssh -o StrictHostKeyChecking=no"
-    if ($KeyFile) { $sshCmd += " -i `"$KeyFile`"" }
-
-    if ($DeployFrontend) {
-        Invoke-Expression "$sshCmd ubuntu@$ManagerIp 'docker service update --image ${EcrFrontendRepo}:latest --with-registry-auth sgpj_nginx'"
-        Write-Success "Servico sgpj_nginx atualizado com zero-downtime!"
-    }
-    if ($DeployBackend) {
-        Invoke-Expression "$sshCmd ubuntu@$ManagerIp 'docker service update --image ${EcrBackendRepo}:latest --with-registry-auth sgpj_backend'"
-        Write-Success "Servico sgpj_backend atualizado com zero-downtime!"
-    }
-} else {
-    Write-Warn "Cluster Swarm ainda nao esta no ar."
-    Write-Warn "As imagens ja estao prontas no ECR! Agora rode: terraform apply -auto-approve"
-}
-
+Write-Host ""
+Write-Warn "As imagens ja estao prontas no ECR!"
+Write-Warn "Agora rode o Ansible para atualizar as EC2s: ./run_ansible.sh (via WSL)"
 Write-Host ""
 Write-Host "==========================================================" -ForegroundColor Green
 Write-Host "  [OK] Deploy concluido com sucesso!" -ForegroundColor Green

@@ -17,26 +17,14 @@
     - "{{ nginx_html_host_path }}"
     - "{{ nginx_conf_host_path }}"
 
-- name: Publicar pagina padrao no EFS (somente se nao existir)
-  ansible.builtin.copy:
-    src: default-index.html
-    dest: "{{ nginx_html_host_path }}/index.html"
-    mode: "0644"
-    force: false
-
-- name: Publicar configuracao dinâmica do Nginx com upstream dos backends
+- name: Publicar configuracao dinamica do Nginx com upstream dos backends
   ansible.builtin.template:
     src: default.conf.j2
     dest: "{{ nginx_conf_host_path }}/default.conf"
     mode: "0644"
     force: true
 
-- name: Baixar imagem do Nginx
-  community.docker.docker_image:
-    name: "{{ nginx_image }}"
-    source: pull
-
-- name: Subir container Nginx
+- name: Subir container Nginx via Docker
   community.docker.docker_container:
     name: "{{ nginx_container_name }}"
     image: "{{ nginx_image }}"

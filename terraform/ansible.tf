@@ -38,7 +38,6 @@ resource "local_file" "ansible_vars" {
     ecr_backend_url      = aws_ecr_repository.backend.repository_url
     enable_observability = var.enable_observability
     observability_ip     = var.enable_observability ? module.compute.observability_private_ip : ""
-    swarm_manager_ip     = module.compute.app_a_private_ip
     bronze_bucket        = local.bronze_bucket
   })
 }

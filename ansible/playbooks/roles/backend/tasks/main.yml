@@ -1,36 +1,45 @@
 ---
 # ──────────────────────────────────────────────────────────────────────────────
 # role: backend
-# Com Docker Swarm, o deploy do container é feito pela role 'swarm'.
-# Esta role cria apenas a estrutura de diretórios necessária no host.
+# Executa a stack do Spring Boot + RabbitMQ usando Docker Compose nativo
 # ──────────────────────────────────────────────────────────────────────────────
 
-- name: Criar diretorio para o Backend
+- name: Criar diretorio para a stack do Backend
   ansible.builtin.file:
     path: /opt/app-backend
     state: directory
     mode: "0755"
 
-- name: Verificar se ponto de montagem do EFS está acessível
-  ansible.builtin.stat:
-    path: /mnt/efs-sgpj
-  register: efs_mount_check
+- name: Garantir que o ECR CLI esta configurado se usar ECR
+  ansible.builtin.shell: |
+    if ! command -v aws &>/dev/null; then
+      apt-get update -y && apt-get install -y unzip curl
+      curl -s "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "/tmp/awscliv2.zip"
+      unzip -q -o /tmp/awscliv2.zip -d /tmp
+      /tmp/aws/install --update
+      rm -rf /tmp/aws /tmp/awscliv2.zip
+    fi
+  when: use_ecr | default(false)
 
-- name: Validar montagem do EFS antes de criar estrutura do Backend
-  ansible.builtin.assert:
-    that:
-      - efs_mount_check.stat.exists
-      - efs_mount_check.stat.isdir
-    fail_msg: "O ponto de montagem do EFS (/mnt/efs-sgpj) não foi encontrado ou não está montado. Verifique a configuração do EFS."
+- name: Autenticar Docker no ECR
+  ansible.builtin.shell: |
+    aws ecr get-login-password --region {{ aws_region }} | docker login --username AWS --password-stdin {{ ecr_registry_url }}
+  when: use_ecr | default(false)
+  changed_when: false
 
-- name: Criar diretório de logs do Backend no EFS
-  ansible.builtin.file:
-    path: /mnt/efs-sgpj/volumes/backend/logs
-    state: directory
-    mode: "0777"
+- name: Baixar imagem atualizada do Backend
+  ansible.builtin.shell: docker pull {{ backend_image }}
+  when: use_ecr | default(false)
 
-- name: Criar diretório de uploads do Backend no EFS
-  ansible.builtin.file:
-    path: /mnt/efs-sgpj/volumes/backend/uploads
-    state: directory
-    mode: "0777"
+- name: Renderizar docker-compose.yml do Backend
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: /opt/app-backend/docker-compose.yml
+    mode: "0644"
+
+- name: Subir stack do Backend com Docker Compose
+  ansible.builtin.shell: docker compose up -d --remove-orphans
+  args:
+    chdir: /opt/app-backend
+  register: compose_backend
+  changed_when: "'Started' in compose_backend.stdout or 'Running' in compose_backend.stdout"

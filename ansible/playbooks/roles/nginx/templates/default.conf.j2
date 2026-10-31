@@ -1,10 +1,11 @@
-upstream backend_servers {
+upstream backend_cluster {
 {% for host in backend_hosts | default([]) %}
-    server {{ host }}:8080;
+    server {{ host }}:8080 max_fails=3 fail_timeout=10s;
 {% endfor %}
 {% if backend_hosts is not defined or backend_hosts | length == 0 %}
     server 127.0.0.1:8080 backup;
 {% endif %}
+    keepalive 32;
 }
 
 server {
@@ -12,9 +13,6 @@ server {
     server_name _;
 
     client_max_body_size 260M;
-
-    root /usr/share/nginx/html;
-    index index.html;
 
     # Evita cache do index.html para que novas versões carreguem os assets corretos de primeira
     location = /index.html {
@@ -24,7 +22,7 @@ server {
         add_header Expires "0";
     }
 
-    # Arquivos estáticos gerados pelo Vite (CSS, JS, fontes, imagens)
+    # Arquivos estáticos gerados pelo Vite (CSS, JS, fontes, imagens) no EFS compartilhado
     # Se não existirem, devem retornar 404 em vez de cair no index.html (evita MIME type mismatch)
     location /assets/ {
         root /usr/share/nginx/html;
@@ -33,13 +31,16 @@ server {
         add_header Cache-Control "public, immutable";
     }
 
+    # Tratamento para o frontend React (Single Page Application)
     location / {
+        root /usr/share/nginx/html;
+        index index.html index.htm;
         try_files $uri $uri/ /index.html;
     }
 
     # Server-Sent Events (SSE) para sincronização de processos em tempo real
     location ~ ^/processos/[^/]+/sincronizacao-status {
-        proxy_pass http://backend_servers;
+        proxy_pass http://backend_cluster;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -57,13 +58,16 @@ server {
         proxy_read_timeout 600s;
     }
 
+    # Roteamento direto de todos os endpoints da API para o cluster de backend
     location ~ ^/(auth|usuarios|processos?|audiencias|clientes|dashboard|documentos|notificacoes|cargos|permissoes|relatorios|prioridades|solicitacoes|siglaTribunais|statusClientes|tiposAlteracao|tiposDocumento|fasesProcesso|motivosStatusProcesso|api-onedrive|login|historico|api|actuator) {
-        proxy_pass http://backend_servers;
+        proxy_pass http://backend_cluster;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Connection "";
+
         proxy_next_upstream error timeout http_502 http_503 http_504;
         proxy_connect_timeout 15s;
         proxy_send_timeout 300s;

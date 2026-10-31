@@ -1,4 +1,0 @@
----
-swarm_interface: "eth0"
-swarm_stack_name: "sgpj"
-swarm_stack_file: "/opt/swarm/stack.yml"
