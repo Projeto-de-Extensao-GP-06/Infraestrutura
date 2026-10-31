@@ -18,6 +18,18 @@
   become: false
   when: use_ecr | default(false)
 
+- name: Baixar a imagem mais recente do Frontend em todos os nós app
+  ansible.builtin.shell: docker pull {{ ecr_frontend_image }}
+  when:
+    - use_ecr | default(false)
+    - inventory_hostname in groups['app']
+
+- name: Baixar a imagem mais recente do Backend em todos os nós backend
+  ansible.builtin.shell: docker pull {{ ecr_backend_image }}
+  when:
+    - use_ecr | default(false)
+    - inventory_hostname in groups['backend']
+
 - name: Criar diretorio /opt/nginx em todos os nós app
   ansible.builtin.file:
     path: /opt/nginx

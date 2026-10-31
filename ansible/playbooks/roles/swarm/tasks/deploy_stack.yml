@@ -1,7 +1,12 @@
 ---
-- name: Aguardar nós workers estarem visíveis no Swarm
-  ansible.builtin.pause:
-    seconds: 5
+- name: Aguardar nós workers estarem prontos no Swarm
+  ansible.builtin.shell: docker node ls --format '{{ '{{' }}.Status{{ '}}' }}' | grep -c "Ready"
+  register: ready_nodes
+  until: ready_nodes.stdout | int >= (groups['app'] | length + groups['backend'] | length)
+  retries: 10
+  delay: 5
+  changed_when: false
+  failed_when: false
 
 - name: Aplicar labels de placement (role=app e role=backend) em todos os nodes do cluster
   ansible.builtin.shell: |
@@ -35,6 +40,7 @@
   ansible.builtin.shell: >
     docker stack deploy
     --with-registry-auth
+    --resolve-image always
     --compose-file {{ swarm_stack_file }}
     {{ swarm_stack_name }}
   register: stack_deploy

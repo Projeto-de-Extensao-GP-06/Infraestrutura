@@ -81,11 +81,11 @@ terraform apply -target="aws_ecr_repository.frontend" -target="aws_ecr_repositor
 ```bash
 cd infra/terraform
 
-terraform apply \
-  -target="aws_ecr_repository.frontend" \
-  -target="aws_ecr_repository.backend" \
-  -target="aws_ecr_lifecycle_policy.frontend" \
-  -target="aws_ecr_lifecycle_policy.backend" \
+terraform apply `
+  -target="aws_ecr_repository.frontend" `
+  -target="aws_ecr_repository.backend" `
+  -target="aws_ecr_lifecycle_policy.frontend" `
+  -target="aws_ecr_lifecycle_policy.backend" `
   -auto-approve
 ```
 > Isso cria os repositórios ECR vazios na AWS (~30s). **Nunca mais precisará rodar com `-target`.**
