@@ -10,7 +10,7 @@
 
 - name: Copiar schema.sql para inicializacao automatica do banco
   ansible.builtin.copy:
-    src: "{{ playbook_dir }}/../../scripts/test/schema.sql"
+    src: schema.sql
     dest: "{{ mysql_init_dir }}/01-schema.sql"
     mode: "0644"
 
@@ -69,5 +69,3 @@
     GRANT ALL PRIVILEGES ON {{ mysql_database }}.* TO '{{ mysql_user }}'@'%';
     FLUSH PRIVILEGES;
     "
-
-

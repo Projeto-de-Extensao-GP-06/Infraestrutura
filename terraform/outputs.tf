@@ -74,3 +74,8 @@ output "lambda_ingestion_arn" {
   description = "ARN da função Lambda de ingestão"
   value       = var.enable_lambda_ingestion ? aws_lambda_function.data_ingestion[0].arn : ""
 }
+
+output "ecr_agent_repository_url" {
+  description = "URL do repositorio ECR para o Agente MarIA"
+  value       = aws_ecr_repository.agent.repository_url
+}

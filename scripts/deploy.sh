@@ -5,10 +5,11 @@ set -euo pipefail
 # deploy.sh — Build completo + Push para ECR + Atualização via Docker Compose
 #
 # USO SIMPLES (recomendado):
-#   ./deploy.sh            → build + deploy frontend E backend
+#   ./deploy.sh            → build + deploy frontend, backend E agent
 #   ./deploy.sh all        → igual ao de cima
 #   ./deploy.sh frontend   → só o frontend
 #   ./deploy.sh backend    → só o backend
+#   ./deploy.sh agent      → só o agente MarIA
 #
 # Os caminhos do Frontend e Backend já estão configurados abaixo.
 # Não é necessário passar nenhum argumento extra.
@@ -47,20 +48,25 @@ error()   { echo -e "${RED}❌${NC} $*"; exit 1; }
 # ── Caminhos dos projetos (fixos — altere só se mover as pastas) ──────────────
 DEFAULT_FRONTEND_PATH="/mnt/c/Users/compu/OneDrive - SPTech School/GitHub/Grupo06/Frontend"
 DEFAULT_BACKEND_PATH="/mnt/c/Users/compu/OneDrive - SPTech School/GitHub/Grupo06/Backend"
+DEFAULT_AGENT_PATH="/mnt/c/Users/compu/OneDrive - SPTech School/GitHub/Grupo06/Agent-Backend"
 
 # ── Parâmetros ────────────────────────────────────────────────────────────────
 SERVICE="${1:-all}"
 DEPLOY_FRONTEND=false
 DEPLOY_BACKEND=false
+DEPLOY_AGENT=false
 FRONTEND_PATH=""
 BACKEND_PATH=""
+AGENT_PATH=""
 
 case "$SERVICE" in
   all)
     DEPLOY_FRONTEND=true
     DEPLOY_BACKEND=true
+    DEPLOY_AGENT=true
     FRONTEND_PATH="${2:-$DEFAULT_FRONTEND_PATH}"
     BACKEND_PATH="${3:-$DEFAULT_BACKEND_PATH}"
+    AGENT_PATH="${4:-$DEFAULT_AGENT_PATH}"
     ;;
   frontend)
     DEPLOY_FRONTEND=true
@@ -69,6 +75,10 @@ case "$SERVICE" in
   backend)
     DEPLOY_BACKEND=true
     BACKEND_PATH="${2:-$DEFAULT_BACKEND_PATH}"
+    ;;
+  agent)
+    DEPLOY_AGENT=true
+    AGENT_PATH="${2:-$DEFAULT_AGENT_PATH}"
     ;;
   db)
     # Re-provisiona o banco via Ansible (atualiza schema.sql ou configurações do MySQL)
@@ -82,20 +92,21 @@ case "$SERVICE" in
     success "Banco de dados re-provisionado com sucesso!"
     echo ""
     echo "  ⚠️  Para atualizar só o schema.sql, edite:"
-    echo "  scripts/test/schema.sql"
+    echo "  ansible/playbooks/roles/db/files/schema.sql"
     echo ""
     exit 0
     ;;
   *)
     echo ""
     echo "Uso:"
-    echo "  $0              → deploys frontend + backend (padrão: all)"
-    echo "  $0 all          → deploys frontend + backend"
+    echo "  $0              → deploys frontend + backend + agent (padrão: all)"
+    echo "  $0 all          → deploys frontend + backend + agent"
     echo "  $0 frontend     → só o frontend"
     echo "  $0 backend      → só o backend"
+    echo "  $0 agent        → só o agente MarIA"
     echo "  $0 db           → re-provisiona o banco via Ansible"
     echo ""
-    error "Serviço inválido: '$SERVICE'. Use: all | frontend | backend | db"
+    error "Serviço inválido: '$SERVICE'. Use: all | frontend | backend | agent | db"
     ;;
 esac
 
@@ -105,6 +116,9 @@ if $DEPLOY_FRONTEND && [[ ! -d "$FRONTEND_PATH" ]]; then
 fi
 if $DEPLOY_BACKEND && [[ ! -d "$BACKEND_PATH" ]]; then
   error "Diretório do backend não encontrado: $BACKEND_PATH"
+fi
+if $DEPLOY_AGENT && [[ ! -d "$AGENT_PATH" ]]; then
+  error "Diretório do agente não encontrado: $AGENT_PATH"
 fi
 
 # ── Verificar dependências (com suporte a Windows executado via WSL/Git Bash) ──
@@ -220,6 +234,7 @@ fi
 
 ECR_FRONTEND_REPO="${ECR_REGISTRY}/sgpj-frontend"
 ECR_BACKEND_REPO="${ECR_REGISTRY}/sgpj-backend"
+ECR_AGENT_REPO="${ECR_REGISTRY}/sgpj-agent"
 
 # ── Banner ────────────────────────────────────────────────────────────────────
 echo ""
@@ -228,6 +243,7 @@ echo "  🚀 SGPJ Deploy — Build + ECR + Docker Compose"
 echo "══════════════════════════════════════════════════════════"
 $DEPLOY_FRONTEND && echo "  Frontend    : $FRONTEND_PATH"
 $DEPLOY_BACKEND  && echo "  Backend     : $BACKEND_PATH"
+$DEPLOY_AGENT    && echo "  Agent       : $AGENT_PATH"
 echo "  ECR         : $ECR_REGISTRY"
 echo "  Região AWS  : $AWS_REGION"
 echo "══════════════════════════════════════════════════════════"
@@ -281,7 +297,18 @@ if $DEPLOY_BACKEND; then
 fi
 
 # ══════════════════════════════════════════════════════════════
-# LOGIN ECR (1x para ambas as imagens)
+# AGENTE (MarIA)
+# ══════════════════════════════════════════════════════════════
+if $DEPLOY_AGENT; then
+  next_step "Construindo imagem Docker do Agente MarIA..."
+  docker build --platform linux/amd64 -t "sgpj-agent:latest" "$AGENT_PATH"
+  success "Imagem sgpj-agent:latest construída"
+
+  docker tag "sgpj-agent:latest" "${ECR_AGENT_REPO}:latest"
+fi
+
+# ══════════════════════════════════════════════════════════════
+# LOGIN ECR (1x para todas as imagens)
 # ══════════════════════════════════════════════════════════════
 next_step "Autenticando no Amazon ECR..."
 aws ecr get-login-password --region "$AWS_REGION" \
@@ -301,6 +328,12 @@ if $DEPLOY_BACKEND; then
   next_step "Enviando imagem do Backend para o ECR..."
   docker push "${ECR_BACKEND_REPO}:latest"
   success "sgpj-backend:latest disponível no ECR"
+fi
+
+if $DEPLOY_AGENT; then
+  next_step "Enviando imagem do Agente para o ECR..."
+  docker push "${ECR_AGENT_REPO}:latest"
+  success "sgpj-agent:latest disponível no ECR"
 fi
 
 # ══════════════════════════════════════════════════════════════

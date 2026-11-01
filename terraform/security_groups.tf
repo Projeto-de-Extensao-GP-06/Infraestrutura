@@ -93,6 +93,15 @@ resource "aws_security_group" "backend" {
   }
 
   ingress {
+    description = "FastAPI Agent MarIA (apenas da VPC)"
+    from_port   = 8000
+    to_port     = 8000
+    protocol    = "tcp"
+    cidr_blocks = [var.vpc_cidr]
+  }
+
+
+  ingress {
     description = "RabbitMQ AMQP (apenas da VPC)"
     from_port   = 5672
     to_port     = 5672

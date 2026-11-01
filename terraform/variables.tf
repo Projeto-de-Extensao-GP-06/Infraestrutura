@@ -122,8 +122,9 @@ variable "rds_username" {
 }
 
 variable "rds_password" {
-  description = "Senha do administrador do MySQL"
+  description = "Senha do administrador do MySQL (container Docker na EC2 db)"
   type        = string
+  default     = "sgpj96321"
   sensitive   = true
 }
 

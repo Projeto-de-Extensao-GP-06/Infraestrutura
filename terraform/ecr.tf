@@ -93,3 +93,42 @@ output "ecr_backend_repository_url" {
   description = "URL do repositorio ECR para imagem do Backend"
   value       = aws_ecr_repository.backend.repository_url
 }
+
+resource "aws_ecr_repository" "agent" {
+  name                 = "sgpj-agent"
+  image_tag_mutability = "MUTABLE"
+
+  image_scanning_configuration {
+    scan_on_push = true
+  }
+
+  lifecycle {
+    prevent_destroy = true
+  }
+
+  tags = {
+    Name        = "sgpj-agent"
+    Environment = "production"
+  }
+}
+
+resource "aws_ecr_lifecycle_policy" "agent" {
+  repository = aws_ecr_repository.agent.name
+
+  policy = jsonencode({
+    rules = [
+      {
+        rulePriority = 1
+        description  = "Manter apenas as ultimas 10 imagens"
+        selection = {
+          tagStatus   = "any"
+          countType   = "imageCountMoreThan"
+          countNumber = 10
+        }
+        action = {
+          type = "expire"
+        }
+      }
+    ]
+  })
+}

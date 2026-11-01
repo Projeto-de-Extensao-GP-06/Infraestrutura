@@ -13,3 +13,11 @@ backend_redirect_uri: "{{ redirect_uri | default(lookup('env', 'REDIRECT_URI'), 
 backend_cookie_secure: "{{ cookie_secure | default(lookup('env', 'COOKIE_SECURE'), true) | default('false', true) }}"
 backend_datajud_api_key: "{{ datajud_api_key | default(lookup('env', 'DATAJUD_API_KEY'), true) | default('', true) }}"
 backend_cloudflare_secret_key: "{{ cloudflare_secret_key | default(lookup('env', 'CLOUDFLARE_SECRET_KEY'), true) | default('', true) }}"
+
+# ── MarIA Agent (Python FastAPI) ──────────────────────────────────────────────
+agent_image: "{{ ecr_agent_image | default('sgpj-agent:latest') }}"
+agent_container_name: "sgpj-agent"
+agent_port: 8000
+agent_llm_api_key: "{{ llm_api_key | default(lookup('env', 'LLM_API_KEY'), true) | default('', true) }}"
+agent_llm_model: "{{ llm_model | default('gemini-2.0-flash') }}"
+agent_anonymization_key: "{{ anonymization_key | default('1111222233334444') }}"

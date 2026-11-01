@@ -31,11 +31,21 @@
   ansible.builtin.shell: docker pull {{ backend_image }}
   when: use_ecr | default(false)
 
+- name: Baixar imagem atualizada do Agente MarIA
+  ansible.builtin.shell: docker pull {{ agent_image }}
+  when: use_ecr | default(false)
+
 - name: Renderizar docker-compose.yml do Backend
   ansible.builtin.template:
     src: docker-compose.yml.j2
     dest: /opt/app-backend/docker-compose.yml
     mode: "0644"
+
+- name: Renderizar agent.env do Agente MarIA
+  ansible.builtin.template:
+    src: agent.env.j2
+    dest: /opt/app-backend/agent.env
+    mode: "0600"
 
 - name: Subir stack do Backend com Docker Compose
   ansible.builtin.shell: docker compose up -d --remove-orphans

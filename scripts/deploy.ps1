@@ -3,16 +3,19 @@
 # Versao nativa para PowerShell (Windows)
 #
 # USO:
-#   .\deploy.ps1            --> build + deploy frontend E backend (padrao)
+#   .\deploy.ps1            --> build + deploy frontend E backend E agent (padrao)
 #   .\deploy.ps1 all        --> igual ao de cima
 #   .\deploy.ps1 frontend   --> so o frontend
 #   .\deploy.ps1 backend    --> so o backend
+#   .\deploy.ps1 agent      --> so o agente MarIA
+#   .\deploy.ps1 db         --> re-provisiona o MySQL e executa schema.sql via Ansible (WSL)
 # ------------------------------------------------------------------------------
 
 param (
     [string]$Service = "all",
     [string]$FrontendPath = "",
-    [string]$BackendPath = ""
+    [string]$BackendPath = "",
+    [string]$AgentPath = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -25,15 +28,32 @@ function Write-Err     { Write-Host "   [ERRO] $args" -ForegroundColor Red; exit
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $DefaultFrontend = Resolve-Path (Join-Path $ScriptDir "..\..\Frontend") -ErrorAction SilentlyContinue
 $DefaultBackend  = Resolve-Path (Join-Path $ScriptDir "..\..\Backend") -ErrorAction SilentlyContinue
+$DefaultAgent    = Resolve-Path (Join-Path $ScriptDir "..\..\Agent-Backend") -ErrorAction SilentlyContinue
 
 if (-not $FrontendPath -and $DefaultFrontend) { $FrontendPath = $DefaultFrontend.Path }
 if (-not $BackendPath  -and $DefaultBackend)  { $BackendPath  = $DefaultBackend.Path }
+if (-not $AgentPath    -and $DefaultAgent)    { $AgentPath    = $DefaultAgent.Path }
 
 $DeployFrontend = ($Service -eq "all" -or $Service -eq "frontend")
 $DeployBackend  = ($Service -eq "all" -or $Service -eq "backend")
+$DeployAgent    = ($Service -eq "all" -or $Service -eq "agent")
+$DeployDb       = ($Service -eq "db")
 
-if (-not $DeployFrontend -and -not $DeployBackend) {
-    Write-Err "Servico invalido: '$Service'. Use: all | frontend | backend"
+if (-not $DeployFrontend -and -not $DeployBackend -and -not $DeployAgent -and -not $DeployDb) {
+    Write-Err "Servico invalido: '$Service'. Use: all | frontend | backend | agent | db"
+}
+
+if ($DeployDb) {
+    Write-Info "Re-provisionando banco de dados MySQL via Ansible (WSL)..."
+    $AnsibleDir = Resolve-Path (Join-Path $ScriptDir "..\ansible")
+    $InvFile = Join-Path $AnsibleDir "inventories\production.ini"
+    if (-not (Test-Path $InvFile)) {
+        Write-Err "Inventario production.ini nao encontrado. Execute 'terraform apply' primeiro."
+    }
+    wsl bash -c "cd '$($AnsibleDir.Path -replace '\\', '/' -replace 'C:', '/mnt/c')' && ansible-playbook -i inventories/production.ini playbooks/db.yml"
+    if ($LASTEXITCODE -ne 0) { Write-Err "Falha ao executar o playbook do banco via Ansible." }
+    Write-Success "Banco de dados re-provisionado com sucesso!"
+    exit 0
 }
 
 # ------------------------------------------------------------------------------
@@ -124,6 +144,7 @@ if (Test-Path $AllVarsFile) {
 $EcrRegistry = "$AccountId.dkr.ecr.$AwsRegion.amazonaws.com"
 $EcrFrontendRepo = "$EcrRegistry/sgpj-frontend"
 $EcrBackendRepo  = "$EcrRegistry/sgpj-backend"
+$EcrAgentRepo    = "$EcrRegistry/sgpj-agent"
 
 # Detectar IP do primeiro App node (para SSH update via Compose)
 $AppIp = ""
@@ -150,6 +171,7 @@ Write-Host "  SGPJ Deploy (PowerShell) -- Build + ECR + Compose" -ForegroundColo
 Write-Host "==========================================================" -ForegroundColor Cyan
 if ($DeployFrontend) { Write-Host "  Frontend   : $FrontendPath" }
 if ($DeployBackend)  { Write-Host "  Backend    : $BackendPath" }
+if ($DeployAgent)    { Write-Host "  Agent      : $AgentPath" }
 Write-Host "  ECR        : $EcrRegistry"
 Write-Host "  Regiao AWS : $AwsRegion"
 Write-Host "==========================================================" -ForegroundColor Cyan
@@ -240,7 +262,29 @@ if ($DeployBackend) {
 }
 
 # ------------------------------------------------------------------------------
-# 7. Concluido - Orientar proximo passo
+# 7. AGENTE (MarIA - FastAPI Python)
+# ------------------------------------------------------------------------------
+if ($DeployAgent) {
+    if (-not (Test-Path $AgentPath)) { Write-Err "Pasta do agente nao encontrada: $AgentPath" }
+
+    Push-Location $AgentPath
+    try {
+        Write-Info "Criando imagem Docker do Agente MarIA..."
+        docker build --platform linux/amd64 -t "${EcrAgentRepo}:latest" .
+        if ($LASTEXITCODE -ne 0) { Write-Err "Falha no docker build do Agente." }
+        Write-Success "Imagem Docker do Agente criada!"
+
+        Write-Info "Enviando imagem do Agente para o ECR..."
+        docker push "${EcrAgentRepo}:latest"
+        if ($LASTEXITCODE -ne 0) { Write-Err "Falha no docker push do Agente." }
+        Write-Success "Imagem do Agente enviada ao ECR!"
+    } finally {
+        Pop-Location
+    }
+}
+
+# ------------------------------------------------------------------------------
+# 8. Concluido - Orientar proximo passo
 # ------------------------------------------------------------------------------
 Write-Host ""
 Write-Warn "As imagens ja estao prontas no ECR!"

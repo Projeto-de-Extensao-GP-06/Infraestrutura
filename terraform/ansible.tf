@@ -36,6 +36,7 @@ resource "local_file" "ansible_vars" {
     backend_b_ip         = module.compute.backend_b_private_ip
     ecr_frontend_url     = aws_ecr_repository.frontend.repository_url
     ecr_backend_url      = aws_ecr_repository.backend.repository_url
+    ecr_agent_url        = aws_ecr_repository.agent.repository_url
     enable_observability = var.enable_observability
     observability_ip     = var.enable_observability ? module.compute.observability_private_ip : ""
     bronze_bucket        = local.bronze_bucket
