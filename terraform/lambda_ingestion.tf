@@ -1,13 +1,21 @@
 # ──────────────────────────────────────────────────────────────────────────────
 # Pipeline de Ingestão de Dados Externos via AWS Lambda (SGPJ Data Lake)
-# Origem: S3 sgpj-external -> Evento S3 -> Lambda -> S3 sgpj-bronze (raw_data/)
+# Fontes Externas (Ref: XAKCN/EDA_Brasil): BACEN SGS, IBGE SIDRA e BACEN Olinda
+# Gatilhos: EventBridge (Agendado) / Invocação Manual + S3 sgpj-external
+# Destino: S3 sgpj-bronze (raw_data/{fonte}/{dataset}/year=YYYY/month=MM/day=DD/)
 # Compatível com AWS Academy (LabRole) e LocalStack
 # ──────────────────────────────────────────────────────────────────────────────
 
 variable "enable_lambda_ingestion" {
-  description = "Habilita a função Lambda de ingestão e a notificação de eventos S3"
+  description = "Habilita a função Lambda de ingestão, agendamento EventBridge e notificação de eventos S3"
   type        = bool
   default     = true
+}
+
+variable "lambda_ingestion_schedule" {
+  description = "Expressão cron/rate do EventBridge para coleta periódica das APIs externas (BACEN/IBGE)"
+  type        = string
+  default     = "cron(0 6 * * ? *)"
 }
 
 variable "use_existing_lab_role" {
@@ -106,7 +114,7 @@ resource "aws_cloudwatch_log_group" "lambda_ingestion" {
 resource "aws_lambda_function" "data_ingestion" {
   count            = var.enable_lambda_ingestion ? 1 : 0
   function_name    = "sgpj-data-ingestion"
-  description      = "Lambda para ingestao e particionamento de dados externos para camada Bronze"
+  description      = "Lambda para ingestao de bases externas (BACEN SGS, IBGE SIDRA, BACEN Olinda - ref EDA_Brasil) para camada Bronze"
   role             = local.lambda_role_arn
   handler          = "lambda_ingestion.lambda_handler"
   runtime          = "python3.11"
@@ -117,17 +125,48 @@ resource "aws_lambda_function" "data_ingestion" {
     variables = {
       SOURCE_BUCKET = local.external_bucket
       TARGET_BUCKET = local.bronze_bucket
+      START_DATE_BR = "01/01/2015"
+      OLINDA_TOP    = "50000"
     }
   }
 
-  timeout     = 60
-  memory_size = 256
+  timeout     = 300
+  memory_size = 512
 
   tags = {
     Name        = "sgpj-data-ingestion"
     Environment = "data-lake"
     Purpose     = "external-ingestion"
   }
+}
+
+# ── Agendamento EventBridge (Coleta Ativa das APIs BACEN / IBGE) ───────────────
+resource "aws_cloudwatch_event_rule" "lambda_ingestion_schedule" {
+  count               = var.enable_lambda_ingestion ? 1 : 0
+  name                = "sgpj-data-ingestion-schedule"
+  description         = "Dispara periodicamente a Lambda de ingestao de dados externos (BACEN SGS, IBGE SIDRA, BACEN Olinda)"
+  schedule_expression = var.lambda_ingestion_schedule
+
+  tags = {
+    Name        = "sgpj-data-ingestion-schedule"
+    Environment = "data-lake"
+  }
+}
+
+resource "aws_cloudwatch_event_target" "lambda_ingestion_target" {
+  count     = var.enable_lambda_ingestion ? 1 : 0
+  rule      = aws_cloudwatch_event_rule.lambda_ingestion_schedule[0].name
+  target_id = "sgpj-data-ingestion-lambda"
+  arn       = aws_lambda_function.data_ingestion[0].arn
+}
+
+resource "aws_lambda_permission" "allow_eventbridge" {
+  count         = var.enable_lambda_ingestion ? 1 : 0
+  statement_id  = "AllowExecutionFromEventBridge"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.data_ingestion[0].function_name
+  principal     = "events.amazonaws.com"
+  source_arn    = aws_cloudwatch_event_rule.lambda_ingestion_schedule[0].arn
 }
 
 # ── Permissão para o S3 invocar a Função Lambda ────────────────────────────────
