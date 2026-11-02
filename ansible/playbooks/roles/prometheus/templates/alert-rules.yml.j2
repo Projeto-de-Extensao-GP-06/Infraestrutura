@@ -105,46 +105,6 @@ groups:
           summary: "Latencia ALB elevada"
           description: "TargetResponseTime acima de 500ms por 5 minutos."
 
-      - alert: RdsConnectionsHigh
-        expr: aws_rds_database_connections_average > 80
-        for: 3m
-        labels:
-          severity: high
-          layer: rds
-        annotations:
-          summary: "Conexoes RDS altas"
-          description: "Conexoes do RDS acima do threshold por 3 minutos. Ajuste conforme sua capacidade real."
-
-      - alert: RdsFreeStorageLow
-        expr: aws_rds_free_storage_space_average < 2147483648
-        for: 5m
-        labels:
-          severity: critical
-          layer: rds
-        annotations:
-          summary: "Espaco livre do RDS critico"
-          description: "FreeStorageSpace abaixo de 2GB por 5 minutos."
-
-      - alert: RdsCpuHigh
-        expr: aws_rds_cpuutilization_average > 80
-        for: 5m
-        labels:
-          severity: warning
-          layer: rds
-        annotations:
-          summary: "CPU do RDS alta"
-          description: "CPUUtilization acima de 80% por 5 minutos."
-
-      - alert: RdsFreeableMemoryLow
-        expr: aws_rds_freeable_memory_average < 268435456
-        for: 5m
-        labels:
-          severity: warning
-          layer: rds
-        annotations:
-          summary: "Memoria livre do RDS baixa"
-          description: "FreeableMemory abaixo de 256MB por 5 minutos."
-
       - alert: EfsIoLimitHigh
         expr: aws_efs_percent_i_o_limit_average > 90
         for: 10m
