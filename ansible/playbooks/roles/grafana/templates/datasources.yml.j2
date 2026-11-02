@@ -27,5 +27,5 @@ datasources:
       defaultRegion: {{ aws_region | default('us-east-1') }}
       catalog: AwsDataCatalog
       database: sgpj_logs_bronze
-      workgroup: primary
+      workgroup: sgpj-logs-analytics
       outputLocation: "s3://{{ bronze_bucket | default('sgpj-bronze') }}/athena-results/"

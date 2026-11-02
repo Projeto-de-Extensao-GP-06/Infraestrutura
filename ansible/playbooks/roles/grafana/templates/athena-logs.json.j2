@@ -5,13 +5,97 @@
   "graphTooltip": 0,
   "id": null,
   "links": [],
-  "liveNow": false,
+  "liveNow": true,
   "panels": [
     {
       "collapsed": false,
       "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "id": 100,
+      "title": "Fluent Bit — Logs em Tempo Real (Loki)",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "loki", "uid": "loki" },
+      "gridPos": { "h": 6, "w": 8, "x": 0, "y": 1 },
+      "id": 101,
+      "title": "Taxa de Logs por Segundo (Containers)",
+      "type": "timeseries",
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "single" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "loki", "uid": "loki" },
+          "expr": "sum(rate({job=\"docker\"}[1m]))",
+          "legendFormat": "Linhas/s",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "loki", "uid": "loki" },
+      "gridPos": { "h": 6, "w": 8, "x": 8, "y": 1 },
+      "id": 102,
+      "title": "Volume de Logs por Host (Última 1h)",
+      "type": "barchart",
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "single" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "loki", "uid": "loki" },
+          "expr": "sum by (host) (count_over_time({job=\"docker\"}[1h]))",
+          "legendFormat": "{{ '{{' }}host{{ '}}' }}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "loki", "uid": "loki" },
+      "gridPos": { "h": 6, "w": 8, "x": 16, "y": 1 },
+      "id": 103,
+      "title": "Logs de Sistema Operacional (Syslog/Auth)",
+      "type": "timeseries",
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "single" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "loki", "uid": "loki" },
+          "expr": "sum(rate({job=\"system\"}[1m]))",
+          "legendFormat": "Syslog/s",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "loki", "uid": "loki" },
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 7 },
+      "id": 104,
+      "title": "Stream ao Vivo de Logs dos Containers (Fluent Bit ➔ Loki)",
+      "type": "logs",
+      "options": {
+        "showLabels": true,
+        "wrapLogMessage": true,
+        "enableLogDetails": true,
+        "sortOrder": "Descending"
+      },
+      "targets": [
+        {
+          "datasource": { "type": "loki", "uid": "loki" },
+          "expr": "{job=\"docker\"}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 17 },
       "id": 1,
-      "title": "Data Lake S3 / Athena — Logs Brutos (Fluent Bit)",
+      "title": "Data Lake S3 / Athena — Logs Históricos Analíticos (Bronze Tier)",
       "type": "row"
     },
     {
@@ -24,7 +108,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 1 },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 18 },
       "id": 2,
       "options": {
         "legend": { "displayMode": "list", "placement": "bottom" },
@@ -37,6 +121,7 @@
             "catalog": "AwsDataCatalog",
             "database": "sgpj_logs_bronze",
             "region": "{{ aws_region | default('us-east-1') }}",
+            "workgroup": "sgpj-logs-analytics",
             "resultReuseEnabled": false
           },
           "format": 1,
@@ -44,7 +129,7 @@
           "refId": "A"
         }
       ],
-      "title": "Logs por Instância EC2 (Containers)",
+      "title": "Logs Históricos por Instância EC2 (Athena / S3)",
       "type": "barchart"
     },
     {
@@ -57,7 +142,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 1 },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 18 },
       "id": 3,
       "options": {
         "legend": { "displayMode": "list", "placement": "right" },
@@ -72,6 +157,7 @@
             "catalog": "AwsDataCatalog",
             "database": "sgpj_logs_bronze",
             "region": "{{ aws_region | default('us-east-1') }}",
+            "workgroup": "sgpj-logs-analytics",
             "resultReuseEnabled": false
           },
           "format": 1,
@@ -79,7 +165,7 @@
           "refId": "A"
         }
       ],
-      "title": "Status HTTP do Nginx no Data Lake",
+      "title": "Distribuição de Status HTTP no Data Lake",
       "type": "piechart"
     },
     {
@@ -88,7 +174,7 @@
         "defaults": { "color": { "mode": "thresholds" }, "custom": { "align": "auto" } },
         "overrides": []
       },
-      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 9 },
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 26 },
       "id": 4,
       "options": {
         "footer": { "enablePagination": true, "fields": "", "reducer": ["sum"], "show": false },
@@ -101,6 +187,7 @@
             "catalog": "AwsDataCatalog",
             "database": "sgpj_logs_bronze",
             "region": "{{ aws_region | default('us-east-1') }}",
+            "workgroup": "sgpj-logs-analytics",
             "resultReuseEnabled": false
           },
           "format": 1,
@@ -108,18 +195,18 @@
           "refId": "A"
         }
       ],
-      "title": "Últimos Logs Armazenados no S3 (Athena SQL Query)",
+      "title": "Últimos Logs Catalogados no S3 (Athena SQL Query)",
       "type": "table"
     }
   ],
-  "refresh": "1m",
+  "refresh": "10s",
   "schemaVersion": 38,
   "style": "dark",
-  "tags": ["athena", "fluentbit", "datalake", "sgpj"],
-  "time": { "from": "now-6h", "to": "now" },
+  "tags": ["fluentbit", "loki", "athena", "datalake", "sgpj"],
+  "time": { "from": "now-1h", "to": "now" },
   "timepicker": {},
   "timezone": "browser",
-  "title": "AWS Athena — Fluent Bit Logs",
+  "title": "Fluent Bit & Data Lake Logs",
   "uid": "sgpj-athena-logs",
-  "version": 2
+  "version": 3
 }

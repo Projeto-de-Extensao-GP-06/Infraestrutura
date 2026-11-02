@@ -6,5 +6,3 @@ cloudwatch_exporter_config_dir: /opt/cloudwatch-exporter
 cloudwatch_exporter_port: 9106
 cloudwatch_exporter_region: us-east-1
 cloudwatch_exporter_alb_dimension_regex: app/alb-app.*
-cloudwatch_exporter_rds_identifier: sgpj-mysql
-
