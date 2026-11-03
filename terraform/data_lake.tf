@@ -14,13 +14,11 @@ locals {
   bronze_bucket   = "sgpj-bronze-${local.account_id}"
   silver_bucket   = "sgpj-silver-${local.account_id}"
   gold_bucket     = "sgpj-gold-${local.account_id}"
-  external_bucket = "sgpj-external-${local.account_id}"
 
   # ARNs calculados sem depender do recurso aws_s3_bucket
   bronze_bucket_arn   = "arn:aws:s3:::${local.bronze_bucket}"
   silver_bucket_arn   = "arn:aws:s3:::${local.silver_bucket}"
   gold_bucket_arn     = "arn:aws:s3:::${local.gold_bucket}"
-  external_bucket_arn = "arn:aws:s3:::${local.external_bucket}"
 }
 
 # ── Criação e configuração dos buckets via AWS CLI ─────────────────────────────
@@ -30,7 +28,6 @@ resource "null_resource" "s3_data_lake" {
     bronze_bucket   = local.bronze_bucket
     silver_bucket   = local.silver_bucket
     gold_bucket     = local.gold_bucket
-    external_bucket = local.external_bucket
   }
 
   provisioner "local-exec" {
@@ -41,7 +38,7 @@ resource "null_resource" "s3_data_lake" {
         $PSNativeCommandUseErrorActionPreference = $false
       }
       $region  = 'us-east-1'
-      $buckets = @('${local.external_bucket}', '${local.bronze_bucket}', '${local.silver_bucket}', '${local.gold_bucket}')
+      $buckets = @('${local.bronze_bucket}', '${local.silver_bucket}', '${local.gold_bucket}')
 
       # Cria arquivo temporario com JSON de criptografia e formata path com barras normais para o AWS CLI
       $encFile = [System.IO.Path]::GetTempFileName()
