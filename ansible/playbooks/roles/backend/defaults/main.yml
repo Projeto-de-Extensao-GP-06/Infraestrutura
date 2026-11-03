@@ -19,5 +19,7 @@ agent_image: "{{ ecr_agent_image | default('sgpj-agent:latest') }}"
 agent_container_name: "sgpj-agent"
 agent_port: 8000
 agent_llm_api_key: "{{ llm_api_key | default(lookup('env', 'LLM_API_KEY'), true) | default('', true) }}"
-agent_llm_model: "{{ llm_model | default('gemini-2.0-flash') }}"
+agent_llm_model: "{{ llm_model | default('gemini-3.1-flash-lite') }}"
 agent_anonymization_key: "{{ anonymization_key | default('1111222233334444') }}"
+agent_jwt_secret: "{{ backend_jwt_secret }}"
+agent_cookie_secure: "{{ backend_cookie_secure }}"
