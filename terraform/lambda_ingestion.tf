@@ -1,7 +1,7 @@
 # ──────────────────────────────────────────────────────────────────────────────
 # Pipeline de Ingestão de Dados Externos via AWS Lambda (SGPJ Data Lake)
 # Fontes Externas (Ref: XAKCN/EDA_Brasil): BACEN SGS, IBGE SIDRA e BACEN Olinda
-# Gatilhos: EventBridge (Agendado) / Invocação Manual + S3 sgpj-external
+# Gatilhos: EventBridge (Agendado) / Invocação Manual
 # Destino: S3 sgpj-bronze (raw_data/{fonte}/{dataset}/year=YYYY/month=MM/day=DD/)
 # Compatível com AWS Academy (LabRole) e LocalStack
 # ──────────────────────────────────────────────────────────────────────────────
@@ -61,8 +61,6 @@ data "aws_iam_policy_document" "lambda_ingestion_policy" {
       "s3:CopyObject"
     ]
     resources = [
-      local.external_bucket_arn,
-      "${local.external_bucket_arn}/*",
       local.bronze_bucket_arn,
       "${local.bronze_bucket_arn}/*"
     ]
@@ -123,7 +121,6 @@ resource "aws_lambda_function" "data_ingestion" {
 
   environment {
     variables = {
-      SOURCE_BUCKET = local.external_bucket
       TARGET_BUCKET = local.bronze_bucket
       START_DATE_BR = "01/01/2015"
       OLINDA_TOP    = "50000"
@@ -170,28 +167,3 @@ resource "aws_lambda_permission" "allow_eventbridge" {
 }
 
 # ── Permissão para o S3 invocar a Função Lambda ────────────────────────────────
-resource "aws_lambda_permission" "allow_bucket" {
-  count         = var.enable_lambda_ingestion ? 1 : 0
-  statement_id  = "AllowExecutionFromS3Bucket"
-  action        = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.data_ingestion[0].function_name
-  principal     = "s3.amazonaws.com"
-  source_arn    = local.external_bucket_arn
-}
-
-# ── Notificação de Evento no Bucket S3 (S3 -> Lambda) ─────────────────────────
-resource "aws_s3_bucket_notification" "external_notification" {
-  count  = var.enable_lambda_ingestion ? 1 : 0
-  bucket = local.external_bucket
-
-  lambda_function {
-    lambda_function_arn = aws_lambda_function.data_ingestion[0].arn
-    events              = ["s3:ObjectCreated:*"]
-    filter_suffix       = ".json"
-  }
-
-  depends_on = [
-    null_resource.s3_data_lake,
-    aws_lambda_permission.allow_bucket
-  ]
-}
