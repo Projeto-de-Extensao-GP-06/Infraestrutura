@@ -51,6 +51,7 @@ Thumbs.db
 *.sqlite
 .c3x-cache*
 .infracost/
+.zip
 
 # ── Logs & Testes ─────────────────────────
 *.log
