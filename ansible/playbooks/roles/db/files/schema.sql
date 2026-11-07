@@ -439,6 +439,12 @@ VALUES (1, 'ADMIN'),
 
 INSERT INTO usuario (nome, email, senha, cargo_id)
 VALUES (
+           'SISTEMA SGPJ',
+           'sistema.sgpj@gmail.com',
+           NULL,
+           1
+       ),
+       (
            'Thauany Bezerra',
            'thauany@gmail.com',
            '$2a$12$AD1HxQJj.U.dQaam6fntBOCko5p6vrk/6bLLsv79EgpqzqFt7I5D6',
@@ -538,7 +544,8 @@ INSERT INTO tipo_alteracao (nome) VALUES
                                       ('ADIÇÃO DE ARQUIVO'),
                                       ('OBSERVAÇÃO'),
                                       ('ATUALIZAÇÃO DE DADOS'),
-                                      ('ALTERAÇÃO DE RESPONSÁVEL');
+                                      ('ALTERAÇÃO DE RESPONSÁVEL'),
+                                      ('AUDIÊNCIA');
 
 INSERT INTO motivo_status_processo (nome, aplicavel_a) VALUES
                                                            ('ACORDO',                  'ENCERRADO'),
@@ -564,110 +571,82 @@ INSERT INTO cliente (nome_razao_social, cpf_cnpj, is_pf, status_cliente_id, data
   ('Roberto Carvalho Nunes',   '44455566677',     1, 3, NOW());	
 
 -- ============================================================
--- 2. PROCESSO_DADOS_API (40 em 4 lotes de 10)
+-- 2. PROCESSO_DADOS_API
+-- (Nao preenchido previamente - os dados oficiais serao consultados e persistidos sob demanda via API)
 -- ============================================================
-INSERT INTO processo_dados_api (numero_cnj, tribunal_tramitacao, instancia, data_ajuizamento, nivel_sigilo, classe_processual, formato, sistema_tribunal, orgao_julgador, assunto) VALUES
-  ('00010001120250000001', 'TJSP', '1a Instancia', '2025-01-10', 'Publico', 'Acao Civil', 'Eletronico', 'ESAJ', '1a Vara Civel de SP', 'Cobranca'),
-  ('00020002220250000002', 'TJRJ', '1a Instancia', '2025-02-15', 'Publico', 'Acao Trabalhista', 'Eletronico', 'PROJUDI', '2a Vara do Trabalho', 'Rescisao'),
-  ('00030003320250000003', 'TJMG', '2a Instancia', '2024-11-20', 'Publico', 'Apelacao', 'Fisico', 'SISCOM', 'Camara Civel', 'Danos Morais'),
-  ('00040004420250000004', 'TJPR', '1a Instancia', '2025-03-05', 'Publico', 'Acao Executiva', 'Eletronico', 'PROJUDI', '3a Vara Civel', 'Execucao de Titulo'),
-  ('00050005520250000005', 'TJRS', '1a Instancia', '2025-04-01', 'Publico', 'Acao de Alimentos', 'Eletronico', 'THEMIS', '1a Vara de Familia', 'Alimentos'),
-  ('00060006620250000006', 'TJSP', '1a Instancia', '2025-01-25', 'Publico', 'Acao Indenizatoria', 'Eletronico', 'ESAJ', '5a Vara Civel de SP', 'Indenizacao'),
-  ('00070007720250000007', 'TJMG', '1a Instancia', '2024-12-10', 'Publico', 'Acao Possessoria', 'Fisico', 'SISCOM', '2a Vara Civel', 'Reintegracao de Posse'),
-  ('00080008820250000008', 'TJRJ', '2a Instancia', '2025-02-28', 'Publico', 'Agravo de Instrumento', 'Eletronico', 'PROJUDI', 'Camara Civel', 'Tutela de Urgencia'),
-  ('00090009920250000009', 'TJPR', '1a Instancia', '2025-03-18', 'Publico', 'Acao Declaratoria', 'Eletronico', 'PROJUDI', '1a Vara Empresarial', 'Contrato'),
-  ('00100010020250000010', 'TJSP', '1a Instancia', '2025-05-02', 'Publico', 'Acao de Despejo', 'Eletronico', 'ESAJ', '4a Vara Civel de SP', 'Locacao');
-
-INSERT INTO processo_dados_api (numero_cnj, tribunal_tramitacao, instancia, data_ajuizamento, nivel_sigilo, classe_processual, formato, sistema_tribunal, orgao_julgador, assunto) VALUES
-  ('00110011120250000011', 'TJAL', '1a Instancia', '2024-10-15', 'Publico', 'Acao Civil Publica', 'Eletronico', 'ESAJ', '1a Vara Publica', 'Dano Ambiental'),
-  ('00120012220250000012', 'TJAM', '1a Instancia', '2025-01-30', 'Publico', 'Acao de Cobranca', 'Fisico', 'THEMIS', '3a Vara Civel', 'Divida'),
-  ('00130013320250000013', 'TJSP', '2a Instancia', '2024-09-05', 'Publico', 'Recurso Inominado', 'Eletronico', 'ESAJ', 'Camara Especial', 'Consumidor'),
-  ('00140014420250000014', 'TJMG', '1a Instancia', '2025-04-10', 'Publico', 'Acao Trabalhista', 'Eletronico', 'SISCOM', '5a Vara do Trabalho', 'Horas Extras'),
-  ('00150015520250000015', 'TJRS', '1a Instancia', '2025-02-20', 'Publico', 'Acao de Divorcio', 'Fisico', 'THEMIS', '2a Vara de Familia', 'Divorcio'),
-  ('00160016620250000016', 'TJPR', '1a Instancia', '2025-05-01', 'Publico', 'Acao Revisional', 'Eletronico', 'PROJUDI', '2a Vara Bancaria', 'Revisao Contratual'),
-  ('00170017720250000017', 'TJSP', '1a Instancia', '2025-03-22', 'Publico', 'Acao de Inventario', 'Eletronico', 'ESAJ', '3a Vara de Sucessoes', 'Inventario'),
-  ('00180018820250000018', 'TJRJ', '1a Instancia', '2024-11-11', 'Publico', 'Acao Trabalhista', 'Fisico', 'PROJUDI', '7a Vara do Trabalho', 'FGTS'),
-  ('00190019920250000019', 'TJMG', '1a Instancia', '2025-01-08', 'Publico', 'Acao Monitoria', 'Eletronico', 'SISCOM', '4a Vara Civel', 'Monitoria'),
-  ('00200020020250000020', 'TJAL', '1a Instancia', '2025-02-14', 'Publico', 'Acao de Usucapiao', 'Fisico', 'ESAJ', '1a Vara de Registros', 'Usucapiao');
-
-INSERT INTO processo_dados_api (numero_cnj, tribunal_tramitacao, instancia, data_ajuizamento, nivel_sigilo, classe_processual, formato, sistema_tribunal, orgao_julgador, assunto) VALUES
-  ('00210021120250000021', 'TJSP', '1a Instancia', '2025-04-25', 'Publico', 'Acao de Cobranca', 'Eletronico', 'ESAJ', '6a Vara Civel de SP', 'Cobranca'),
-  ('00220022220250000022', 'TJPR', '2a Instancia', '2025-03-10', 'Publico', 'Embargos de Declaracao', 'Eletronico', 'PROJUDI', 'Camara Civel', 'Omissao'),
-  ('00230023320250000023', 'TJRS', '1a Instancia', '2025-01-17', 'Publico', 'Acao Indenizatoria', 'Fisico', 'THEMIS', '3a Vara Civel', 'Acidente'),
-  ('00240024420250000024', 'TJMG', '1a Instancia', '2024-12-20', 'Publico', 'Acao de Alimentos', 'Eletronico', 'SISCOM', '1a Vara de Familia', 'Alimentos'),
-  ('00250025520250000025', 'TJRJ', '1a Instancia', '2025-05-12', 'Publico', 'Acao Possessoria', 'Eletronico', 'PROJUDI', '2a Vara Civel', 'Posse'),
-  ('00260026620250000026', 'TJSP', '1a Instancia', '2025-04-03', 'Publico', 'Acao Trabalhista', 'Eletronico', 'ESAJ', '8a Vara do Trabalho', 'Verbas Rescisorias'),
-  ('00270027720250000027', 'TJAM', '1a Instancia', '2025-02-07', 'Publico', 'Acao Civil', 'Fisico', 'THEMIS', '2a Vara Civel', 'Obrigacao de Fazer'),
-  ('00280028820250000028', 'TJAL', '2a Instancia', '2025-01-22', 'Publico', 'Apelacao', 'Eletronico', 'ESAJ', 'Camara Civel', 'Propriedade'),
-  ('00290029920250000029', 'TJPR', '1a Instancia', '2025-03-30', 'Publico', 'Acao Declaratoria', 'Eletronico', 'PROJUDI', '4a Vara Empresarial', 'Dissolucao Societaria'),
-  ('00300030020250000030', 'TJMG', '1a Instancia', '2025-05-05', 'Publico', 'Acao de Despejo', 'Fisico', 'SISCOM', '3a Vara Locaticia', 'Locacao Comercial');
-
-INSERT INTO processo_dados_api (numero_cnj, tribunal_tramitacao, instancia, data_ajuizamento, nivel_sigilo, classe_processual, formato, sistema_tribunal, orgao_julgador, assunto) VALUES
-  ('10108901220228260292', 'TJSP', '1a Instancia', '2024-08-15', 'Publico', 'Acao Executiva', 'Eletronico', 'ESAJ', '2a Vara de Execucoes', 'Execucao Fiscal'),
-  ('00017707620248260005', 'TJSP', '1a Instancia', '2025-04-18', 'Publico', 'Acao de Cobranca', 'Eletronico', 'THEMIS', '4a Vara Civel', 'Cheque'),
-  ('00340034420250000033', 'TJSP', '1a Instancia', '2025-02-05', 'Publico', 'Acao Indenizatoria', 'Fisico', 'PROJUDI', '5a Vara Civel', 'Acidente de Transito'),
-  ('00340034420250000034', 'TJSP', '2a Instancia', '2024-10-30', 'Publico', 'Agravo Regimental', 'Eletronico', 'SISCOM', 'Camara Civel', 'Recurso'),
-  ('00350035520250000035', 'TJSP', '1a Instancia', '2025-03-14', 'Publico', 'Acao Trabalhista', 'Eletronico', 'ESAJ', '2a Vara do Trabalho', 'Adicional Insalubridade'),
-  ('00360036620250000036', 'TJSP', '1a Instancia', '2025-05-20', 'Publico', 'Acao Revisional', 'Eletronico', 'ESAJ', '7a Vara Civel de SP', 'Juros Abusivos'),
-  ('00370037720250000037', 'TJSP', '1a Instancia', '2024-09-18', 'Publico', 'Acao de Alimentos', 'Fisico', 'PROJUDI', '3a Vara de Familia', 'Alimentos Gravidicos'),
-  ('00380038820250000038', 'TJSP', '1a Instancia', '2025-01-05', 'Publico', 'Acao Monitoria', 'Eletronico', 'THEMIS', '5a Vara Civel', 'Nota Promissoria'),
-  ('00390039920250000039', 'TJSP', '1a Instancia', '2025-04-22', 'Publico', 'Acao Civil Publica', 'Eletronico', 'THEMIS', '1a Vara Publica', 'Direitos do Consumidor'),
-  ('00400040020250000040', 'TJSP', '1a Instancia', '2025-05-08', 'Publico', 'Acao de Inventario', 'Fisico', 'SISCOM', '2a Vara de Sucessoes', 'Partilha');
 
 -- ============================================================
--- 3. PROCESSOS (40 em 4 lotes de 10)
+-- 3. PROCESSOS (40 registros de exemplo)
 -- ============================================================
-INSERT INTO processo_dados_aplicacao (usuario_responsavel_id, cliente_id, descricao_caso, prioridade_id, fase_processo_id, ultima_atualizacao, data_hora_inicio, status, data_audiencia, sigla_tribunal_id, valor_causa, processo_dados_api_id) VALUES
-  (1, 1, 'Acao de cobranca de divida bancaria com clausulas abusivas.', 1, 1, '2025-06-01 14:20:00', '2025-01-10 14:20:00', 'ATIVO', '2025-08-15 14:00:00', 1, 15000.00, 1),
-  (1, 2, 'Rescisao contratual trabalhista com pedido de verbas rescisorias.', 2, 3, '2025-06-02 14:20:00', '2025-02-15 14:20:00', 'ATIVO', NULL, 19, 28000.00, 2),
-  (1, 3, 'Apelacao em danos morais contra fornecedora de energia.', 1, 7, '2025-06-03 14:20:00', '2024-11-20 14:20:00', 'ENCERRADO', NULL, 13, 45000.00, 3),
-  (1, 4, 'Execucao de titulo extrajudicial contra devedor inadimplente.', 3, 4, '2025-06-04 14:20:00', '2025-03-05 14:20:00', 'ATIVO', '2025-09-10 09:00:00', 16, 8000.00, 4),
-  (1, 5, 'Acao de alimentos para menor incapaz apos separacao conjugal.', 1, 5, '2025-06-05 14:20:00', '2025-04-01 14:20:00', 'ATIVO', '2025-07-20 10:30:00', 21, 3500.00, 5),
-  (1, 1, 'Acao indenizatoria por acidente de trabalho com sequelas.', 2, 9, '2025-06-06 14:20:00', '2025-01-25 14:20:00', 'SUSPENSO', NULL, 1, 120000.00, 6),
-  (1, 2, 'Acao possessoria de reintegracao de imovel comercial invadido.', 3, 3, '2025-06-07 14:20:00', '2024-12-10 14:20:00', 'ATIVO', NULL, 13, 55000.00, 7),
-  (1, 3, 'Agravo de instrumento para tutela de urgencia bancaria.', 1, 10, '2025-06-08 14:20:00', '2025-02-28 14:20:00', 'ENCERRADO', '2025-10-05 15:00:00', 19, 30000.00, 8),
-  (1, 4, 'Acao declaratoria de nulidade de clausula contratual.', 2, 1, '2025-06-09 14:20:00', '2025-03-18 14:20:00', 'ATIVO', NULL, 16, 22000.00, 9),
-  (1, 5, 'Acao de despejo por falta de pagamento de aluguel.', 3, 4, '2025-06-10 14:20:00', '2025-05-02 14:20:00', 'ATIVO', '2025-08-28 11:00:00', 1, 18000.00, 10);
+INSERT INTO processo_dados_aplicacao (
+  usuario_responsavel_id,
+  cliente_id,
+  descricao_caso,
+  observacao,
+  prioridade_id,
+  fase_processo_id,
+  ultima_atualizacao,
+  data_hora_inicio,
+  status,
+  data_audiencia,
+  encerrado_suspenso_em,
+  encerrado_suspenso_por_usuario_id,
+  motivo_status_processo_id,
+  justificativa_status,
+  sigla_tribunal_id,
+  valor_causa,
+  processo_dados_api_id
+) VALUES
+  -- Lote 1 (1 a 10)
+  (1, 1, 'Acao de cobranca de divida bancaria com clausulas abusivas.', 'Cliente solicitou prioridade na analise pericial dos juros.', 1, 1, '2025-06-01 14:20:00', '2025-01-10 14:20:00', 'ATIVO', '2025-08-15 14:00:00', NULL, NULL, NULL, NULL, 1, 15000.00, NULL),
+  (1, 2, 'Rescisao contratual trabalhista com pedido de verbas rescisorias.', 'Aguardando envio dos termos de homologacao pelo cliente.', 2, 3, '2025-06-02 14:20:00', '2025-02-15 14:20:00', 'ATIVO', NULL, NULL, NULL, NULL, NULL, 19, 28000.00, NULL),
+  (1, 3, 'Apelacao em danos morais contra fornecedora de energia.', 'Sentenca favoravel confirmada em segunda instancia.', 1, 7, '2025-06-03 14:20:00', '2024-11-20 14:20:00', 'ENCERRADO', NULL, '2025-06-03 14:20:00', 1, 1, 'Homologado acordo judicial e quitacao integral da obrigacao.', 13, 45000.00, NULL),
+  (1, 4, 'Execucao de titulo extrajudicial contra devedor inadimplente.', 'Tentativa de citacao e penhora de ativos financeiros.', 3, 4, '2025-06-04 14:20:00', '2025-03-05 14:20:00', 'ATIVO', '2025-09-10 09:00:00', NULL, NULL, NULL, NULL, 16, 8000.00, NULL),
+  (1, 5, 'Acao de alimentos para menor incapaz apos separacao conjugal.', 'Fixados alimentos provisorios em favor do menor.', 1, 5, '2025-06-05 14:20:00', '2025-04-01 14:20:00', 'ATIVO', '2025-07-20 10:30:00', NULL, NULL, NULL, NULL, 21, 3500.00, NULL),
+  (1, 1, 'Acao indenizatoria por acidente de trabalho com sequelas.', 'Processo suspenso por acordo de parcelamento da indenizacao.', 2, 11, '2025-06-06 14:20:00', '2025-01-25 14:20:00', 'SUSPENSO', NULL, '2025-06-06 14:20:00', 1, 5, 'Suspensao deferida para adimplemento de parcelas convencionadas.', 1, 120000.00, NULL),
+  (1, 2, 'Acao possessoria de reintegracao de imovel comercial invadido.', 'Mandado liminar de reintegracao deferido pelo magistrado.', 3, 3, '2025-06-07 14:20:00', '2024-12-10 14:20:00', 'ATIVO', NULL, NULL, NULL, NULL, NULL, 13, 55000.00, NULL),
+  (1, 3, 'Agravo de instrumento para tutela de urgencia bancaria.', 'Cumprimento voluntario integral do valor condenatorio.', 1, 7, '2025-06-08 14:20:00', '2025-02-28 14:20:00', 'ENCERRADO', NULL, '2025-06-08 14:20:00', 1, 4, 'Deposito judicial voluntario realizado pela instituicao financeira.', 19, 30000.00, NULL),
+  (1, 4, 'Acao declaratoria de nulidade de clausula contratual.', 'Contestacao protocolada pela parte re dentro do prazo legal.', 2, 1, '2025-06-09 14:20:00', '2025-03-18 14:20:00', 'ATIVO', NULL, NULL, NULL, NULL, NULL, 16, 22000.00, NULL),
+  (1, 5, 'Acao de despejo por falta de pagamento de aluguel.', 'Audiencia de conciliacao designada com o locatario.', 3, 4, '2025-06-10 14:20:00', '2025-05-02 14:20:00', 'ATIVO', '2025-08-28 11:00:00', NULL, NULL, NULL, NULL, 1, 18000.00, NULL),
 
-INSERT INTO processo_dados_aplicacao (usuario_responsavel_id, cliente_id, descricao_caso, prioridade_id, fase_processo_id, ultima_atualizacao, data_hora_inicio, status, data_audiencia, sigla_tribunal_id, valor_causa, processo_dados_api_id) VALUES
-  (1, 6, 'Acao civil publica por dano ambiental de empresa de mineracao.', 1, 1, '2025-06-11 14:20:00', '2024-10-15 14:20:00', 'ATIVO', NULL, 2, 500000.00, 11),
-  (1, 7, 'Acao de cobranca por inadimplemento de servicos de frete.', 2, 3, '2025-06-12 14:20:00', '2025-01-30 14:20:00', 'SUSPENSO', NULL, 4, 12000.00, 12),
-  (1, 1, 'Recurso inominado em acao consumerista de plano de saude.', 3, 5, '2025-06-13 14:20:00', '2024-09-05 14:20:00', 'ENCERRADO', NULL, 1, 9500.00, 13),
-  (1, 8, 'Acao trabalhista por horas extras nao pagas ao longo de 3 anos.', 1, 7, '2025-06-14 14:20:00', '2025-04-10 14:20:00', 'ATIVO', '2025-09-02 08:30:00', 13, 35000.00, 14),
-  (1, 9, 'Acao de divorcio litigioso com disputas por guarda e bens.', 2, 4, '2025-06-15 14:20:00', '2025-02-20 14:20:00', 'ATIVO', NULL, 21, 80000.00, 15),
-  (1, 10, 'Acao revisional de financiamento com taxas abusivas.', 3, 9, '2025-06-16 14:20:00', '2025-05-01 14:20:00', 'ATIVO', NULL, 16, 62000.00, 16),
-  (1, 1, 'Acao de inventario e partilha de bens de espolio litigioso.', 1, 3, '2025-06-17 14:20:00', '2025-03-22 14:20:00', 'SUSPENSO', '2025-10-15 14:00:00', 1, 250000.00, 17),
-  (1, 2, 'Acao trabalhista por falta de deposito de FGTS.', 2, 1, '2025-06-18 14:20:00', '2024-11-11 14:20:00', 'ATIVO', NULL, 19, 42000.00, 18),
-  (1, 3, 'Acao monitoria baseada em cheque sem fundo.', 3, 5, '2025-06-19', '2025-01-08', 'ATIVO', NULL, 13, 7500.00, 19),
-  (1, 4, 'Acao de usucapiao extraordinaria de imovel rural.', 1, 7, '2025-06-20', '2025-02-14', 'ENCERRADO', NULL, 2, 180000.00, 20);
+  -- Lote 2 (11 a 20)
+  (1, 6, 'Acao civil publica por dano ambiental de empresa de mineracao.', 'Pericia ambiental tecnica em andamento para apuracao.', 1, 1, '2025-06-11 14:20:00', '2024-10-15 14:20:00', 'ATIVO', NULL, NULL, NULL, NULL, NULL, 2, 500000.00, NULL),
+  (1, 7, 'Acao de cobranca por inadimplemento de servicos de frete.', 'Suspensao processual acordada para tratativas extrajudiciais.', 2, 11, '2025-06-12 14:20:00', '2025-01-30 14:20:00', 'SUSPENSO', NULL, '2025-06-12 14:20:00', 1, 6, 'Partes em tratativas para formulacao de composicao amigavel.', 4, 12000.00, NULL),
+  (1, 1, 'Recurso inominado em acao consumerista de plano de saude.', 'Processo extinto sem resolucao de merito por perda de objeto.', 3, 7, '2025-06-13 14:20:00', '2024-09-05 14:20:00', 'ENCERRADO', NULL, '2025-06-13 14:20:00', 1, 2, 'Extincao processual sem resolucao de merito nos termos do art. 485 CPC.', 1, 9500.00, NULL),
+  (1, 8, 'Acao trabalhista por horas extras nao pagas ao longo de 3 anos.', 'Instrucao probatoria agendada perante a vara trabalhista.', 1, 7, '2025-06-14 14:20:00', '2025-04-10 14:20:00', 'ATIVO', '2025-09-02 08:30:00', NULL, NULL, NULL, NULL, 13, 35000.00, NULL),
+  (1, 9, 'Acao de divorcio litigioso com disputas por guarda e bens.', 'Requerida expedicao de oficios para localizacao de contas bancarias.', 2, 4, '2025-06-15 14:20:00', '2025-02-20 14:20:00', 'ATIVO', NULL, NULL, NULL, NULL, NULL, 21, 80000.00, NULL),
+  (1, 10, 'Acao revisional de financiamento com taxas abusivas.', 'Fase executiva de restituicao de valores cobrados indevidamente.', 3, 9, '2025-06-16 14:20:00', '2025-05-01 14:20:00', 'ATIVO', NULL, NULL, NULL, NULL, NULL, 16, 62000.00, NULL),
+  (1, 1, 'Acao de inventario e partilha de bens de espolio litigioso.', 'Suspensao determinada pelo juizo ate desfecho de acao de filiacao.', 1, 11, '2025-06-17 14:20:00', '2025-03-22 14:20:00', 'SUSPENSO', NULL, '2025-06-17 14:20:00', 1, 8, 'Determinacao judicial de sobrestamento do feito por prejudicialidade externa.', 1, 250000.00, NULL),
+  (1, 2, 'Acao trabalhista por falta de deposito de FGTS.', 'Apresentada contestacao refutando alegacoes da inicial.', 2, 1, '2025-06-18 14:20:00', '2024-11-11 14:20:00', 'ATIVO', NULL, NULL, NULL, NULL, NULL, 19, 42000.00, NULL),
+  (1, 3, 'Acao monitoria baseada em cheque sem fundo.', 'Apresentacao de embargos monitorios pelo devedor.', 3, 5, '2025-06-19 14:20:00', '2025-01-08 14:20:00', 'ATIVO', NULL, NULL, NULL, NULL, NULL, 13, 7500.00, NULL),
+  (1, 4, 'Acao de usucapiao extraordinaria de imovel rural.', 'Sentenca de procedencia transitada em julgado e registro deferido.', 1, 7, '2025-06-20 14:20:00', '2025-02-14 14:20:00', 'ENCERRADO', NULL, '2025-06-20 14:20:00', 1, 9, 'Sentenca declaratoria de usucapiao definitiva e encerramento dos autos.', 2, 180000.00, NULL),
 
-INSERT INTO processo_dados_aplicacao (usuario_responsavel_id, cliente_id, descricao_caso, prioridade_id, fase_processo_id, ultima_atualizacao, data_hora_inicio, status, data_audiencia, sigla_tribunal_id, valor_causa, processo_dados_api_id) VALUES
-  (1, 5, 'Acao de cobranca por servicos de TI prestados e nao pagos.', 2, 4, '2025-06-21 14:20:00', '2025-04-25 14:20:00', 'ATIVO', '2025-08-20 09:30:00', 1, 95000.00, 21),
-  (1, 6, 'Embargos de declaracao para sanar omissao em acordao.', 3, 3, '2025-06-22 14:20:00', '2025-03-10 14:20:00', 'ATIVO', NULL, 16, 5000.00, 22),
-  (1, 7, 'Acao indenizatoria por acidente em transporte de carga.', 1, 9, '2025-06-23 14:20:00', '2025-01-17 14:20:00', 'SUSPENSO', NULL, 21, 200000.00, 23),
-  (1, 8, 'Acao de alimentos para filho maior estudante universitario.', 2, 1, '2025-06-24 14:20:00', '2024-12-20 14:20:00', 'ATIVO', '2025-09-25 10:00:00', 13, 4500.00, 24),
-  (1, 9, 'Acao possessoria para protecao de area industrial ocupada.', 3, 5, '2025-06-25 14:20:00', '2025-05-12 14:20:00', 'ENCERRADO', NULL, 19, 135000.00, 25),
-  (1, 1, 'Acao trabalhista por verbas rescisorias com assedio moral.', 1, 7, '2025-06-26 14:20:00', '2025-04-03 14:20:00', 'ATIVO', NULL, 1, 65000.00, 26),
-  (1, 2, 'Acao civil por obrigacao de fazer: entrega de imovel.', 2, 4, '2025-06-27 14:20:00', '2025-02-07 14:20:00', 'ATIVO', '2025-07-30 15:30:00', 4, 290000.00, 27),
-  (1, 10, 'Apelacao civel sobre propriedade de terreno rural.', 3, 10, '2025-06-28 14:20:00', '2025-01-22 14:20:00', 'ENCERRADO', NULL, 2, 160000.00, 28),
-  (1, 4, 'Acao declaratoria para dissolucao de sociedade empresarial.', 1, 1, '2025-06-29', '2025-03-30', 'ATIVO', NULL, 16, 480000.00, 29),
-  (1, 5, 'Acao de despejo por descumprimento de locacao comercial.', 2, 3, '2025-06-30', '2025-05-05', 'SUSPENSO', NULL, 13, 75000.00, 30);
+  -- Lote 3 (21 a 30)
+  (1, 5, 'Acao de cobranca por servicos de TI prestados e nao pagos.', 'Audiencia de conciliacao designada perante a vara civel.', 2, 4, '2025-06-21 14:20:00', '2025-04-25 14:20:00', 'ATIVO', '2025-08-20 09:30:00', NULL, NULL, NULL, NULL, 1, 95000.00, NULL),
+  (1, 6, 'Embargos de declaracao para sanar omissao em acordao.', 'Embargos acolhidos para integracao do julgado colegiado.', 3, 3, '2025-06-22 14:20:00', '2025-03-10 14:20:00', 'ATIVO', NULL, NULL, NULL, NULL, NULL, 16, 5000.00, NULL),
+  (1, 7, 'Acao indenizatoria por acidente em transporte de carga.', 'Suspensao por inexistencia de bens penhoraveis via Sisbajud.', 1, 11, '2025-06-23 14:20:00', '2025-01-17 14:20:00', 'SUSPENSO', NULL, '2025-06-23 14:20:00', 1, 7, 'Sobrestamento fundamentado no art. 921, III do CPC por ausencia de bens.', 21, 200000.00, NULL),
+  (1, 8, 'Acao de alimentos para filho maior estudante universitario.', 'Designada audiencia conciliatoria entre as partes litigantes.', 2, 1, '2025-06-24 14:20:00', '2024-12-20 14:20:00', 'ATIVO', '2025-09-25 10:00:00', NULL, NULL, NULL, NULL, 13, 4500.00, NULL),
+  (1, 9, 'Acao possessoria para protecao de area industrial ocupada.', 'Acordo celebrado com desocupacao espontanea da area.', 3, 7, '2025-06-25 14:20:00', '2025-05-12 14:20:00', 'ENCERRADO', NULL, '2025-06-25 14:20:00', 1, 1, 'Homologacao de termo de acordo e entrega voluntaria das chaves.', 19, 135000.00, NULL),
+  (1, 1, 'Acao trabalhista por verbas rescisorias com assedio moral.', 'Aguardando pericia psicologica do reclamante.', 1, 7, '2025-06-26 14:20:00', '2025-04-03 14:20:00', 'ATIVO', NULL, NULL, NULL, NULL, NULL, 1, 65000.00, NULL),
+  (1, 2, 'Acao civil por obrigacao de fazer: entrega de imovel.', 'Audiencia preliminar conciliatoria marcada em juizo.', 2, 4, '2025-06-27 14:20:00', '2025-02-07 14:20:00', 'ATIVO', '2025-07-30 15:30:00', NULL, NULL, NULL, NULL, 4, 290000.00, NULL),
+  (1, 10, 'Apelacao civel sobre propriedade de terreno rural.', 'Penhora total de bens com satisfacao do credito exequendo.', 3, 7, '2025-06-28 14:20:00', '2025-01-22 14:20:00', 'ENCERRADO', NULL, '2025-06-28 14:20:00', 1, 3, 'Extincao da fase executiva em razao da penhora e adjudicacao total dos bens.', 2, 160000.00, NULL),
+  (1, 4, 'Acao declaratoria para dissolucao de sociedade empresarial.', 'Apresentacao de laudo preliminar contabil e balanco patrimonial.', 1, 1, '2025-06-29 14:20:00', '2025-03-30 14:20:00', 'ATIVO', NULL, NULL, NULL, NULL, NULL, 16, 480000.00, NULL),
+  (1, 5, 'Acao de despejo por descumprimento de locacao comercial.', 'Sobrestamento deferido pelo magistrado para negociacao direta.', 2, 11, '2025-06-30 14:20:00', '2025-05-05 14:20:00', 'SUSPENSO', NULL, '2025-06-30 14:20:00', 1, 6, 'Suspensao requerida em conjunto para elaboracao de aditivo de locacao.', 13, 75000.00, NULL),
 
-INSERT INTO processo_dados_aplicacao (usuario_responsavel_id, cliente_id, descricao_caso, prioridade_id, fase_processo_id, ultima_atualizacao, data_hora_inicio, status, data_audiencia, sigla_tribunal_id, valor_causa, processo_dados_api_id) VALUES
-  (1, 1, 'Execucao fiscal de debito tributario municipal por IPTU.', 3, 9, '2025-07-01', '2024-08-15', 'ATIVO', '2025-11-12 09:00:00', 1, 22000.00, 31),
-  (1, 6, 'Acao de cobranca por cheque devolvido sem provisao.', 1, 5, '2025-07-02', '2025-04-18', 'ATIVO', NULL, 21, 17500.00, 32),
-  (1, 7, 'Acao indenizatoria por acidente de transito com lesao.', 2, 7, '2025-07-03', '2025-02-05', 'ENCERRADO', NULL, 19, 85000.00, 33),
-  (1, 8, 'Agravo regimental por cerceamento de defesa.', 3, 4, '2025-07-04', '2024-10-30', 'SUSPENSO', NULL, 13, 34000.00, 34),
-  (1, 9, 'Acao trabalhista por adicional de insalubridade fabril.', 1, 1, '2025-07-05', '2025-03-14', 'ATIVO', '2025-10-01 14:30:00', 2, 28500.00, 35),
-  (1, 10, 'Acao revisional de financiamento imobiliario.', 2, 3, '2025-07-06', '2025-05-20', 'ATIVO', NULL, 1, 110000.00, 36),
-  (1, 1, 'Acao de alimentos gravidicos para protecao da gestante.', 3, 5, '2025-07-07', '2024-09-18', 'ENCERRADO', NULL, 16, 2800.00, 37),
-  (1, 2, 'Acao monitoria baseada em nota promissoria com avalista.', 1, 9, '2025-07-08', '2025-01-05', 'ATIVO', '2025-08-05 10:00:00', 21, 48000.00, 38),
-  (1, 3, 'Acao civil publica por violacao de direitos do consumidor.', 2, 1, '2025-07-09', '2025-04-22', 'ATIVO', NULL, 4, 320000.00, 39),
-  (1, 4, 'Acao de inventario com divergencia sobre partilha.', 3, 4, '2025-07-10', '2025-05-08', 'SUSPENSO', NULL, 13, 195000.00, 40);
-
+  -- Lote 4 (31 a 40)
+  (1, 1, 'Execucao fiscal de debito tributario municipal por IPTU.', 'Audiencia conciliatoria designada para negociacao fiscal.', 3, 9, '2025-07-01 14:20:00', '2024-08-15 14:20:00', 'ATIVO', '2025-11-12 09:00:00', NULL, NULL, NULL, NULL, 1, 22000.00, NULL),
+  (1, 6, 'Acao de cobranca por cheque devolvido sem provisao.', 'Analise de impugnacao aos calculos apresentados.', 1, 5, '2025-07-02 14:20:00', '2025-04-18 14:20:00', 'ATIVO', NULL, NULL, NULL, NULL, NULL, 21, 17500.00, NULL),
+  (1, 7, 'Acao indenizatoria por acidente de transito com lesao.', 'Quitacao integral comprovada e extincao do processo homologada.', 2, 7, '2025-07-03 14:20:00', '2025-02-05 14:20:00', 'ENCERRADO', NULL, '2025-07-03 14:20:00', 1, 4, 'Pagamento voluntario comprovado nos autos com expedicao de alvara.', 19, 85000.00, NULL),
+  (1, 8, 'Agravo regimental por cerceamento de defesa.', 'Suspensao por determinacao judicial aguardando julgamento de tema repetitivo.', 3, 11, '2025-07-04 14:20:00', '2024-10-30 14:20:00', 'SUSPENSO', NULL, '2025-07-04 14:20:00', 1, 8, 'Determinacao judicial de sobrestamento vinculada a tese em recurso repetitivo.', 13, 34000.00, NULL),
+  (1, 9, 'Acao trabalhista por adicional de insalubridade fabril.', 'Audiencia de instrucao designada perante a vara do trabalho.', 1, 1, '2025-07-05 14:20:00', '2025-03-14 14:20:00', 'ATIVO', '2025-10-01 14:30:00', NULL, NULL, NULL, NULL, 2, 28500.00, NULL),
+  (1, 10, 'Acao revisional de financiamento imobiliario.', 'Manifestacao quanto aos calculos de amortizacao apresentados pelo banco.', 2, 3, '2025-07-06 14:20:00', '2025-05-20 14:20:00', 'ATIVO', NULL, NULL, NULL, NULL, NULL, 1, 110000.00, NULL),
+  (1, 1, 'Acao de alimentos gravidicos para protecao da gestante.', 'Acordo integral homologado em juizo para prestar alimentos.', 3, 7, '2025-07-07 14:20:00', '2024-09-18 14:20:00', 'ENCERRADO', NULL, '2025-07-07 14:20:00', 1, 1, 'Acordo homologado com fixacao consensual da pensao alimenticia.', 16, 2800.00, NULL),
+  (1, 2, 'Acao monitoria baseada em nota promissoria com avalista.', 'Designada audiencia de conciliacao e saneamento do feito.', 1, 9, '2025-07-08 14:20:00', '2025-01-05 14:20:00', 'ATIVO', '2025-08-05 10:00:00', NULL, NULL, NULL, NULL, 21, 48000.00, NULL),
+  (1, 3, 'Acao civil publica por violacao de direitos do consumidor.', 'Citacao regular das partes e aguardo de manifestacoes contestatorias.', 2, 1, '2025-07-09 14:20:00', '2025-04-22 14:20:00', 'ATIVO', NULL, NULL, NULL, NULL, NULL, 4, 320000.00, NULL),
+  (1, 4, 'Acao de inventario com divergencia sobre partilha.', 'Suspensao decretada por ausencia temporaria de bens desimpedidos.', 3, 11, '2025-07-10 14:20:00', '2025-05-08 14:20:00', 'SUSPENSO', NULL, '2025-07-10 14:20:00', 1, 7, 'Suspensao autorizada para regularizacao e desembargo dos imoveis arrolados.', 13, 195000.00, NULL);
 
 INSERT INTO microsoft_token_config (refresh_token)
-VALUES ('');
+VALUES ('M.C534_BAY.0.U.-Cl8qkU0yAnKgN9ume1Oa32br06eN8h6MuC6zgquEpDXcFiVp9w6df69A4y2uDm07WuC0B0eqo!j9CQxp0nf8rUMFoYlTsyXBlKUsrlN093ce9iJgMjM7!wzaEAfp4FNW5rahu0*dkMe5ybaxeZbAtSfTVS5J!BEclKY37GXC0TJk38B52VcCgP!MvchDJx27vfaJy*pigBryrBzT13mG!o71z9alxqYy*boGc1*aELl4zft1rmO6d5fdFgsm4r5a*OMU42hXVF707G77mqScmAHYTr0oS5oDg4I1Lf8h7LCbNs5ZUf!ClyxIHPCiWvn6mbxE2wknchWZOoLp4mFoXgqlBLLJSt8Tz*9msq1HB6!fAbdDIZTYByA*9J!6soIRfiC0ZtZxAR347m!RXoinluiZWAdejXjao6aReGLcqbZR');
 
 CREATE USER IF NOT EXISTS 'app_sgpj'@'%' IDENTIFIED BY '1234';
 GRANT SELECT, INSERT, UPDATE, DELETE ON sgpj.* TO 'app_sgpj'@'%';
