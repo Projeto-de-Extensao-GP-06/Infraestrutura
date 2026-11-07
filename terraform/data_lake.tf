@@ -11,23 +11,23 @@ data "aws_caller_identity" "current" {}
 locals {
   account_id = data.aws_caller_identity.current.account_id
 
-  bronze_bucket   = "sgpj-bronze-${local.account_id}"
-  silver_bucket   = "sgpj-silver-${local.account_id}"
-  gold_bucket     = "sgpj-gold-${local.account_id}"
+  bronze_bucket = "sgpj-bronze-${local.account_id}"
+  silver_bucket = "sgpj-silver-${local.account_id}"
+  gold_bucket   = "sgpj-gold-${local.account_id}"
 
   # ARNs calculados sem depender do recurso aws_s3_bucket
-  bronze_bucket_arn   = "arn:aws:s3:::${local.bronze_bucket}"
-  silver_bucket_arn   = "arn:aws:s3:::${local.silver_bucket}"
-  gold_bucket_arn     = "arn:aws:s3:::${local.gold_bucket}"
+  bronze_bucket_arn = "arn:aws:s3:::${local.bronze_bucket}"
+  silver_bucket_arn = "arn:aws:s3:::${local.silver_bucket}"
+  gold_bucket_arn   = "arn:aws:s3:::${local.gold_bucket}"
 }
 
 # ── Criação e configuração dos buckets via AWS CLI ─────────────────────────────
 # null_resource não faz refresh — nunca chama GetObjectLockConfiguration.
 resource "null_resource" "s3_data_lake" {
   triggers = {
-    bronze_bucket   = local.bronze_bucket
-    silver_bucket   = local.silver_bucket
-    gold_bucket     = local.gold_bucket
+    bronze_bucket = local.bronze_bucket
+    silver_bucket = local.silver_bucket
+    gold_bucket   = local.gold_bucket
   }
 
   provisioner "local-exec" {
