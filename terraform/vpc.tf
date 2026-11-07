@@ -183,6 +183,15 @@ resource "aws_network_acl" "public" {
     to_port    = 443
   }
 
+  ingress {
+    rule_no    = 140
+    protocol   = "tcp"
+    action     = "allow"
+    cidr_block = "0.0.0.0/0"
+    from_port  = 587
+    to_port    = 587
+  }
+
   egress {
     rule_no    = 100
     protocol   = "-1"
@@ -234,3 +243,4 @@ resource "aws_network_acl" "private" {
 
   tags = { Name = "sgpj-nacl-private" }
 }
+
