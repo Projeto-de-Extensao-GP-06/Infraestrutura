@@ -1,0 +1,30 @@
+# ─────────────────────────────────────────────────────────────
+# Exemplo de variáveis para o Terraform (SGPJ)
+# Renomeie este arquivo para terraform.tfvars antes de rodar:
+# cp terraform.tfvars.example terraform.tfvars
+# ─────────────────────────────────────────────────────────────
+
+# Nome do Key Pair cadastrado na AWS (no AWS Academy geralmente é "vockey")
+Key-All = "vockey"
+
+# Região da AWS
+region  = "us-east-1"
+
+# ── Observabilidade (Grafana, Prometheus, Loki) ─────────────
+# true para criar a máquina de observabilidade; false para economizar recursos
+enable_observability                         = false
+observability_allowed_cidr                   = "0.0.0.0/0"
+observability_existing_instance_profile_name = "LabInstanceProfile"
+
+# ── Execução Automática do Ansible pelo Terraform ───────────
+# Se true, o Terraform roda o Ansible automaticamente ao final via WSL
+# Se false, você pode rodar o Ansible manualmente quando quiser
+auto_run_ansible = true
+
+# ── Data Lake IAM (Glue Crawlers/Jobs - bloqueado no AWS Academy) ──
+enable_data_lake_iam = false
+
+# ── Banco de Dados MySQL na EC2 db ──────────────────────────
+rds_password = "1234"
+rds_db_name  = "sgpj"
+rds_username = "admin"
