@@ -1,7 +1,7 @@
-﻿<#
+<#
 .SYNOPSIS
     Sincroniza as credenciais ativas da AWS (Vocareum / AWS Academy) no GitHub Secrets
-    e dispara o workflow de CD em todos os repositÃ³rios para compilar e subir imagens no ECR.
+    e dispara o workflow de CD em todos os repositorios para compilar e subir imagens no ECR.
 #>
 
 param(
@@ -10,7 +10,6 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-# Localizar o executavel do gh
 $ghExe = "gh"
 if (-not (Get-Command "gh" -ErrorAction SilentlyContinue)) {
     if (Test-Path "C:\Program Files\GitHub CLI\gh.exe") {
@@ -20,7 +19,6 @@ if (-not (Get-Command "gh" -ErrorAction SilentlyContinue)) {
     }
 }
 
-# 1. Validar autenticacao no GitHub
 Write-Host "--> Verificando login no GitHub..." -ForegroundColor Cyan
 & $ghExe auth status > $null 2>&1
 if ($LASTEXITCODE -ne 0) {
@@ -29,7 +27,6 @@ if ($LASTEXITCODE -ne 0) {
     exit 1
 }
 
-# 2. Obter credenciais ativas da AWS
 Write-Host "--> Lendo credenciais ativas da AWS..." -ForegroundColor Cyan
 $accessKey = aws configure get aws_access_key_id
 $secretKey = aws configure get aws_secret_access_key
@@ -45,7 +42,6 @@ $repos = @(
     "Projeto-de-Extensao-GP-06/Agent-Backend"
 )
 
-# 3. Sincronizar Secrets em cada repositorio
 foreach ($repo in $repos) {
     Write-Host "`n--> Sincronizando Secrets no repositorio: $repo" -ForegroundColor Green
     
@@ -55,7 +51,6 @@ foreach ($repo in $repos) {
 
     Write-Host "   [OK] Secrets atualizados com sucesso em $repo" -ForegroundColor Gray
 
-    # 4. Disparar workflow de CD (build e push para o ECR)
     if (-not $NoTrigger) {
         Write-Host "   [>>] Disparando workflow de CD (cd.yml) na branch main..." -ForegroundColor Yellow
         try {
