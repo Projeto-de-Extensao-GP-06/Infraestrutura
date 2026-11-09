@@ -1,7 +1,7 @@
-<#
+﻿<#
 .SYNOPSIS
     Sincroniza as credenciais ativas da AWS (Vocareum / AWS Academy) no GitHub Secrets
-    e dispara o workflow de CD em todos os repositórios para compilar e subir imagens no ECR.
+    e dispara o workflow de CD em todos os repositÃ³rios para compilar e subir imagens no ECR.
 #>
 
 param(
@@ -62,7 +62,7 @@ foreach ($repo in $repos) {
             & $ghExe workflow run cd.yml --repo $repo --ref main
             Write-Host "   [OK] Workflow disparado em $repo" -ForegroundColor Cyan
         } catch {
-            Write-Warning "   Falha ao disparar workflow em $repo: $_"
+            Write-Warning ("   Falha ao disparar workflow em " + $repo + ": " + $_)
         }
     }
 }
