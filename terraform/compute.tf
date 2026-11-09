@@ -1,7 +1,7 @@
-# ──────────────────────────────────────────────────────────────────────────────
-# Módulo de Computação (EC2 Instances + Application Load Balancer)
-# Substitui o antigo ec2.tf usando for_each sobre o map de instâncias
-# ──────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# MÃ³dulo de ComputaÃ§Ã£o (EC2 Instances + Application Load Balancer)
+# Substitui o antigo ec2.tf usando for_each sobre o map de instÃ¢ncias
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 module "compute" {
   source = "./modules/compute"
@@ -14,7 +14,7 @@ module "compute" {
   instances_config = {
     app_a = {
       subnet_id                   = aws_subnet.public_a.id
-      vpc_security_group_ids      = [aws_security_group.app.id]
+      vpc_security_group_ids      = [aws_security_group.app.id, aws_security_group.swarm.id]
       iam_instance_profile        = var.enable_observability_iam ? try(aws_iam_instance_profile.observability_ec2_profile[0].name, var.observability_existing_instance_profile_name) : var.observability_existing_instance_profile_name
       associate_public_ip_address = true
       tags = {
@@ -23,7 +23,7 @@ module "compute" {
     }
     app_b = {
       subnet_id                   = aws_subnet.public_b.id
-      vpc_security_group_ids      = [aws_security_group.app.id]
+      vpc_security_group_ids      = [aws_security_group.app.id, aws_security_group.swarm.id]
       iam_instance_profile        = var.enable_observability_iam ? try(aws_iam_instance_profile.observability_ec2_profile[0].name, var.observability_existing_instance_profile_name) : var.observability_existing_instance_profile_name
       associate_public_ip_address = true
       tags = {
@@ -32,7 +32,7 @@ module "compute" {
     }
     backend_a = {
       subnet_id                   = aws_subnet.private_backend_a.id
-      vpc_security_group_ids      = [aws_security_group.backend.id]
+      vpc_security_group_ids      = [aws_security_group.backend.id, aws_security_group.swarm.id]
       instance_type               = var.backend_instance_type
       iam_instance_profile        = var.observability_existing_instance_profile_name
       associate_public_ip_address = false
@@ -42,7 +42,7 @@ module "compute" {
     }
     backend_b = {
       subnet_id                   = aws_subnet.private_backend_b.id
-      vpc_security_group_ids      = [aws_security_group.backend.id]
+      vpc_security_group_ids      = [aws_security_group.backend.id, aws_security_group.swarm.id]
       instance_type               = var.backend_instance_type
       iam_instance_profile        = var.observability_existing_instance_profile_name
       associate_public_ip_address = false
@@ -61,7 +61,7 @@ module "compute" {
     }
   }
 
-  # Configuração condicional de observabilidade
+  # ConfiguraÃ§Ã£o condicional de observabilidade
   enable_observability = var.enable_observability
   observability_config = var.enable_observability ? {
     subnet_id              = aws_subnet.public_obs[0].id
@@ -81,7 +81,7 @@ module "compute" {
   target_instances      = ["app_a", "app_b"]
 }
 
-# ── Blocos de migração de State (Zero Downtime / Zero Destroy) ────────────────
+# â”€â”€ Blocos de migraÃ§Ã£o de State (Zero Downtime / Zero Destroy) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 moved {
   from = aws_instance.app_a
   to   = module.compute.aws_instance.instances["app_a"]
@@ -136,3 +136,4 @@ moved {
   from = aws_lb_target_group_attachment.app_b
   to   = module.compute.aws_lb_target_group_attachment.app["app_b"]
 }
+

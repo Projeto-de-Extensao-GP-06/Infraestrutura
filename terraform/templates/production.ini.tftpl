@@ -1,6 +1,6 @@
-[app]
-ec2-app-a ansible_host=${app_a_public_ip}
-ec2-app-b ansible_host=${app_b_public_ip}
+﻿[app]
+ec2-app-a ansible_host=${app_a_public_ip} az=a
+ec2-app-b ansible_host=${app_b_public_ip} az=b
 
 %{ if enable_observability ~}
 [observability]
@@ -8,8 +8,8 @@ ec2-observability ansible_host=${observability_public_ip}
 %{ endif ~}
 
 [backend]
-ec2-backend-a ansible_host=${backend_a_private_ip}
-ec2-backend-b ansible_host=${backend_b_private_ip}
+ec2-backend-a ansible_host=${backend_a_private_ip} az=a
+ec2-backend-b ansible_host=${backend_b_private_ip} az=b
 
 [db]
 ec2-db ansible_host=${db_private_ip}
@@ -26,3 +26,4 @@ efs_dns=${efs_dns_name}
 
 [private:vars]
 ansible_ssh_common_args='-o StrictHostKeyChecking=no -o ConnectTimeout=15 -o ProxyCommand="ssh -i ~/.ssh/vockey.pem -o StrictHostKeyChecking=no -W %h:%p ubuntu@${app_a_public_ip}"'
+
