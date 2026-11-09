@@ -1,8 +1,8 @@
-﻿---
-# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+---
+# ──────────────────────────────────────────────────────────────────────────────
 # role: backend
 # Executa a stack do Spring Boot + RabbitMQ usando Docker Compose nativo
-# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ──────────────────────────────────────────────────────────────────────────────
 
 - name: Criar diretorio para a stack do Backend
   ansible.builtin.file:
@@ -47,19 +47,9 @@
     dest: /opt/app-backend/agent.env
     mode: "0600"
 
-- name: Renderizar definicao da Stack Swarm do Backend
-  ansible.builtin.template:
-    src: stack-backend.yml.j2
-    dest: /opt/app-backend/stack-backend.yml
-    mode: "0644"
-
-- name: Realizar Deploy da Stack no Docker Swarm
-  ansible.builtin.command: >
-    docker stack deploy
-    --with-registry-auth
-    --prune
-    -c /opt/app-backend/stack-backend.yml
-    sgpj_backend
-  register: deploy_stack
-  changed_when: "'Creating' in deploy_stack.stdout or 'Updating' in deploy_stack.stdout"
-
+- name: Subir stack do Backend com Docker Compose
+  ansible.builtin.shell: docker compose up -d --remove-orphans
+  args:
+    chdir: /opt/app-backend
+  register: compose_backend
+  changed_when: "'Started' in compose_backend.stdout or 'Running' in compose_backend.stdout"
