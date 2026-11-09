@@ -132,3 +132,21 @@ resource "aws_ecr_lifecycle_policy" "agent" {
     ]
   })
 }
+
+# ── Sincronizacao automatica de Secrets e Build das Imagens via CI/CD ────────
+resource "null_resource" "sync_github_secrets_and_build" {
+  depends_on = [
+    aws_ecr_repository.frontend,
+    aws_ecr_repository.backend,
+    aws_ecr_repository.agent
+  ]
+
+  triggers = {
+    always_run = timestamp()
+  }
+
+  provisioner "local-exec" {
+    command     = "powershell.exe -ExecutionPolicy Bypass -File ${path.module}/../scripts/sync-aws-secrets.ps1"
+    working_dir = path.module
+  }
+}
