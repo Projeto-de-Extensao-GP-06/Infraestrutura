@@ -273,7 +273,7 @@ resource "aws_security_group" "efs" {
   tags = { Name = "efs" }
 }
 
-# ── Docker Swarm ─────────────────────────────────────────────────────────────
+# -- Docker Swarm -------------------------------------------------------------
 resource "aws_security_group" "swarm" {
   name        = "swarm-sg"
   description = "Security group para comunicacao do cluster Docker Swarm"

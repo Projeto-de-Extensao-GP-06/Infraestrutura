@@ -1,41 +1,41 @@
-﻿---
-# ──────────────────────────────────────────────────────────────────────────────
+---
+# ------------------------------------------------------------------------------
 # Playbook: swarm.yml
 # Configura clusters Docker Swarm isolados por Availability Zone (AZ)
-# AZ "a": ec2-backend-a (Manager) <---> ec2-app-a (Worker)
-# AZ "b": ec2-backend-b (Manager) <---> ec2-app-b (Worker)
-# ──────────────────────────────────────────────────────────────────────────────
+# AZ a: ec2-backend-a (Manager) <---> ec2-app-a (Worker)
+# AZ b: ec2-backend-b (Manager) <---> ec2-app-b (Worker)
+# ------------------------------------------------------------------------------
 
 - name: 1. Inicializar Docker Swarm no Backend como Manager (1 por AZ)
   hosts: backend
   become: true
   gather_facts: false
   tasks:
-    - name: Verificar se o nó já faz parte de um Swarm
+    - name: Verificar se o no ja faz parte de um Swarm
       ansible.builtin.command: docker info --format '{{.Swarm.LocalNodeState}}'
       register: swarm_state
       changed_when: false
 
-    - name: Inicializar Swarm no nó Backend
+    - name: Inicializar Swarm no no Backend
       ansible.builtin.command: docker swarm init --advertise-addr {{ ansible_host }}
       when: swarm_state.stdout != "active"
 
-    - name: Obter token de Worker para juntar nós de App
+    - name: Obter token de Worker para juntar nos de App
       ansible.builtin.command: docker swarm join-token -q worker
       register: worker_token_output
       changed_when: false
 
-    - name: Salvar fatos de join do Swarm na memória do Ansible
+    - name: Salvar fatos de join do Swarm na memoria do Ansible
       ansible.builtin.set_fact:
         swarm_worker_token: "{{ worker_token_output.stdout }}"
         swarm_manager_ip: "{{ ansible_host }}"
 
-- name: 2. Juntar instâncias de App (Frontend) ao Swarm da sua respectiva AZ como Worker
+- name: 2. Juntar instancias de App (Frontend) ao Swarm da sua respectiva AZ como Worker
   hosts: app
   become: true
   gather_facts: false
   tasks:
-    - name: Verificar se o nó App já está no Swarm
+    - name: Verificar se o no App ja esta no Swarm
       ansible.builtin.command: docker info --format '{{.Swarm.LocalNodeState}}'
       register: app_swarm_state
       changed_when: false

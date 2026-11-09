@@ -1,7 +1,7 @@
-# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-# MÃ³dulo de ComputaÃ§Ã£o (EC2 Instances + Application Load Balancer)
-# Substitui o antigo ec2.tf usando for_each sobre o map de instÃ¢ncias
-# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ──────────────────────────────────────────────────────────────────────────────
+# Módulo de Computação (EC2 Instances + Application Load Balancer)
+# Substitui o antigo ec2.tf usando for_each sobre o map de instâncias
+# ──────────────────────────────────────────────────────────────────────────────
 
 module "compute" {
   source = "./modules/compute"
@@ -61,7 +61,7 @@ module "compute" {
     }
   }
 
-  # ConfiguraÃ§Ã£o condicional de observabilidade
+  # Configuração condicional de observabilidade
   enable_observability = var.enable_observability
   observability_config = var.enable_observability ? {
     subnet_id              = aws_subnet.public_obs[0].id
@@ -81,7 +81,7 @@ module "compute" {
   target_instances      = ["app_a", "app_b"]
 }
 
-# â”€â”€ Blocos de migraÃ§Ã£o de State (Zero Downtime / Zero Destroy) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── Blocos de migração de State (Zero Downtime / Zero Destroy) ────────────────
 moved {
   from = aws_instance.app_a
   to   = module.compute.aws_instance.instances["app_a"]
@@ -136,4 +136,3 @@ moved {
   from = aws_lb_target_group_attachment.app_b
   to   = module.compute.aws_lb_target_group_attachment.app["app_b"]
 }
-
