@@ -1,0 +1,155 @@
+version: "3.8"
+
+networks:
+  backend-net:
+    driver: overlay
+    attachable: true
+
+services:
+  rabbitmq:
+    image: rabbitmq:4-management
+    environment:
+      RABBITMQ_DEFAULT_USER: "{{ rabbitmq_user | default('guest') }}"
+      RABBITMQ_DEFAULT_PASS: "{{ rabbitmq_password | default('guest') }}"
+    ports:
+      - target: 5672
+        published: 5672
+        mode: host
+      - target: 15672
+        published: 15672
+        mode: host
+    networks:
+      - backend-net
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_port_connectivity"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 5
+        window: 60s
+      placement:
+        constraints:
+          - node.role == manager
+
+  backend:
+    image: "{{ backend_image }}"
+    ports:
+      - target: 8080
+        published: 8080
+        mode: host
+    environment:
+      DB_HOST: "{{ db_host }}"
+      DB_NAME: "{{ mysql_database }}"
+      DB_USERNAME: "{{ mysql_user }}"
+      DB_PASSWORD: "{{ mysql_password }}"
+      SPRING_DATASOURCE_URL: "jdbc:mysql://{{ db_host }}:3306/{{ mysql_database }}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&characterEncoding=UTF-8&useUnicode=true"
+      SPRING_DATASOURCE_USERNAME: "{{ mysql_user }}"
+      SPRING_DATASOURCE_PASSWORD: "{{ mysql_password }}"
+      SPRING_DATASOURCE_DRIVER_CLASS_NAME: "com.mysql.cj.jdbc.Driver"
+      SPRING_JPA_DATABASE_PLATFORM: "org.hibernate.dialect.MySQLDialect"
+      SERVER_PORT: "8080"
+      MANAGEMENT_HEALTH_MAIL_ENABLED: "false"
+      RABBITMQ_HOST: "rabbitmq"
+      RABBITMQ_PORT: "5672"
+      RABBITMQ_USERNAME: "{{ rabbitmq_user | default('guest') }}"
+      RABBITMQ_PASSWORD: "{{ rabbitmq_password | default('guest') }}"
+      JWT_VALIDITY: "900"
+      JWT_REFRESH_VALIDITY: "816400"
+{% if backend_jwt_secret is defined and backend_jwt_secret %}
+      JWT_SECRET: "{{ backend_jwt_secret }}"
+{% elif jwt_secret is defined and jwt_secret %}
+      JWT_SECRET: "{{ jwt_secret }}"
+{% endif %}
+{% if backend_client_id is defined and backend_client_id %}
+      CLIENT_ID: "{{ backend_client_id }}"
+{% elif client_id is defined and client_id %}
+      CLIENT_ID: "{{ client_id }}"
+{% endif %}
+{% if backend_client_secret is defined and backend_client_secret %}
+      CLIENT_SECRET: "{{ backend_client_secret }}"
+{% elif client_secret is defined and client_secret %}
+      CLIENT_SECRET: "{{ client_secret }}"
+{% endif %}
+{% if backend_tenant_id is defined and backend_tenant_id %}
+      TENANT_ID: "{{ backend_tenant_id }}"
+{% elif tenant_id is defined and tenant_id %}
+      TENANT_ID: "{{ tenant_id }}"
+{% endif %}
+{% if backend_redirect_uri is defined and backend_redirect_uri %}
+      REDIRECT_URI: "{{ backend_redirect_uri }}"
+{% elif redirect_uri is defined and redirect_uri %}
+      REDIRECT_URI: "{{ redirect_uri }}"
+{% endif %}
+{% if backend_cookie_secure is defined and backend_cookie_secure != '' %}
+      COOKIE_SECURE: "{{ backend_cookie_secure }}"
+{% elif cookie_secure is defined and cookie_secure != '' %}
+      COOKIE_SECURE: "{{ cookie_secure }}"
+{% endif %}
+{% if backend_datajud_api_key is defined and backend_datajud_api_key %}
+      DATAJUD_API_KEY: "{{ backend_datajud_api_key }}"
+{% elif datajud_api_key is defined and datajud_api_key %}
+      DATAJUD_API_KEY: "{{ datajud_api_key }}"
+{% endif %}
+{% if backend_cloudflare_secret_key is defined and backend_cloudflare_secret_key %}
+      CLOUDFLARE_SECRET_KEY: "{{ backend_cloudflare_secret_key }}"
+{% elif cloudflare_secret_key is defined and cloudflare_secret_key %}
+      CLOUDFLARE_SECRET_KEY: "{{ cloudflare_secret_key }}"
+{% endif %}
+    volumes:
+      - /mnt/efs-sgpj/volumes/backend/logs:/app/logs
+      - /mnt/efs-sgpj/volumes/backend/uploads:/app/uploads
+    networks:
+      - backend-net
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/actuator/health || exit 0"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 5
+        window: 120s
+      update_config:
+        parallelism: 1
+        delay: 10s
+        order: start-first
+      placement:
+        constraints:
+          - node.role == manager
+
+  agent:
+    image: "{{ agent_image }}"
+    ports:
+      - target: 8000
+        published: 8000
+        mode: host
+    env_file:
+      - agent.env
+    networks:
+      - backend-net
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8000/health || exit 0"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 5
+        window: 60s
+      placement:
+        constraints:
+          - node.role == manager

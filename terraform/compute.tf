@@ -14,7 +14,7 @@ module "compute" {
   instances_config = {
     app_a = {
       subnet_id                   = aws_subnet.public_a.id
-      vpc_security_group_ids      = [aws_security_group.app.id]
+      vpc_security_group_ids      = [aws_security_group.app.id, aws_security_group.swarm.id]
       iam_instance_profile        = var.enable_observability_iam ? try(aws_iam_instance_profile.observability_ec2_profile[0].name, var.observability_existing_instance_profile_name) : var.observability_existing_instance_profile_name
       associate_public_ip_address = true
       tags = {
@@ -23,7 +23,7 @@ module "compute" {
     }
     app_b = {
       subnet_id                   = aws_subnet.public_b.id
-      vpc_security_group_ids      = [aws_security_group.app.id]
+      vpc_security_group_ids      = [aws_security_group.app.id, aws_security_group.swarm.id]
       iam_instance_profile        = var.enable_observability_iam ? try(aws_iam_instance_profile.observability_ec2_profile[0].name, var.observability_existing_instance_profile_name) : var.observability_existing_instance_profile_name
       associate_public_ip_address = true
       tags = {
@@ -32,7 +32,7 @@ module "compute" {
     }
     backend_a = {
       subnet_id                   = aws_subnet.private_backend_a.id
-      vpc_security_group_ids      = [aws_security_group.backend.id]
+      vpc_security_group_ids      = [aws_security_group.backend.id, aws_security_group.swarm.id]
       instance_type               = var.backend_instance_type
       iam_instance_profile        = var.observability_existing_instance_profile_name
       associate_public_ip_address = false
@@ -42,7 +42,7 @@ module "compute" {
     }
     backend_b = {
       subnet_id                   = aws_subnet.private_backend_b.id
-      vpc_security_group_ids      = [aws_security_group.backend.id]
+      vpc_security_group_ids      = [aws_security_group.backend.id, aws_security_group.swarm.id]
       instance_type               = var.backend_instance_type
       iam_instance_profile        = var.observability_existing_instance_profile_name
       associate_public_ip_address = false

@@ -272,3 +272,51 @@ resource "aws_security_group" "efs" {
 
   tags = { Name = "efs" }
 }
+
+# -- Docker Swarm -------------------------------------------------------------
+resource "aws_security_group" "swarm" {
+  name        = "swarm-sg"
+  description = "Security group para comunicacao do cluster Docker Swarm"
+  vpc_id      = aws_vpc.sgpj_vpc.id
+
+  ingress {
+    description = "Docker Swarm cluster management"
+    from_port   = 2377
+    to_port     = 2377
+    protocol    = "tcp"
+    self        = true
+  }
+
+  ingress {
+    description = "Docker Swarm node communication TCP"
+    from_port   = 7946
+    to_port     = 7946
+    protocol    = "tcp"
+    self        = true
+  }
+
+  ingress {
+    description = "Docker Swarm node communication UDP"
+    from_port   = 7946
+    to_port     = 7946
+    protocol    = "udp"
+    self        = true
+  }
+
+  ingress {
+    description = "Docker Swarm overlay network traffic UDP"
+    from_port   = 4789
+    to_port     = 4789
+    protocol    = "udp"
+    self        = true
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = { Name = "swarm-sg" }
+}
