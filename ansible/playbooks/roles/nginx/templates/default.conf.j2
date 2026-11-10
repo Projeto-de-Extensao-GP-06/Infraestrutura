@@ -24,7 +24,7 @@ server {
 
     client_max_body_size 260M;
 
-    # Evita cache do index.html para que novas versões carreguem os assets corretos de primeira
+    # Sem cache no index.html para que novas versoes carreguem assets corretos
     location = /index.html {
         root /usr/share/nginx/html;
         add_header Cache-Control "no-cache, no-store, must-revalidate";
@@ -32,8 +32,7 @@ server {
         add_header Expires "0";
     }
 
-    # Arquivos estáticos gerados pelo Vite (CSS, JS, fontes, imagens) no EFS compartilhado
-    # Se não existirem, devem retornar 404 em vez de cair no index.html (evita MIME type mismatch)
+    # Assets estaticos gerados pelo Vite (CSS, JS, fontes, imagens) com cache longo
     location /assets/ {
         root /usr/share/nginx/html;
         try_files $uri =404;
@@ -42,7 +41,7 @@ server {
     }
 
     # MarIA AI Agent - FastAPI Python
-    # Frontend chama /agent/api/v1/... → Nginx remove o prefixo /agent e repassa na porta 8000
+    # Frontend chama /agent/api/v1/... -> Nginx remove o prefixo /agent e repassa na porta 8000
     location /agent/ {
         proxy_pass http://agent_cluster/;
         proxy_http_version 1.1;
@@ -56,14 +55,14 @@ server {
         proxy_read_timeout 300s;
     }
 
-    # Tratamento para o frontend React (Single Page Application)
+    # Frontend React (Single Page Application)
     location / {
         root /usr/share/nginx/html;
         index index.html index.htm;
         try_files $uri $uri/ /index.html;
     }
 
-    # Server-Sent Events (SSE) para sincronização de processos em tempo real
+    # Server-Sent Events (SSE) para sincronizacao de processos em tempo real
     location ~ ^/processos/[^/]+/sincronizacao-status {
         proxy_pass http://backend_cluster;
         proxy_http_version 1.1;
@@ -73,7 +72,7 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
         proxy_set_header Connection '';
 
-        # Desabilita buffering e cache para SSE fluir em tempo real sem travar chunks
+        # Buffering desabilitado para SSE fluir em tempo real
         proxy_buffering off;
         proxy_cache off;
         chunked_transfer_encoding off;
@@ -83,7 +82,7 @@ server {
         proxy_read_timeout 600s;
     }
 
-    # Roteamento direto de todos os endpoints da API para o cluster de backend
+    # Roteamento de endpoints da API para o cluster de backend
     location ~ ^/(auth|usuarios|processos?|audiencias|clientes|dashboard|documentos|notificacoes|cargos|permissoes|relatorios|prioridades|solicitacoes|siglaTribunais|statusClientes|tiposAlteracao|tiposDocumento|fasesProcesso|motivosStatusProcesso|api-onedrive|login|historico|api|actuator) {
         proxy_pass http://backend_cluster;
         proxy_http_version 1.1;

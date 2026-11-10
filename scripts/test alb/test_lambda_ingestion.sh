@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-echo "=== Teste Lambda Ingestão de Dados Externos ==="
+echo "=== Teste Lambda Ingestao de Dados Externos ==="
 
 ENDPOINT_URL="http://localhost:4566"
 REGION="us-east-1"
@@ -21,7 +21,7 @@ create_lambda_resources() {
 
     # Criar bucket externo
     echo "Criando bucket sgpj-external..."
-    aws --endpoint-url=$ENDPOINT_URL s3 mb s3://sgpj-external 2>/dev/null || echo "Bucket já existe"
+    aws --endpoint-url=$ENDPOINT_URL s3 mb s3://sgpj-external 2>/dev/null || echo "Bucket ja existe"
 
     # Habilitar versionamento
     aws --endpoint-url=$ENDPOINT_URL s3api put-bucket-versioning \
@@ -48,7 +48,7 @@ EOF
     aws --endpoint-url=$ENDPOINT_URL iam create-role \
         --role-name sgpj-lambda-ingestion-role \
         --assume-role-policy-document file:///tmp/lambda_trust_policy.json \
-        2>/dev/null || echo "Role já existe"
+        2>/dev/null || echo "Role ja existe"
 
     # Criar IAM Policy
     cat > /tmp/lambda_policy.json <<'EOF'
@@ -92,15 +92,15 @@ EOF
     echo "Criando CloudWatch Log Group..."
     aws --endpoint-url=$ENDPOINT_URL logs create-log-group \
         --log-group-name /aws/lambda/sgpj-data-ingestion \
-        2>/dev/null || echo "Log group já existe"
+        2>/dev/null || echo "Log group ja existe"
 
     # Criar arquivo ZIP do Lambda
-    echo "Empacotando código Lambda..."
+    echo "Empacotando codigo Lambda..."
     cd /Users/haniehashoori/Desktop/folders/sptech/sgpj/Infraestrutura/terraform/scripts
     zip -r lambda_ingestion.zip lambda_ingestion.py
 
-    # Criar função Lambda
-    echo "Criando função Lambda..."
+    # Criar funcao Lambda
+    echo "Criando funcao Lambda..."
     aws --endpoint-url=$ENDPOINT_URL lambda create-function \
         --function-name sgpj-data-ingestion \
         --runtime python3.11 \
@@ -110,9 +110,9 @@ EOF
         --environment Variables="{SOURCE_BUCKET=sgpj-external,TARGET_BUCKET=sgpj-bronze}" \
         --timeout 60 \
         --memory-size 256 \
-        2>/dev/null || echo "Lambda já existe, atualizando..."
+        2>/dev/null || echo "Lambda ja existe, atualizando..."
 
-    # Atualizar se já existir
+    # Atualizar se ja existir
     aws --endpoint-url=$ENDPOINT_URL lambda update-function-code \
         --function-name sgpj-data-ingestion \
         --zip-file fileb://lambda_ingestion.zip \
@@ -123,7 +123,7 @@ EOF
     for i in {1..30}; do
         STATE=$(aws --endpoint-url=$ENDPOINT_URL lambda get-function --function-name sgpj-data-ingestion --query 'Configuration.State' --output text 2>/dev/null || echo "Pending")
         if [ "$STATE" = "Active" ]; then
-            echo "Lambda está ativo!"
+            echo "Lambda esta ativo!"
             break
         fi
         echo "Estado: $STATE - aguardando... ($i/30)"
@@ -157,26 +157,26 @@ EOF
         --bucket sgpj-external \
         --notification-configuration file:///tmp/s3_notification.json
 
-    # Adicionar permissão para S3 invocar Lambda
-    echo "Adicionando permissão S3 → Lambda..."
+    # Adicionar permissao para S3 invocar Lambda
+    echo "Adicionando permissao S3  Lambda..."
     aws --endpoint-url=$ENDPOINT_URL lambda add-permission \
         --function-name sgpj-data-ingestion \
         --principal s3.amazonaws.com \
         --statement-id AllowExecutionFromS3Bucket \
         --action "lambda:InvokeFunction" \
         --source-arn arn:aws:s3:::sgpj-external \
-        2>/dev/null || echo "Permissão já existe"
+        2>/dev/null || echo "Permissao ja existe"
 
     echo "=== Recursos Lambda criados com sucesso ==="
 }
 
 # ============================================================
-# TESTAR INGESTÃO DE DADOS
+# TESTAR INGESTAO DE DADOS
 # ============================================================
 
 test_data_ingestion() {
     echo ""
-    echo "=== Testando ingestão de dados ==="
+    echo "=== Testando ingestao de dados ==="
 
     # Criar arquivo JSON de teste
     echo "Criando arquivo JSON de teste..."
@@ -198,7 +198,7 @@ EOF
     # Verificar logs do Lambda
     echo ""
     echo "=== Logs do Lambda ==="
-    aws --endpoint-url=$ENDPOINT_URL logs tail /aws/lambda/sgpj-data-ingestion --since 10m --format short || echo "Nenhum log disponível"
+    aws --endpoint-url=$ENDPOINT_URL logs tail /aws/lambda/sgpj-data-ingestion --since 10m --format short || echo "Nenhum log disponivel"
 
     # Verificar dados no bucket bronze
     echo ""
@@ -207,7 +207,7 @@ EOF
 
     # Tentar ler o arquivo processado
     echo ""
-    echo "=== Conteúdo do arquivo processado ==="
+    echo "=== Conteudo do arquivo processado ==="
     aws --endpoint-url=$ENDPOINT_URL s3 ls s3://sgpj-bronze/raw_data/ --recursive
 
     if [ $? -eq 0 ]; then
@@ -220,7 +220,7 @@ EOF
     fi
 
     echo ""
-    echo "=== Teste concluído ==="
+    echo "=== Teste concluido ==="
 }
 
 # ============================================================
@@ -235,30 +235,30 @@ cleanup() {
     aws --endpoint-url=$ENDPOINT_URL s3 rm s3://sgpj-external/ --recursive 2>/dev/null || true
     aws --endpoint-url=$ENDPOINT_URL s3 rm s3://sgpj-bronze/raw_data/ --recursive 2>/dev/null || true
 
-    # Remover notificação S3
+    # Remover notificacao S3
     aws --endpoint-url=$ENDPOINT_URL s3api put-bucket-notification-configuration \
         --bucket sgpj-external \
         --notification-configuration '{}' 2>/dev/null || true
 
     # Deletar Lambda
     aws --endpoint-url=$ENDPOINT_URL lambda delete-function \
-        --function-name sgpj-data-ingestion 2>/dev/null || echo "Lambda não existe"
+        --function-name sgpj-data-ingestion 2>/dev/null || echo "Lambda nao existe"
 
     # Deletar IAM Role
     aws --endpoint-url=$ENDPOINT_URL iam delete-role-policy \
         --role-name sgpj-lambda-ingestion-role \
         --policy-name sgpj-lambda-ingestion-policy 2>/dev/null || true
     aws --endpoint-url=$ENDPOINT_URL iam delete-role \
-        --role-name sgpj-lambda-ingestion-role 2>/dev/null || echo "Role não existe"
+        --role-name sgpj-lambda-ingestion-role 2>/dev/null || echo "Role nao existe"
 
     # Deletar Log Group
     aws --endpoint-url=$ENDPOINT_URL logs delete-log-group \
-        --log-group-name /aws/lambda/sgpj-data-ingestion 2>/dev/null || echo "Log group não existe"
+        --log-group-name /aws/lambda/sgpj-data-ingestion 2>/dev/null || echo "Log group nao existe"
 
     # Deletar bucket externo
-    aws --endpoint-url=$ENDPOINT_URL s3 rb s3://sgpj-external --force 2>/dev/null || echo "Bucket não existe"
+    aws --endpoint-url=$ENDPOINT_URL s3 rb s3://sgpj-external --force 2>/dev/null || echo "Bucket nao existe"
 
-    echo "=== Limpeza concluída ==="
+    echo "=== Limpeza concluida ==="
 }
 
 # ============================================================
@@ -276,10 +276,10 @@ case "${1:-create}" in
         cleanup
         ;;
     full)
-        echo "Verificando se recursos já existem..."
+        echo "Verificando se recursos ja existem..."
         LAMBDA_EXISTS=$(aws --endpoint-url=$ENDPOINT_URL lambda get-function --function-name sgpj-data-ingestion --query 'Configuration.FunctionName' --output text 2>/dev/null || echo "")
         if [ -n "$LAMBDA_EXISTS" ]; then
-            echo "Lambda já existe, pulando criação..."
+            echo "Lambda ja existe, pulando criacao..."
         else
             create_lambda_resources
         fi
@@ -288,7 +288,7 @@ case "${1:-create}" in
     *)
         echo "Uso: $0 {create|test|cleanup|full}"
         echo "  create  - Cria recursos Lambda"
-        echo "  test    - Testa ingestão de dados"
+        echo "  test    - Testa ingestao de dados"
         echo "  cleanup - Remove recursos de teste"
         echo "  full    - Cria + Testa"
         exit 1

@@ -1,21 +1,21 @@
 ---
-# ──────────────────────────────────────────────────────────────────────────────
+# -
 # playbook: docker.yml
-# Instala Docker em TODAS as instâncias (app, backend, db).
+# Instala Docker em TODAS as instancias (app, backend, db).
 #
 # Uso:
 #   cd infra/ansible
 #   ansible-playbook -i inventories/production.ini playbooks/docker.yml
 #
-# Rodar só numa instância:
+# Rodar so numa instancia:
 #   ansible-playbook -i inventories/production.ini playbooks/docker.yml --limit ec2-app-a
-# ──────────────────────────────────────────────────────────────────────────────
-- name: Instalar Docker em todas as instâncias
+# -
+- name: Instalar Docker em todas as instancias
   hosts: all
   become: true
 
   pre_tasks:
-    - name: Forçar IPv4 no apt para evitar falha de conexão IPv6
+    - name: Forcar IPv4 no apt para evitar falha de conexao IPv6
       ansible.builtin.copy:
         dest: /etc/apt/apt.conf.d/99force-ipv4
         content: 'Acquire::ForceIPv4 "true";'

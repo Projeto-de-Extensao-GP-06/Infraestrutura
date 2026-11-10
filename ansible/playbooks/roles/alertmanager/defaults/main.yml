@@ -6,7 +6,7 @@ alertmanager_container_port: 9093
 alertmanager_config_dir: /opt/alertmanager
 alertmanager_network: observability
 
-# ── SMTP ───────────────────────────────────────────────
+# -- SMTP -----------------------------------------------
 alertmanager_smtp_smarthost: "smtp.gmail.com:587"
 alertmanager_smtp_from: "sistema.sgpj@gmail.com"
 alertmanager_smtp_user: "sistema.sgpj@gmail.com"

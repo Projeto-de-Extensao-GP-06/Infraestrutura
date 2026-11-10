@@ -3,7 +3,7 @@ set -e
 
 echo "=== LocalStack Full Infrastructure Initialization ==="
 
-# Configurações
+# Configuracoes
 ENDPOINT_URL="http://localhost:4566"
 REGION="us-east-1"
 AWS_ACCESS_KEY_ID="test"
@@ -14,18 +14,18 @@ export AWS_ACCESS_KEY_ID
 export AWS_SECRET_ACCESS_KEY
 export AWS_DEFAULT_REGION=$REGION
 
-# Função para aguardar LocalStack estar pronto
+# Funcao para aguardar LocalStack estar pronto
 wait_for_localstack() {
     echo "Aguardando LocalStack ficar pronto..."
     for i in {1..60}; do
         if curl -s "$ENDPOINT_URL/_localstack/health" | grep -q '"s3": "available"'; then
-            echo "LocalStack está pronto!"
+            echo "LocalStack esta pronto!"
             return 0
         fi
         echo "Tentativa $i/60 - aguardando..."
         sleep 2
     done
-    echo "Erro: LocalStack não ficou pronto a tempo"
+    echo "Erro: LocalStack nao ficou pronto a tempo"
     exit 1
 }
 
@@ -143,7 +143,7 @@ create_nat_gateway() {
     aws --endpoint-url=$ENDPOINT_URL ec2 create-tags \
         --resources $NAT_GW_ID --tags Key=Name,Value=sgpj-ngw-main
     
-    # Aguardar NAT Gateway ficar disponível
+    # Aguardar NAT Gateway ficar disponivel
     echo "Aguardando NAT Gateway..."
     aws --endpoint-url=$ENDPOINT_URL ec2 wait nat-gateway-available --nat-gateway-ids $NAT_GW_ID
     
@@ -162,7 +162,7 @@ create_route_tables() {
     aws --endpoint-url=$ENDPOINT_URL ec2 create-route \
         --route-table-id $RT_PUBLIC --destination-cidr-block 0.0.0.0/0 --gateway-id $IGW_ID
     
-    # Associar subnets públicas
+    # Associar subnets publicas
     aws --endpoint-url=$ENDPOINT_URL ec2 associate-route-table \
         --subnet-id $SUBNET_PUBLIC_A --route-table-id $RT_PUBLIC
     aws --endpoint-url=$ENDPOINT_URL ec2 associate-route-table \
@@ -195,13 +195,13 @@ create_route_tables() {
 create_nacls() {
     echo "Criando NACLs..."
     
-    # NACL Pública
+    # NACL Publica
     NACL_PUBLIC=$(aws --endpoint-url=$ENDPOINT_URL ec2 create-network-acl \
         --vpc-id $VPC_ID --query 'NetworkAcl.NetworkAclId' --output text)
     aws --endpoint-url=$ENDPOINT_URL ec2 create-tags \
         --resources $NACL_PUBLIC --tags Key=Name,Value=sgpj-nacl-public
     
-    # Regras ingress pública
+    # Regras ingress publica
     aws --endpoint-url=$ENDPOINT_URL ec2 create-network-acl-entry \
         --network-acl-id $NACL_PUBLIC --rule-number 100 --protocol tcp --rule-action allow \
         --cidr-block 0.0.0.0/0 --port-range From=80,To=80 --ingress
@@ -218,7 +218,7 @@ create_nacls() {
         --network-acl-id $NACL_PUBLIC --rule-number 100 --protocol -1 --rule-action allow \
         --cidr-block 0.0.0.0/0 --egress
     
-    # Associar subnets públicas
+    # Associar subnets publicas
     aws --endpoint-url=$ENDPOINT_URL ec2 replace-network-acl-association \
         --association-id $(aws --endpoint-url=$ENDPOINT_URL ec2 describe-network-acls \
         --filters Name=vpc-id,Values=$VPC_ID Name=association.subnet-id,Values=$SUBNET_PUBLIC_A \
@@ -416,7 +416,7 @@ create_key_pair() {
 }
 
 create_ec2_instances() {
-    echo "Criando instâncias EC2..."
+    echo "Criando instancias EC2..."
     
     # Usar AMI Ubuntu 22.04 para us-east-1
     AMI_ID="ami-0c02fb55956c7d316"  # Ubuntu 22.04 LTS us-east-1
@@ -489,11 +489,11 @@ EOF
         --tag-specifications 'ResourceType=instance,Tags=[{Key=Name,Value=ec2-observability}]' \
         --query 'Instances[0].InstanceId' --output text)
     
-    echo "Aguardando instâncias ficarem running..."
+    echo "Aguardando instancias ficarem running..."
     aws --endpoint-url=$ENDPOINT_URL ec2 wait instance-running \
         --instance-ids $INSTANCE_APP_A $INSTANCE_APP_B $INSTANCE_BACKEND_A $INSTANCE_BACKEND_B $INSTANCE_DB $INSTANCE_OBS
     
-    echo "Instâncias EC2 criadas"
+    echo "Instancias EC2 criadas"
     export INSTANCE_APP_A INSTANCE_APP_B INSTANCE_BACKEND_A INSTANCE_BACKEND_B INSTANCE_DB INSTANCE_OBS
 }
 
@@ -738,7 +738,7 @@ create_glue_resources() {
     for DB in sgpj_bronze sgpj_silver sgpj_gold; do
         DESC="Database for $DB layer"
         aws --endpoint-url=$ENDPOINT_URL glue create-database \
-            --database-input "{\"Name\":\"$DB\",\"Description\":\"$DESC\"}" 2>/dev/null || echo "Database $DB já existe"
+            --database-input "{\"Name\":\"$DB\",\"Description\":\"$DESC\"}" 2>/dev/null || echo "Database $DB ja existe"
     done
     
     # Crawlers
@@ -757,7 +757,7 @@ create_glue_resources() {
             --schema-change-policy '{"UpdateBehavior":"UPDATE_IN_DATABASE","DeleteBehavior":"LOG"}' \
             --recrawl-policy '{"RecrawlBehavior":"CRAWL_EVERYTHING"}' \
             --configuration '{"Version":1.0,"CrawlerOutput":{"Partitions":{"AddOrUpdateBehavior":"InheritFromTable"}}}' \
-            --tags "Name=${CRAWLER_NAME},Environment=data-lake,Layer=${LAYER}" 2>/dev/null || echo "Crawler $CRAWLER_NAME já existe"
+            --tags "Name=${CRAWLER_NAME},Environment=data-lake,Layer=${LAYER}" 2>/dev/null || echo "Crawler $CRAWLER_NAME ja existe"
     done
     
     echo "Recursos Glue criados"
@@ -1020,7 +1020,7 @@ main() {
     list_all_resources
     
     echo ""
-    echo "=== INICIALIZAÇÃO COMPLETA! ==="
+    echo "=== INICIALIZACAO COMPLETA! ==="
     echo ""
     echo "Endpoints principais:"
     echo "  ALB DNS: $(aws --endpoint-url=$ENDPOINT_URL elbv2 describe-load-balancers --query 'LoadBalancers[0].DNSName' --output text 2>/dev/null || echo 'N/A')"

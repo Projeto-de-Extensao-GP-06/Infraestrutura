@@ -1,8 +1,8 @@
-# ──────────────────────────────────────────────────────────────────────────────
+# ------------------------------------------------------------------------------
 # modules/compute/main.tf
-# ──────────────────────────────────────────────────────────────────────────────
+# ------------------------------------------------------------------------------
 
-# ── Instâncias Padronizadas (app_a, app_b, backend_a, backend_b, db) ──────────
+# -- Instancias Padronizadas (app_a, app_b, backend_a, backend_b, db) ----------
 resource "aws_instance" "instances" {
   for_each = var.instances_config
 
@@ -18,7 +18,7 @@ resource "aws_instance" "instances" {
   tags = each.value.tags
 }
 
-# ── Instância de Observabilidade (Opcional - Condicional) ─────────────────────
+# -- Instancia de Observabilidade (Opcional - Condicional) ---------------------
 resource "aws_instance" "observability" {
   count = var.enable_observability && var.observability_config != null ? 1 : 0
 
@@ -41,7 +41,7 @@ resource "aws_instance" "observability" {
   tags = var.observability_config.tags
 }
 
-# ── Application Load Balancer (ALB) ──────────────────────────────────────────
+# -- Application Load Balancer (ALB) ------------------------------------------
 resource "aws_lb" "app" {
   name               = "alb-app"
   internal           = false
@@ -53,7 +53,7 @@ resource "aws_lb" "app" {
   tags = { Name = "alb-app" }
 }
 
-# ── Target Group HTTP :80 ────────────────────────────────────────────────────
+# -- Target Group HTTP :80 ----------------------------------------------------
 resource "aws_lb_target_group" "app" {
   name     = "tg-app"
   port     = 80
@@ -73,7 +73,7 @@ resource "aws_lb_target_group" "app" {
   tags = { Name = "tg-app" }
 }
 
-# ── Listener HTTP :80 ────────────────────────────────────────────────────────
+# -- Listener HTTP :80 --------------------------------------------------------
 resource "aws_lb_listener" "http" {
   load_balancer_arn = aws_lb.app.arn
   port              = "80"
@@ -85,7 +85,7 @@ resource "aws_lb_listener" "http" {
   }
 }
 
-# ── Target Group Attachment (Apenas nós de Frontend App) ─────────────────────
+# -- Target Group Attachment (Apenas nos de Frontend App) ---------------------
 resource "aws_lb_target_group_attachment" "app" {
   for_each = toset(var.target_instances)
 

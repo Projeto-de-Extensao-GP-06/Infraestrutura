@@ -1,9 +1,9 @@
-# ──────────────────────────────────────────────────────────────────────────────
+# ------------------------------------------------------------------------------
 # modules/compute/outputs.tf
-# ──────────────────────────────────────────────────────────────────────────────
+# ------------------------------------------------------------------------------
 
 output "instances" {
-  description = "Mapa completo de todas as instâncias EC2 gerenciadas pelo for_each"
+  description = "Mapa completo de todas as instancias EC2 gerenciadas pelo for_each"
   value       = aws_instance.instances
 }
 
@@ -67,7 +67,7 @@ output "db_private_ip" {
   value       = aws_instance.instances["db"].private_ip
 }
 
-# ── Outputs da Instancia de Observabilidade ──────────────────────────────────
+# -- Outputs da Instancia de Observabilidade ----------------------------------
 output "observability_instance_id" {
   description = "ID da instancia ec2-observability (ou string vazia se desabilitada)"
   value       = try(aws_instance.observability[0].id, "")
@@ -83,7 +83,7 @@ output "observability_private_ip" {
   value       = try(aws_instance.observability[0].private_ip, "")
 }
 
-# ── Outputs do Application Load Balancer ─────────────────────────────────────
+# -- Outputs do Application Load Balancer -------------------------------------
 output "alb_dns_name" {
   description = "DNS publico do Application Load Balancer"
   value       = aws_lb.app.dns_name

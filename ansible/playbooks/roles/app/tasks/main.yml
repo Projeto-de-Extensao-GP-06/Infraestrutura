@@ -1,28 +1,5 @@
 ---
-# ──────────────────────────────────────────────────────────────────────────────
 # role: app
-# Sincroniza o build de produção do Frontend (dist) diretamente no EFS compartilhado
-# executando apenas no primeiro nó de app para evitar duplicações/conflitos.
-# ──────────────────────────────────────────────────────────────────────────────
-
-- name: Garantir diretório do Frontend no EFS
-  ansible.builtin.file:
-    path: "{{ nginx_html_host_path }}"
-    state: directory
-    mode: "0777"
-
-- name: Verificar se bundle compilado do Frontend existe localmente
-  ansible.builtin.stat:
-    path: "{{ app_dist_path }}"
-  register: local_dist_dir
-  delegate_to: localhost
-  become: false
-  run_once: true
-
-- name: Sincronizar arquivos estáticos do React para o EFS compartilhado do Nginx
-  ansible.builtin.copy:
-    src: "{{ app_dist_path }}/"
-    dest: "{{ nginx_html_host_path }}/"
-    mode: "0755"
-  when: local_dist_dir.stat.exists and local_dist_dir.stat.isdir
-  run_once: true
+# A sincronizacao de arquivos estaticos para o EFS foi removida.
+# O frontend agora e servido via imagem Docker no ECR (role nginx).
+# Esta role nao executa tarefas e existe apenas para compatibilidade com o site.yml.
