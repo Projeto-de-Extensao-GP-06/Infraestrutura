@@ -1,4 +1,4 @@
-# ── CloudWatch Dashboards ──────────────────────────────────────────────────
+# -- CloudWatch Dashboards --------------------------------------------------
 # Arquivo independente: pode ser apagado sem afetar o restante da infra.
 
 resource "aws_cloudwatch_dashboard" "sgpj" {
@@ -7,7 +7,7 @@ resource "aws_cloudwatch_dashboard" "sgpj" {
   dashboard_body = jsonencode({
     widgets = [
 
-      # ── Seção: EC2 CPU ────────────────────────────────────────────────────
+      # -- Secao: EC2 CPU ----------------------------------------------------
       {
         type   = "text"
         x      = 0
@@ -15,7 +15,7 @@ resource "aws_cloudwatch_dashboard" "sgpj" {
         width  = 24
         height = 1
         properties = {
-          markdown = "## EC2 — CPU Utilization"
+          markdown = "## EC2 -- CPU Utilization"
         }
       },
       {
@@ -25,7 +25,7 @@ resource "aws_cloudwatch_dashboard" "sgpj" {
         width  = 24
         height = 6
         properties = {
-          title   = "CPU Utilization — todas as instâncias (%)"
+          title   = "CPU Utilization -- todas as instancias (%)"
           view    = "timeSeries"
           stacked = false
           region  = var.region
@@ -42,7 +42,7 @@ resource "aws_cloudwatch_dashboard" "sgpj" {
         }
       },
 
-      # ── Seção: EC2 Rede ───────────────────────────────────────────────────
+      # -- Secao: EC2 Rede ---------------------------------------------------
       {
         type   = "text"
         x      = 0
@@ -50,7 +50,7 @@ resource "aws_cloudwatch_dashboard" "sgpj" {
         width  = 24
         height = 1
         properties = {
-          markdown = "## EC2 — Network"
+          markdown = "## EC2 -- Network"
         }
       },
       {
@@ -96,7 +96,7 @@ resource "aws_cloudwatch_dashboard" "sgpj" {
         }
       },
 
-      # ── Seção: EC2 Status ─────────────────────────────────────────────────
+      # -- Secao: EC2 Status -------------------------------------------------
       {
         type   = "text"
         x      = 0
@@ -104,7 +104,7 @@ resource "aws_cloudwatch_dashboard" "sgpj" {
         width  = 24
         height = 1
         properties = {
-          markdown = "## EC2 — Status Check"
+          markdown = "## EC2 -- Status Check"
         }
       },
       {
@@ -131,7 +131,7 @@ resource "aws_cloudwatch_dashboard" "sgpj" {
         }
       },
 
-      # ── Seção: EFS ────────────────────────────────────────────────────────
+      # -- Secao: EFS --------------------------------------------------------
       {
         type   = "text"
         x      = 0
@@ -139,7 +139,7 @@ resource "aws_cloudwatch_dashboard" "sgpj" {
         width  = 24
         height = 1
         properties = {
-          markdown = "## EFS — ${aws_efs_file_system.app_efs.id}"
+          markdown = "## EFS -- ${aws_efs_file_system.app_efs.id}"
         }
       },
       {
@@ -177,7 +177,7 @@ resource "aws_cloudwatch_dashboard" "sgpj" {
         }
       },
 
-      # ── Seção: ALB ────────────────────────────────────────────────────────
+      # -- Secao: ALB --------------------------------------------------------
       {
         type   = "text"
         x      = 0
@@ -185,7 +185,7 @@ resource "aws_cloudwatch_dashboard" "sgpj" {
         width  = 24
         height = 1
         properties = {
-          markdown = "## ALB — alb-app"
+          markdown = "## ALB -- alb-app"
         }
       },
       {
@@ -266,7 +266,7 @@ resource "aws_cloudwatch_dashboard" "sgpj" {
         width  = 8
         height = 6
         properties = {
-          title  = "HTTP 5xx — ALB próprio"
+          title  = "HTTP 5xx -- ALB proprio"
           view   = "timeSeries"
           region = var.region
           period = 60

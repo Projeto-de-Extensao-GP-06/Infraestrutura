@@ -1,33 +1,56 @@
 ---
-- name: Validar diretorios de conteudo e configuracao do Nginx no EFS
-  ansible.builtin.assert:
-    that:
-      - nginx_html_host_path is defined
-      - nginx_conf_host_path is defined
-      - nginx_html_host_path | length > 0
-      - nginx_conf_host_path | length > 0
-    fail_msg: Defina os caminhos de html e conf do Nginx.
+# role: nginx
+# Instala o AWS CLI (se ausente), faz login no ECR, puxa a imagem do frontend
+# e inicia o container nginx servindo o React baked na imagem Docker.
 
-- name: Garantir diretorios de html e conf no EFS
+- name: Criar diretorio local para configuracao do Nginx
   ansible.builtin.file:
-    path: "{{ item }}"
+    path: /opt/app-frontend/conf.d
     state: directory
-    mode: "0777"
-  loop:
-    - "{{ nginx_html_host_path }}"
-    - "{{ nginx_conf_host_path }}"
+    mode: "0755"
 
-- name: Publicar configuracao dinamica do Nginx com upstream dos backends
+- name: Publicar configuracao do Nginx com balanceamento para os backends
   ansible.builtin.template:
     src: default.conf.j2
-    dest: "{{ nginx_conf_host_path }}/default.conf"
+    dest: /opt/app-frontend/conf.d/default.conf
     mode: "0644"
-    force: true
 
-- name: Subir container Nginx via Docker
+- name: Instalar dependencias do AWS CLI (curl, unzip)
+  ansible.builtin.apt:
+    name:
+      - curl
+      - unzip
+    state: present
+    update_cache: true
+
+- name: Verificar se AWS CLI ja esta instalado
+  ansible.builtin.command: aws --version
+  register: aws_cli_check
+  changed_when: false
+  failed_when: false
+
+- name: Instalar AWS CLI v2 nas instancias de App
+  ansible.builtin.shell: |
+    curl -s "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o /tmp/awscliv2.zip
+    unzip -q -o /tmp/awscliv2.zip -d /tmp
+    /tmp/aws/install --update
+    rm -rf /tmp/aws /tmp/awscliv2.zip
+  when: aws_cli_check.rc != 0
+  changed_when: true
+
+- name: Garantir login no Amazon ECR
+  ansible.builtin.shell: >
+    aws ecr get-login-password --region {{ aws_region }}
+    | docker login --username AWS --password-stdin {{ ecr_registry_url }}
+  changed_when: false
+
+- name: Baixar imagem mais recente do Frontend no ECR
+  ansible.builtin.command: docker pull {{ ecr_frontend_image }}
+
+- name: Subir container do Frontend Nginx via Docker
   community.docker.docker_container:
     name: "{{ nginx_container_name }}"
-    image: "{{ nginx_image }}"
+    image: "{{ ecr_frontend_image }}"
     state: started
     restart_policy: unless-stopped
     recreate: true
@@ -35,5 +58,4 @@
     ports:
       - "{{ nginx_host_port }}:{{ nginx_container_port }}"
     volumes:
-      - "{{ nginx_html_host_path }}:{{ nginx_html_container_path }}:ro"
-      - "{{ nginx_conf_host_path }}:{{ nginx_conf_container_path }}:ro"
+      - /opt/app-frontend/conf.d/default.conf:/etc/nginx/conf.d/default.conf:ro

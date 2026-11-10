@@ -1,4 +1,3 @@
 ---
-# Caminho do build de produção do frontend (Vite dist)
-app_dist_path: "{{ playbook_dir }}/../../../Frontend/dist"
-nginx_html_host_path: /mnt/efs-sgpj/volumes/nginx/html
+# role: app - defaults vazios (role descontinuada)
+# Frontend migrado para imagem Docker no ECR (role nginx)

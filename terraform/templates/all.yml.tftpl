@@ -1,13 +1,13 @@
 ---
-# ──────────────────────────────────────────────────────────────────────────────
+# ---------------------------------------------------------------------------
 # Arquivo gerado automaticamente pelo Terraform (templates/all.yml.tftpl)
-# NÃO EDITE MANUALMENTE. Suas alterações serão sobrescritas no terraform apply.
-# ──────────────────────────────────────────────────────────────────────────────
+# NAO EDITE MANUALMENTE. Suas alteracoes serao sobrescritas no terraform apply.
+# ---------------------------------------------------------------------------
 
 aws_region: "${aws_region}"
 efs_dns: "${efs_dns}"
 
-# ── Conectividade entre Camadas (Service Discovery Automático) ────────────────
+# -- Conectividade entre Camadas (Service Discovery Automatico) -------------
 db_host: "${db_host}"
 db_port: 3306
 mysql_database: "${mysql_database}"
@@ -19,17 +19,17 @@ backend_hosts:
   - "${backend_a_ip}"
   - "${backend_b_ip}"
 
-# ── Repositórios de Imagens Docker (Amazon ECR) ───────────────────────────────
+# -- Repositorios de Imagens Docker (Amazon ECR) ----------------------------
 use_ecr: true
 ecr_registry_url: "${split("/", ecr_frontend_url)[0]}"
 ecr_frontend_image: "${ecr_frontend_url}:latest"
 ecr_backend_image: "${ecr_backend_url}:latest"
 ecr_agent_image: "${ecr_agent_url}:latest"
 
-# ── Data Lake / Logs S3 (Fluent Bit) ──────────────────────────────────────────
+# -- Data Lake / Logs S3 (Fluent Bit) ---------------------------------------
 bronze_bucket: "${bronze_bucket}"
 s3_bronze_bucket: "${bronze_bucket}"
 
-# ── Configuração de Observabilidade (Opcional) ────────────────────────────────
+# -- Configuracao de Observabilidade (Opcional) -----------------------------
 enable_observability: ${enable_observability}
 observability_host: "${observability_ip}"

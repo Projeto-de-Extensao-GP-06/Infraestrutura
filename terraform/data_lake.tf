@@ -1,10 +1,10 @@
-# ── Data Lake S3 Buckets (Bronze, Silver, Gold) ────────────────────────────────
+# -- Data Lake S3 Buckets (Bronze, Silver, Gold) --------------------------------
 # Nomes incluem account_id para garantir unicidade global no S3.
 #
 # IMPORTANTE (AWS Academy): O provider aws_s3_bucket chama GetObjectLockConfiguration
-# durante o refresh, operação bloqueada pelo SCP da organização do Academy.
-# Solução: usar null_resource + AWS CLI para criar e configurar os buckets.
-# ARNs são calculados via locals (formato determinístico — não precisamos do provider).
+# durante o refresh, operacao bloqueada pelo SCP da organizacao do Academy.
+# Solucao: usar null_resource + AWS CLI para criar e configurar os buckets.
+# ARNs sao calculados via locals (formato deterministico -- nao precisamos do provider).
 
 data "aws_caller_identity" "current" {}
 
@@ -21,8 +21,8 @@ locals {
   gold_bucket_arn   = "arn:aws:s3:::${local.gold_bucket}"
 }
 
-# ── Criação e configuração dos buckets via AWS CLI ─────────────────────────────
-# null_resource não faz refresh — nunca chama GetObjectLockConfiguration.
+# -- Criacao e configuracao dos buckets via AWS CLI -----------------------------
+# null_resource nao faz refresh -- nunca chama GetObjectLockConfiguration.
 resource "null_resource" "s3_data_lake" {
   triggers = {
     bronze_bucket = local.bronze_bucket
@@ -80,7 +80,7 @@ resource "null_resource" "s3_data_lake" {
   }
 }
 
-# ── IAM Role for Glue Crawlers ─────────────────────────────────────────────────
+# -- IAM Role for Glue Crawlers -------------------------------------------------
 # Protegido por enable_data_lake_iam (AWS Academy bloqueia iam:CreateRole)
 data "aws_iam_policy_document" "glue_assume_role" {
   statement {
@@ -140,7 +140,7 @@ resource "aws_iam_role_policy" "glue_crawler_policy" {
   policy = data.aws_iam_policy_document.glue_crawler_policy.json
 }
 
-# ── Glue Databases ─────────────────────────────────────────────────────────────
+# -- Glue Databases -------------------------------------------------------------
 resource "aws_glue_catalog_database" "bronze_db" {
   name        = "sgpj_bronze"
   description = "Bronze layer database for raw data"
@@ -159,8 +159,8 @@ resource "aws_glue_catalog_database" "gold_db" {
   catalog_id  = data.aws_caller_identity.current.account_id
 }
 
-# ── Glue Crawlers ──────────────────────────────────────────────────────────────
-# Só criados quando enable_data_lake_iam = true (requer IAM role criada)
+# -- Glue Crawlers --------------------------------------------------------------
+# So criados quando enable_data_lake_iam = true (requer IAM role criada)
 resource "aws_glue_crawler" "bronze_crawler" {
   count         = var.enable_data_lake_iam ? 1 : 0
   name          = "sgpj-bronze-crawler"
@@ -269,7 +269,7 @@ resource "aws_glue_crawler" "gold_crawler" {
   }
 }
 
-# ── IAM Role for Glue ETL Jobs ──────────────────────────────────────────────────
+# -- IAM Role for Glue ETL Jobs --------------------------------------------------
 data "aws_iam_policy_document" "glue_job_assume_role" {
   statement {
     effect = "Allow"
@@ -329,7 +329,7 @@ resource "aws_iam_role_policy" "glue_job_policy" {
   policy = data.aws_iam_policy_document.glue_job_policy.json
 }
 
-# ── Glue ETL Job: Bronze → Silver ───────────────────────────────────────────────
+# -- Glue ETL Job: Bronze → Silver -----------------------------------------------
 resource "aws_glue_job" "bronze_to_silver" {
   count       = var.enable_data_lake_iam ? 1 : 0
   name        = "sgpj-bronze-to-silver"
@@ -368,7 +368,7 @@ resource "aws_glue_job" "bronze_to_silver" {
   }
 }
 
-# ── Glue ETL Job: Silver → Gold ─────────────────────────────────────────────────
+# -- Glue ETL Job: Silver → Gold -------------------------------------------------
 resource "aws_glue_job" "silver_to_gold" {
   count       = var.enable_data_lake_iam ? 1 : 0
   name        = "sgpj-silver-to-gold"
@@ -407,7 +407,7 @@ resource "aws_glue_job" "silver_to_gold" {
   }
 }
 
-# ── Outputs ────────────────────────────────────────────────────────────────────
+# -- Outputs --------------------------------------------------------------------
 output "bronze_bucket_name" {
   description = "Nome do bucket bronze"
   value       = local.bronze_bucket

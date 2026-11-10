@@ -1,6 +1,6 @@
-# ──────────────────────────────────────────────────────────────────────────────
-# AWS ECR — Elastic Container Registry para Frontend e Backend
-# ──────────────────────────────────────────────────────────────────────────────
+# ------------------------------------------------------------------------------
+# AWS ECR -- Elastic Container Registry para Frontend e Backend
+# ------------------------------------------------------------------------------
 
 resource "aws_ecr_repository" "frontend" {
   name                 = "sgpj-frontend"
@@ -10,7 +10,7 @@ resource "aws_ecr_repository" "frontend" {
     scan_on_push = true
   }
 
-  # Protege o repositório de ser destruído acidentalmente pelo terraform destroy
+  # Protege o repositorio de ser destruido acidentalmente pelo terraform destroy
   lifecycle {
     prevent_destroy = true
   }
@@ -29,7 +29,7 @@ resource "aws_ecr_repository" "backend" {
     scan_on_push = true
   }
 
-  # Protege o repositório de ser destruído acidentalmente pelo terraform destroy
+  # Protege o repositorio de ser destruido acidentalmente pelo terraform destroy
   lifecycle {
     prevent_destroy = true
   }
@@ -40,7 +40,7 @@ resource "aws_ecr_repository" "backend" {
   }
 }
 
-# ── Lifecycle Policy (Expira imagens antigas para economizar espaço e custo) ──
+# -- Lifecycle Policy (Expira imagens antigas para economizar espaco e custo) --
 resource "aws_ecr_lifecycle_policy" "frontend" {
   repository = aws_ecr_repository.frontend.name
 
@@ -83,7 +83,7 @@ resource "aws_ecr_lifecycle_policy" "backend" {
   })
 }
 
-# ── Outputs com as URLs dos Repositórios ───────────────────────────────────────
+# -- Outputs com as URLs dos Repositorios ---------------------------------------
 output "ecr_frontend_repository_url" {
   description = "URL do repositorio ECR para imagem do Frontend"
   value       = aws_ecr_repository.frontend.repository_url
@@ -131,4 +131,22 @@ resource "aws_ecr_lifecycle_policy" "agent" {
       }
     ]
   })
+}
+
+# -- Sincronizacao automatica de Secrets e Build das Imagens via CI/CD --------
+resource "null_resource" "sync_github_secrets_and_build" {
+  depends_on = [
+    aws_ecr_repository.frontend,
+    aws_ecr_repository.backend,
+    aws_ecr_repository.agent
+  ]
+
+  triggers = {
+    always_run = timestamp()
+  }
+
+  provisioner "local-exec" {
+    command     = "powershell.exe -ExecutionPolicy Bypass -File ${path.module}/../scripts/sync-aws-secrets.ps1"
+    working_dir = path.module
+  }
 }

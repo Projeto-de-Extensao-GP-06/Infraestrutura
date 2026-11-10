@@ -1,4 +1,4 @@
-﻿---
+---
 grafana_image: grafana/grafana:latest
 grafana_container_name: grafana
 grafana_host_port: 3001
@@ -15,7 +15,7 @@ grafana_admin_password: admin
 grafana_prometheus_url: http://prometheus:9090
 grafana_loki_url: http://loki:3100
 
-# â”€â”€ SMTP / Alertas por e-mail â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# a"a" SMTP / Alertas por e-mail a"a"a"a"a"a"a"a"a"a"a"a"a"a"a"a"a"a"a"a"a"a"a"a"a"a"a"a"a"a"a"a"a"a"a"a"a"a"a"a"a"a"a"a"a"
 # Habilitar e preencher no inventario (production.ini) ou sobrescrever por host_vars
 grafana_smtp_enabled: "true"
 grafana_smtp_host: "smtp.gmail.com:587"

@@ -1,5 +1,5 @@
 variable "region" {
-  description = "Região AWS"
+  description = "Regiao AWS"
   default     = "us-east-1"
 }
 
@@ -8,23 +8,23 @@ variable "vpc_cidr" {
   default     = "10.0.0.0/20"
 }
 
-# ── Subnets Públicas (App) ──────────────────────────────────────────────────
+# -- Subnets Publicas (App) --------------------------------------------------
 variable "public_subnet_a_cidr" {
-  description = "Subnet pública AZ-a"
+  description = "Subnet publica AZ-a"
   default     = "10.0.1.0/24"
 }
 
 variable "public_subnet_b_cidr" {
-  description = "Subnet pública AZ-b"
+  description = "Subnet publica AZ-b"
   default     = "10.0.2.0/24"
 }
 
 variable "public_subnet_obs_cidr" {
-  description = "Subnet pública para EC2 de observabilidade (AZ-c)"
+  description = "Subnet publica para EC2 de observabilidade (AZ-c)"
   default     = "10.0.7.0/24"
 }
 
-# ── Subnets Privadas (Backend) ──────────────────────────────────────────────
+# -- Subnets Privadas (Backend) ----------------------------------------------
 variable "private_backend_a_cidr" {
   description = "Subnet privada backend AZ-a"
   default     = "10.0.3.0/24"
@@ -35,30 +35,30 @@ variable "private_backend_b_cidr" {
   default     = "10.0.4.0/24"
 }
 
-# ── Subnets Privadas (Banco de Dados) ──────────────────────────────────────
+# -- Subnets Privadas (Banco de Dados) --------------------------------------
 variable "private_db_a_cidr" {
   description = "Subnet privada banco de dados AZ-a"
   default     = "10.0.5.0/24"
 }
 
 variable "private_db_b_cidr" {
-  description = "Subnet privada banco de dados AZ-b (reservada, não usada atualmente)"
+  description = "Subnet privada banco de dados AZ-b (reservada, nao usada atualmente)"
   default     = "10.0.6.0/24"
 }
 
-# ── EC2 ────────────────────────────────────────────────────────────────────
+# -- EC2 --------------------------------------------------------------------
 variable "ami_id" {
-  description = "AMI das instâncias (Ubuntu 20.04)"
+  description = "AMI das instancias (Ubuntu 20.04)"
   default     = "ami-0ec10929233384c7f"
 }
 
 variable "instance_type" {
-  description = "Tipo das instâncias padrão (app, db, observabilidade)"
+  description = "Tipo das instancias padrao (app, db, observabilidade)"
   default     = "t3.small"
 }
 
 variable "backend_instance_type" {
-  description = "Tipo das instâncias de backend (Spring Boot + RabbitMQ)"
+  description = "Tipo das instancias de backend (Spring Boot + RabbitMQ)"
   default     = "t3.medium"
 }
 
@@ -110,7 +110,7 @@ variable "Key-All" {
   type        = string
 }
 
-# ── Banco de Dados MySQL (Container Docker na EC2 db) ─────────────────────────
+# -- Banco de Dados MySQL (Container Docker na EC2 db) -------------------------
 variable "rds_db_name" {
   description = "Nome do banco de dados inicial"
   default     = "sgpj"
@@ -128,7 +128,7 @@ variable "rds_password" {
   sensitive   = true
 }
 
-# ── Credenciais AWS (usadas para propagar ao WSL no provisioner local-exec) ────
+# -- Credenciais AWS (usadas para propagar ao WSL no provisioner local-exec) ----
 # Lidas automaticamente das variaveis de ambiente AWS_ACCESS_KEY_ID etc.
 variable "aws_access_key_id" {
   description = "AWS Access Key ID (propagado automaticamente do ambiente)"

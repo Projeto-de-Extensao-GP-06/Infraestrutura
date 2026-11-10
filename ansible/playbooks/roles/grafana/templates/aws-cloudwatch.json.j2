@@ -15,13 +15,13 @@
     {
       "id": 1,
       "type": "timeseries",
-      "title": "ALB — Requisições por segundo",
+      "title": "ALB -- Requisicoes por segundo",
       "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
       "datasource": {"type": "prometheus", "uid": "prometheus"},
       "targets": [
         {
           "expr": "sum(rate(aws_applicationelb_request_count_sum[5m]))",
-          "legendFormat": "Requisições/s",
+          "legendFormat": "Requisicoes/s",
           "refId": "A"
         }
       ]
@@ -29,7 +29,7 @@
     {
       "id": 2,
       "type": "timeseries",
-      "title": "ALB — Erros 5xx por segundo",
+      "title": "ALB -- Erros 5xx por segundo",
       "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
       "datasource": {"type": "prometheus", "uid": "prometheus"},
       "fieldConfig": {
@@ -48,7 +48,7 @@
     {
       "id": 4,
       "type": "timeseries",
-      "title": "EFS — IO Limit %",
+      "title": "EFS -- IO Limit %",
       "gridPos": {"h": 8, "w": 24, "x": 0, "y": 8},
       "datasource": {"type": "prometheus", "uid": "prometheus"},
       "fieldConfig": {

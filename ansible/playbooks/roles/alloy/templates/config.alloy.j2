@@ -17,7 +17,7 @@ loki.write "default" {
   }
 }
 
-// ── OTLP receiver — recebe traces do backend (Spring Boot) e frontend (React) ──
+// - OTLP receiver -- recebe traces do backend (Spring Boot) e frontend (React) -
 otelcol.receiver.otlp "default" {
   http {
     endpoint = "0.0.0.0:4318"

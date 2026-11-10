@@ -1,8 +1,8 @@
-# ──────────────────────────────────────────────────────────────────────────────
-# Orquestração Automática do Ansible pelo Terraform (Modelo GitOps / Pezão)
-# ──────────────────────────────────────────────────────────────────────────────
+# ---------------------------------------------------------------------------
+# Orquestracao Automatica do Ansible pelo Terraform (Modelo GitOps)
+# ---------------------------------------------------------------------------
 
-# ── 1. Geração Dinâmica do Inventário do Ansible ──────────────────────────────
+# -- 1. Geracao Dinamica do Inventario do Ansible ---------------------------
 resource "local_file" "ansible_inventory" {
   filename        = "${path.module}/../ansible/inventories/production.ini"
   file_permission = "0644"
@@ -20,7 +20,7 @@ resource "local_file" "ansible_inventory" {
   })
 }
 
-# ── 2. Geração Dinâmica das Variáveis Globais do Ansible ───────────────────────
+# -- 2. Geracao Dinamica das Variaveis Globais do Ansible -------------------
 resource "local_file" "ansible_vars" {
   filename        = "${path.module}/../ansible/inventories/group_vars/all.yml"
   file_permission = "0644"
@@ -43,7 +43,7 @@ resource "local_file" "ansible_vars" {
   })
 }
 
-# ── 3. Disparo Automático do Ansible Playbook após a Infraestrutura estar Pronta
+# -- 3. Disparo Automatico do Ansible Playbook apos a Infraestrutura Pronta -
 resource "null_resource" "run_ansible" {
   count = var.auto_run_ansible ? 1 : 0
 
@@ -59,8 +59,8 @@ resource "null_resource" "run_ansible" {
     working_dir = "${path.module}/../ansible"
     # O Terraform (local-exec) roda no PowerShell. O WSL nao herda variaveis de
     # ambiente automaticamente, entao usamos o run_ansible.sh que faz o fallback
-    # via aws configure, e o ECR token agora e obtido na EC2 Manager (nao mais
-    # via delegate_to: localhost) — eliminando a dependencia de credenciais no WSL.
+    # via aws configure. O ECR token e obtido na EC2 Manager (nao mais via
+    # delegate_to: localhost) -- eliminando a dependencia de credenciais no WSL.
     command = "wsl -e bash -c \"./run_ansible.sh\""
   }
 }

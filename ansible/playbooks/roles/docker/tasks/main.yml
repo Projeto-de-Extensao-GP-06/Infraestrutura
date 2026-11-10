@@ -1,13 +1,13 @@
 ---
-# ──────────────────────────────────────────────────────────────────────────────
+# -
 # role: docker
 # Substitui: deploy_application.sh + deploy_backend.sh + deploy_db.sh
 #
-# Instala Docker CE + Docker Compose plugin em qualquer instância Ubuntu.
-# Roda em: [all] — app, backend e db.
-# ──────────────────────────────────────────────────────────────────────────────
+# Instala Docker CE + Docker Compose plugin em qualquer instancia Ubuntu.
+# Roda em: [all] -- app, backend e db.
+# -
 
-- name: Forçar IPv4 no apt para evitar timeout IPv6
+- name: Forcar IPv4 no apt para evitar timeout IPv6
   ansible.builtin.copy:
     dest: /etc/apt/apt.conf.d/99force-ipv4
     content: 'Acquire::ForceIPv4 "true";'
@@ -20,7 +20,7 @@
     done
   changed_when: false
 
-- name: Instalar dependências base
+- name: Instalar dependencias base
   apt:
     name:
       - ca-certificates
@@ -33,7 +33,7 @@
   register: apt_base_result
   until: apt_base_result is success
 
-- name: Criar diretório de keyrings
+- name: Criar diretorio de keyrings
   file:
     path: /etc/apt/keyrings
     state: directory
@@ -45,7 +45,7 @@
     dest: /etc/apt/keyrings/docker.asc
     mode: "0444"
 
-- name: Adicionar repositório Docker
+- name: Adicionar repositorio Docker
   deb822_repository:
     name: docker
     types: deb
@@ -71,19 +71,19 @@
   register: apt_docker_result
   until: apt_docker_result is success
 
-- name: Habilitar e iniciar serviço Docker
+- name: Habilitar e iniciar servico Docker
   systemd:
     name: docker
     enabled: yes
     state: started
 
-- name: Adicionar usuário ubuntu ao grupo docker
+- name: Adicionar usuario ubuntu ao grupo docker
   user:
     name: ubuntu
     groups: docker
     append: yes
 
-- name: Criar diretório de mount do EFS
+- name: Criar diretorio de mount do EFS
   file:
     path: /mnt/efs-sgpj
     state: directory

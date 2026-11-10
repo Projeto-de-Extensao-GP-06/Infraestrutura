@@ -1,4 +1,4 @@
-name: CI - Infra (Validação Terraform e Ansible)
+name: CI - Infra (Validacao Terraform e Ansible)
 
 on:
   pull_request:
@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout do código
+      - name: Checkout do codigo
         uses: actions/checkout@v4
 
       - name: Configurar Terraform
@@ -45,7 +45,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout do código
+      - name: Checkout do codigo
         uses: actions/checkout@v4
 
       - name: Instalar ansible-lint
@@ -53,4 +53,4 @@ jobs:
 
       - name: Rodar ansible-lint
         run: ansible-lint ansible/playbooks/
-        continue-on-error: true  # Lint é informativo, não bloqueia o PR
+        continue-on-error: true  # Lint e informativo, nao bloqueia o PR

@@ -1,15 +1,15 @@
-# ──────────────────────────────────────────────────────────────────────────────
+# ------------------------------------------------------------------------------
 # Pipeline Dedicado de Logs (AWS Glue + AWS Athena + S3 Bronze Tier)
-# ──────────────────────────────────────────────────────────────────────────────
+# ------------------------------------------------------------------------------
 
-# ── 1. Glue Catalog Database Dedicado aos Logs ─────────────────────────────────
+# -- 1. Glue Catalog Database Dedicado aos Logs ---------------------------------
 resource "aws_glue_catalog_database" "logs_db" {
   name        = "sgpj_logs_bronze"
   description = "Database dedicado exclusivamente para armazenamento e catalogo de logs (Bronze Tier)"
   catalog_id  = data.aws_caller_identity.current.account_id
 }
 
-# ── 3. Glue Crawlers Dedicados aos Logs (Opcional - Requer IAM) ────────────────
+# -- 3. Glue Crawlers Dedicados aos Logs (Opcional - Requer IAM) ----------------
 # No AWS Academy mantem-se false se iam:CreateRole for bloqueado
 resource "aws_glue_crawler" "logs_containers_crawler" {
   count         = var.enable_data_lake_iam ? 1 : 0
@@ -126,7 +126,7 @@ resource "aws_glue_crawler" "logs_os_crawler" {
   }
 }
 
-# ── 4. AWS Athena Workgroup Dedicado ───────────────────────────────────────────
+# -- 4. AWS Athena Workgroup Dedicado -------------------------------------------
 resource "aws_athena_workgroup" "logs_workgroup" {
   name          = "sgpj-logs-analytics"
   description   = "Workgroup do Athena dedicado para consultas analiticas sobre logs"
@@ -150,7 +150,7 @@ resource "aws_athena_workgroup" "logs_workgroup" {
   }
 }
 
-# ── 5. Athena Named Queries (Consultas Salvas Prontas) ─────────────────────────
+# -- 5. Athena Named Queries (Consultas Salvas Prontas) -------------------------
 resource "aws_athena_named_query" "query_containers_errors" {
   name        = "logs_containers_erros_e_excecoes"
   workgroup   = aws_athena_workgroup.logs_workgroup.id
@@ -229,7 +229,7 @@ resource "aws_athena_named_query" "query_os_auth_failures" {
   SQL
 }
 
-# ── 5.1 Glue Catalog Tables (Athena External Tables) ─────────────────────────
+# -- 5.1 Glue Catalog Tables (Athena External Tables) -------------------------
 resource "aws_glue_catalog_table" "logs_containers" {
   name          = "containers"
   database_name = aws_glue_catalog_database.logs_db.name
@@ -467,7 +467,7 @@ resource "aws_glue_catalog_table" "logs_os" {
   }
 }
 
-# ── 6. Outputs ─────────────────────────────────────────────────────────────────
+# -- 6. Outputs -----------------------------------------------------------------
 output "logs_database_name" {
   description = "Nome do Database Glue exclusivo para Logs"
   value       = aws_glue_catalog_database.logs_db.name

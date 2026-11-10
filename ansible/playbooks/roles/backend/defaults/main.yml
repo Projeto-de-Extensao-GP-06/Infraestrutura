@@ -14,7 +14,7 @@ backend_cookie_secure: "{{ cookie_secure | default(lookup('env', 'COOKIE_SECURE'
 backend_datajud_api_key: "{{ datajud_api_key | default(lookup('env', 'DATAJUD_API_KEY'), true) | default('', true) }}"
 backend_cloudflare_secret_key: "{{ cloudflare_secret_key | default(lookup('env', 'CLOUDFLARE_SECRET_KEY'), true) | default('', true) }}"
 
-# ── MarIA Agent (Python FastAPI) ──────────────────────────────────────────────
+# -- MarIA Agent (Python FastAPI) ----------------------------------------------
 agent_image: "{{ ecr_agent_image | default('sgpj-agent:latest') }}"
 agent_container_name: "sgpj-agent"
 agent_port: 8000

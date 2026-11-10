@@ -1,4 +1,4 @@
-# ── ALB ────────────────────────────────────────────────────────────────────
+# -- ALB --------------------------------------------------------------------
 resource "aws_security_group" "alb" {
   name        = "alb"
   description = "Security group do Load Balancer"
@@ -22,7 +22,7 @@ resource "aws_security_group" "alb" {
   tags = { Name = "alb" }
 }
 
-# ── Instâncias Públicas (App) ───────────────────────────────────────────────
+# -- Instancias Publicas (App) -----------------------------------------------
 resource "aws_security_group" "app" {
   name        = "app-public"
   description = "Security group das instancias de aplicacao publica"
@@ -70,7 +70,7 @@ resource "aws_security_group" "app" {
   tags = { Name = "app-public" }
 }
 
-# ── Instâncias Privadas (Backend) ───────────────────────────────────────────
+# -- Instancias Privadas (Backend) -------------------------------------------
 resource "aws_security_group" "backend" {
   name        = "backend-private"
   description = "Security group das instancias de backend privadas"
@@ -135,7 +135,7 @@ resource "aws_security_group" "backend" {
   tags = { Name = "backend-private" }
 }
 
-# ── Instância do Banco de Dados ─────────────────────────────────────────────
+# -- Instancia do Banco de Dados ---------------------------------------------
 resource "aws_security_group" "db" {
   name        = "db-private"
   description = "Security group da instancia de banco de dados"
@@ -175,7 +175,7 @@ resource "aws_security_group" "db" {
   tags = { Name = "db-private" }
 }
 
-# ── EC2 Observabilidade (Opcional) ──────────────────────────────────────────
+# -- EC2 Observabilidade (Opcional) ------------------------------------------
 resource "aws_security_group" "observability" {
   count       = var.enable_observability ? 1 : 0
   name        = "observability"
@@ -249,7 +249,7 @@ resource "aws_security_group" "observability" {
   tags = { Name = "observability" }
 }
 
-# ── EFS ─────────────────────────────────────────────────────────────────────
+# -- EFS ---------------------------------------------------------------------
 resource "aws_security_group" "efs" {
   name        = "efs"
   description = "Security group do EFS - NFS restrito a VPC"

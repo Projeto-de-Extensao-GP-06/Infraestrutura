@@ -1,25 +1,25 @@
-# ──────────────────────────────────────────────────────────────────────────────
+# ------------------------------------------------------------------------------
 # modules/compute/variables.tf
-# ──────────────────────────────────────────────────────────────────────────────
+# ------------------------------------------------------------------------------
 
 variable "key_name" {
-  description = "Nome do Key Pair SSH na AWS para acesso às instâncias"
+  description = "Nome do Key Pair SSH na AWS para acesso as instancias"
   type        = string
 }
 
 variable "ami_id" {
-  description = "AMI ID a utilizar nas instâncias EC2 (deve bater com a AMI que está no state)"
+  description = "AMI ID a utilizar nas instancias EC2 (deve bater com a AMI que esta no state)"
   type        = string
 }
 
 variable "instance_type" {
-  description = "Tipo das instâncias EC2 principais (app, backend, db)"
+  description = "Tipo das instancias EC2 principais (app, backend, db)"
   type        = string
   default     = "t3.small"
 }
 
 variable "user_data_path" {
-  description = "Caminho absoluto do script user_data a ser injetado nas instâncias. Deixe vazio para omitir."
+  description = "Caminho absoluto do script user_data a ser injetado nas instancias. Deixe vazio para omitir."
   type        = string
   default     = ""
 }
@@ -36,7 +36,7 @@ variable "instances_config" {
   }))
 }
 
-# ── Configuracao da Instancia de Observabilidade (Opcional) ───────────────────
+# -- Configuracao da Instancia de Observabilidade (Opcional) -------------------
 variable "enable_observability" {
   description = "Se true, provisiona a instancia dedicada de observabilidade"
   type        = bool
@@ -54,7 +54,7 @@ variable "observability_config" {
   default = null
 }
 
-# ── Configuracao do Application Load Balancer ────────────────────────────────
+# -- Configuracao do Application Load Balancer --------------------------------
 variable "alb_security_group_id" {
   description = "Security Group ID para o Application Load Balancer"
   type        = string

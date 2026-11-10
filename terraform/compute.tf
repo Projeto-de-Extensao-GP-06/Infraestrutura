@@ -1,7 +1,7 @@
-# ──────────────────────────────────────────────────────────────────────────────
-# Módulo de Computação (EC2 Instances + Application Load Balancer)
-# Substitui o antigo ec2.tf usando for_each sobre o map de instâncias
-# ──────────────────────────────────────────────────────────────────────────────
+# ------------------------------------------------------------------------------
+# Modulo de Computacao (EC2 Instances + Application Load Balancer)
+# Substitui o antigo ec2.tf usando for_each sobre o map de instancias
+# ------------------------------------------------------------------------------
 
 module "compute" {
   source = "./modules/compute"
@@ -61,7 +61,7 @@ module "compute" {
     }
   }
 
-  # Configuração condicional de observabilidade
+  # Configuracao condicional de observabilidade
   enable_observability = var.enable_observability
   observability_config = var.enable_observability ? {
     subnet_id              = aws_subnet.public_obs[0].id
@@ -81,7 +81,7 @@ module "compute" {
   target_instances      = ["app_a", "app_b"]
 }
 
-# ── Blocos de migração de State (Zero Downtime / Zero Destroy) ────────────────
+# -- Blocos de migracao de State (Zero Downtime / Zero Destroy) ----------------
 moved {
   from = aws_instance.app_a
   to   = module.compute.aws_instance.instances["app_a"]

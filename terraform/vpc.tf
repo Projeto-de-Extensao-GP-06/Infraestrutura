@@ -1,4 +1,4 @@
-# ── VPC ────────────────────────────────────────────────────────────────────
+# -- VPC --------------------------------------------------------------------
 resource "aws_vpc" "sgpj_vpc" {
   cidr_block           = var.vpc_cidr
   enable_dns_support   = true
@@ -7,14 +7,14 @@ resource "aws_vpc" "sgpj_vpc" {
   tags = { Name = "sgpj-vpc" }
 }
 
-# ── Internet Gateway ────────────────────────────────────────────────────────
+# -- Internet Gateway --------------------------------------------------------
 resource "aws_internet_gateway" "igw" {
   vpc_id = aws_vpc.sgpj_vpc.id
 
   tags = { Name = "sgpj-igw" }
 }
 
-# ── Subnets Públicas ────────────────────────────────────────────────────────
+# -- Subnets Publicas --------------------------------------------------------
 resource "aws_subnet" "public_a" {
   vpc_id                  = aws_vpc.sgpj_vpc.id
   cidr_block              = var.public_subnet_a_cidr
@@ -33,7 +33,7 @@ resource "aws_subnet" "public_b" {
   tags = { Name = "sgpj-subnet-public-b" }
 }
 
-# ── Subnets Privadas (Backend) ──────────────────────────────────────────────
+# -- Subnets Privadas (Backend) ----------------------------------------------
 resource "aws_subnet" "private_backend_a" {
   vpc_id            = aws_vpc.sgpj_vpc.id
   cidr_block        = var.private_backend_a_cidr
@@ -50,8 +50,8 @@ resource "aws_subnet" "private_backend_b" {
   tags = { Name = "sgpj-subnet-private-backend-b" }
 }
 
-# ── Subnets Privadas (Banco de Dados) ──────────────────────────────────────
-# AZ-a: onde fica a ec2-db e o mount target EFS já existente
+# -- Subnets Privadas (Banco de Dados) --------------------------------------
+# AZ-a: onde fica a ec2-db e o mount target EFS ja existente
 resource "aws_subnet" "private_db_a" {
   vpc_id            = aws_vpc.sgpj_vpc.id
   cidr_block        = var.private_db_a_cidr
@@ -60,8 +60,8 @@ resource "aws_subnet" "private_db_a" {
   tags = { Name = "sgpj-subnet-private-db-a" }
 }
 
-# ── Route Tables ────────────────────────────────────────────────────────────
-# Pública → IGW
+# -- Route Tables ------------------------------------------------------------
+# Publica → IGW
 resource "aws_route_table" "public" {
   vpc_id = aws_vpc.sgpj_vpc.id
 
@@ -83,7 +83,7 @@ resource "aws_route_table_association" "public_b" {
   route_table_id = aws_route_table.public.id
 }
 
-# ── Subnet Pública (Observabilidade — AZ-c — opcional) ───────────────────────
+# -- Subnet Publica (Observabilidade -- AZ-c -- opcional) -----------------------
 resource "aws_subnet" "public_obs" {
   count                   = var.enable_observability ? 1 : 0
   vpc_id                  = aws_vpc.sgpj_vpc.id
@@ -100,7 +100,7 @@ resource "aws_route_table_association" "public_obs" {
   route_table_id = aws_route_table.public.id
 }
 
-# ── NAT Gateway (temporário — remover com: terraform destroy -target=aws_nat_gateway.ngw -target=aws_eip.nat)
+# -- NAT Gateway (temporario -- remover com: terraform destroy -target=aws_nat_gateway.ngw -target=aws_eip.nat)
 resource "aws_eip" "nat" {
   domain = "vpc"
   tags   = { Name = "sgpj-eip-nat" }
@@ -141,7 +141,7 @@ resource "aws_route_table_association" "private_db_a" {
   route_table_id = aws_route_table.private.id
 }
 
-# ── NACLs ───────────────────────────────────────────────────────────────────
+# -- NACLs -------------------------------------------------------------------
 resource "aws_network_acl" "public" {
   vpc_id     = aws_vpc.sgpj_vpc.id
   subnet_ids = [aws_subnet.public_a.id, aws_subnet.public_b.id]
@@ -164,7 +164,7 @@ resource "aws_network_acl" "public" {
     to_port    = 22
   }
 
-  # Portas efêmeras (respostas TCP)
+  # Portas efemeras (respostas TCP)
   ingress {
     rule_no    = 120
     protocol   = "tcp"
@@ -212,7 +212,7 @@ resource "aws_network_acl" "private" {
     aws_subnet.private_db_a.id
   ]
 
-  # Tráfego interno da VPC
+  # Trafego interno da VPC
   ingress {
     rule_no    = 100
     protocol   = "-1"
@@ -222,7 +222,7 @@ resource "aws_network_acl" "private" {
     to_port    = 0
   }
 
-  # Portas efêmeras — respostas do NAT Gateway
+  # Portas efemeras -- respostas do NAT Gateway
   ingress {
     rule_no    = 110
     protocol   = "tcp"

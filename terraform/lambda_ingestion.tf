@@ -1,30 +1,30 @@
-# ──────────────────────────────────────────────────────────────────────────────
-# Pipeline de Ingestão de Dados Externos via AWS Lambda (SGPJ Data Lake)
+# ------------------------------------------------------------------------------
+# Pipeline de Ingestao de Dados Externos via AWS Lambda (SGPJ Data Lake)
 # Fontes Externas (Ref: XAKCN/EDA_Brasil): BACEN SGS, IBGE SIDRA e BACEN Olinda
-# Gatilhos: EventBridge (Agendado) / Invocação Manual
+# Gatilhos: EventBridge (Agendado) / Invocacao Manual
 # Destino: S3 sgpj-bronze (raw_data/{fonte}/{dataset}/year=YYYY/month=MM/day=DD/)
-# Compatível com AWS Academy (LabRole) e LocalStack
-# ──────────────────────────────────────────────────────────────────────────────
+# Compativel com AWS Academy (LabRole) e LocalStack
+# ------------------------------------------------------------------------------
 
 variable "enable_lambda_ingestion" {
-  description = "Habilita a função Lambda de ingestão, agendamento EventBridge e notificação de eventos S3"
+  description = "Habilita a funcao Lambda de ingestao, agendamento EventBridge e notificacao de eventos S3"
   type        = bool
   default     = true
 }
 
 variable "lambda_ingestion_schedule" {
-  description = "Expressão cron/rate do EventBridge para coleta periódica das APIs externas (BACEN/IBGE)"
+  description = "Expressao cron/rate do EventBridge para coleta periodica das APIs externas (BACEN/IBGE)"
   type        = string
   default     = "cron(0 6 * * ? *)"
 }
 
 variable "use_existing_lab_role" {
-  description = "No AWS Academy, usa LabRole pré-existente para evitar bloqueio por SCP de iam:CreateRole"
+  description = "No AWS Academy, usa LabRole pre-existente para evitar bloqueio por SCP de iam:CreateRole"
   type        = bool
   default     = true
 }
 
-# ── IAM Role para a função Lambda ─────────────────────────────────────────────
+# -- IAM Role para a funcao Lambda ---------------------------------------------
 data "aws_iam_policy_document" "lambda_assume_role" {
   count = var.enable_lambda_ingestion && !var.use_existing_lab_role ? 1 : 0
 
@@ -88,7 +88,7 @@ locals {
   lambda_role_arn = var.use_existing_lab_role ? "arn:aws:iam::${local.account_id}:role/LabRole" : try(aws_iam_role.lambda_ingestion_role[0].arn, "")
 }
 
-# ── Empacotamento do Código Python (ZIP) ───────────────────────────────────────
+# -- Empacotamento do Codigo Python (ZIP) ---------------------------------------
 data "archive_file" "lambda_zip" {
   count       = var.enable_lambda_ingestion ? 1 : 0
   type        = "zip"
@@ -96,7 +96,7 @@ data "archive_file" "lambda_zip" {
   output_path = "${path.module}/scripts/lambda_ingestion.zip"
 }
 
-# ── CloudWatch Log Group para o Lambda ─────────────────────────────────────────
+# -- CloudWatch Log Group para o Lambda -----------------------------------------
 resource "aws_cloudwatch_log_group" "lambda_ingestion" {
   count             = var.enable_lambda_ingestion ? 1 : 0
   name              = "/aws/lambda/sgpj-data-ingestion"
@@ -108,7 +108,7 @@ resource "aws_cloudwatch_log_group" "lambda_ingestion" {
   }
 }
 
-# ── Função Lambda de Ingestão ──────────────────────────────────────────────────
+# -- Funcao Lambda de Ingestao --------------------------------------------------
 resource "aws_lambda_function" "data_ingestion" {
   count            = var.enable_lambda_ingestion ? 1 : 0
   function_name    = "sgpj-data-ingestion"
@@ -137,7 +137,7 @@ resource "aws_lambda_function" "data_ingestion" {
   }
 }
 
-# ── Agendamento EventBridge (Coleta Ativa das APIs BACEN / IBGE) ───────────────
+# -- Agendamento EventBridge (Coleta Ativa das APIs BACEN / IBGE) ---------------
 resource "aws_cloudwatch_event_rule" "lambda_ingestion_schedule" {
   count               = var.enable_lambda_ingestion ? 1 : 0
   name                = "sgpj-data-ingestion-schedule"
@@ -166,4 +166,4 @@ resource "aws_lambda_permission" "allow_eventbridge" {
   source_arn    = aws_cloudwatch_event_rule.lambda_ingestion_schedule[0].arn
 }
 
-# ── Permissão para o S3 invocar a Função Lambda ────────────────────────────────
+# -- Permissao para o S3 invocar a Funcao Lambda --------------------------------

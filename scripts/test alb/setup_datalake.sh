@@ -15,9 +15,9 @@ export AWS_DEFAULT_REGION=$REGION
 # Criar buckets do Data Lake
 echo "Criando buckets do Data Lake..."
 
-aws --endpoint-url=$ENDPOINT_URL s3 mb s3://sgpj-bronze 2>/dev/null || echo "Bucket sgpj-bronze já existe"
-aws --endpoint-url=$ENDPOINT_URL s3 mb s3://sgpj-silver 2>/dev/null || echo "Bucket sgpj-silver já existe"
-aws --endpoint-url=$ENDPOINT_URL s3 mb s3://sgpj-gold 2>/dev/null || echo "Bucket sgpj-gold já existe"
+aws --endpoint-url=$ENDPOINT_URL s3 mb s3://sgpj-bronze 2>/dev/null || echo "Bucket sgpj-bronze ja existe"
+aws --endpoint-url=$ENDPOINT_URL s3 mb s3://sgpj-silver 2>/dev/null || echo "Bucket sgpj-silver ja existe"
+aws --endpoint-url=$ENDPOINT_URL s3 mb s3://sgpj-gold 2>/dev/null || echo "Bucket sgpj-gold ja existe"
 
 # Habilitar versionamento
 aws --endpoint-url=$ENDPOINT_URL s3api put-bucket-versioning \
