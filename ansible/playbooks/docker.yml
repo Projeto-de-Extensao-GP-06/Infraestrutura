@@ -1,5 +1,4 @@
 ---
-# -
 # playbook: docker.yml
 # Instala Docker em TODAS as instancias (app, backend, db).
 #
@@ -9,12 +8,29 @@
 #
 # Rodar so numa instancia:
 #   ansible-playbook -i inventories/production.ini playbooks/docker.yml --limit ec2-app-a
-# -
 - name: Instalar Docker em todas as instancias
   hosts: all
   become: true
+  gather_facts: false   # desabilita facts antes do wait (host pode nao estar pronto)
 
   pre_tasks:
+    # Espera SSH ficar disponivel (cloud-init pode demorar 1-3min apos "running")
+    - name: Aguardar SSH estar disponivel em todas as instancias
+      ansible.builtin.wait_for_connection:
+        delay: 5          # aguarda 5s antes da primeira tentativa
+        timeout: 300      # timeout total de 5 minutos
+        sleep: 10         # intervalo entre tentativas
+        connect_timeout: 15
+
+    # Re-habilita gather_facts apos confirmar que o host esta acessivel
+    - name: Coletar facts apos SSH disponivel
+      ansible.builtin.setup:
+
+    - name: Aguardar cloud-init finalizar (evita race condition com apt/dpkg)
+      ansible.builtin.command: cloud-init status --wait
+      changed_when: false
+      failed_when: false   # nao falhar se cloud-init nao estiver presente
+
     - name: Forcar IPv4 no apt para evitar falha de conexao IPv6
       ansible.builtin.copy:
         dest: /etc/apt/apt.conf.d/99force-ipv4
@@ -23,4 +39,3 @@
 
   roles:
     - docker
-
