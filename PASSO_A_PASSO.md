@@ -1,93 +1,97 @@
-# Guia Definitivo de Execução e Implantação da Infraestrutura — SGPJ
+# Guia Definitivo de Execucao e Implantacao da Infraestrutura -- SGPJ
 
 > [!IMPORTANT]
-> Este guia foi elaborado para que **qualquer membro do grupo** consiga clonar o repositório em sua própria máquina (Windows com WSL ou Linux puro) e subir a infraestrutura completa na AWS sem erros de caminhos fixos ou arquivos ausentes.
+> Este guia foi elaborado para que **qualquer membro do grupo** consiga clonar o repositorio em sua propria maquina (Windows com WSL ou Linux) e subir a infraestrutura completa na AWS com facilidade, sem conflitos ou erros de caminhos fixos.
 
 ---
 
-## Visão Geral da Arquitetura
+## Visao Geral da Arquitetura
 
 O projeto SGPJ utiliza a seguinte stack de infraestrutura:
 
 | Componente | Tecnologia |
 |---|---|
-| Orquestração de containers | Docker Compose (nas EC2s) |
-| Repositório de imagens | Amazon ECR (3 repositórios: `sgpj-backend`, `sgpj-frontend`, `sgpj-agent`) |
-| IA Conversacional | Agent MarIA (Python + LangChain + Gemini) |
-| Observabilidade | Grafana + Prometheus + Loki + Alertmanager |
-| Pipeline de Logs | Fluent Bit → S3 Bronze → Athena |
-| CI/CD | GitHub Actions (CI: testes, CD: build Docker + push ECR + deploy via SSM) |
+| Orquestracao de containers | Docker Swarm (local por AZ) no Backend + Docker no Frontend e DB |
+| Repositorio de imagens | Amazon ECR (3 repositorios: `sgpj-backend`, `sgpj-frontend`, `sgpj-agent`) |
+| Frontend | React + Nginx empacotado como imagem Docker no ECR |
+| Backend | Spring Boot + RabbitMQ (gerenciados via Docker Swarm Stack) |
+| IA Conversacional | Agent MarIA (Python + FastAPI + LangChain + Gemini) |
+| Observabilidade | Grafana + Prometheus + Loki + Alertmanager (opcional) |
+| Pipeline de Logs | Fluent Bit -> S3 Bronze -> Athena |
+| CI/CD & Automacao | GitHub Actions (CI/CD) + Script de Sincronizacao de Secrets automatizado |
 
 ```mermaid
 flowchart TD
     subgraph VPC["VPC (10.0.0.0/16)"]
-        subgraph Pub["Sub-redes Públicas"]
-            AppA["ec2-app-a\n(Nginx + EFS)"]
-            AppB["ec2-app-b\n(Nginx + EFS)"]
+        subgraph Pub["Sub-redes Publicas"]
+            AppA["ec2-app-a\n(Nginx Frontend Docker)"]
+            AppB["ec2-app-b\n(Nginx Frontend Docker)"]
             Obs["ec2-observability\n(Grafana/Prometheus)"]
         end
         subgraph Priv["Sub-redes Privadas"]
-            BkA["ec2-backend-a\n(Spring + Agent + RabbitMQ)"]
-            BkB["ec2-backend-b\n(Spring + Agent + RabbitMQ)"]
-            DB["ec2-db\n(MySQL)"]
+            subgraph SwarmA["Docker Swarm AZ-a"]
+                BkA["ec2-backend-a (Manager)\n(Spring + Agent + RabbitMQ)"]
+            end
+            subgraph SwarmB["Docker Swarm AZ-b"]
+                BkB["ec2-backend-b (Manager)\n(Spring + Agent + RabbitMQ)"]
+            end
+            DB["ec2-db\n(MySQL Docker)"]
         end
-        EFS["Amazon EFS\n(HTML estático)"]
         ECR["Amazon ECR\n(sgpj-backend / sgpj-frontend / sgpj-agent)"]
         S3["S3 Bronze\n(logs Fluent Bit)"]
     end
-    AppA --> EFS
-    AppB --> EFS
+    AppA --> BkA
+    AppB --> BkB
     BkA --> DB
     BkB --> DB
     ECR --> BkA
     ECR --> BkB
     ECR --> AppA
+    ECR --> AppB
     BkA --> S3
+    BkB --> S3
 ```
 
 ---
 
-## 1. Pré-requisitos na Máquina Local
+## 1. Pre-requisitos na Maquina Local
 
-Para executar este projeto, a sua máquina precisa ter instalado:
+Para executar este projeto, a sua maquina precisa ter instalado:
 
 1. **Git**
-2. **AWS CLI v2** configurado com as credenciais do seu laboratório Vocareum.
-3. **Terraform** (versão 1.5.0 ou superior).
-4. **WSL (Ubuntu)** com **Ansible** instalado:
+2. **AWS CLI v2** configurado com as credenciais do seu laboratorio Vocareum.
+3. **GitHub CLI (`gh`)** autenticado (`gh auth login`).
+4. **Terraform** (versao 1.5.0 ou superior).
+5. **WSL (Ubuntu)** com **Ansible** instalado:
    ```bash
    # Dentro do WSL (Ubuntu):
    sudo apt update
    sudo apt install -y ansible python3-pip
    ```
-5. A chave privada do laboratório AWS Academy (`vockey.pem`).
-
-> [!NOTE]
-> Se você já tem Terraform e Ansible instalados (como ferramentas globais no PATH), não precisa reinstalá-los. Apenas verifique as versões com `terraform version` e `ansible --version`.
+6. A chave privada do laboratorio AWS Academy (`vockey.pem`).
 
 ---
 
-## 2. Preparação do Ambiente (Passo a Passo)
+## 2. Preparacao do Ambiente (Passo a Passo)
 
-### Passo 2.1 — Configurar a Chave SSH (`vockey.pem`)
+### Passo 2.1 -- Configurar a Chave SSH (`vockey.pem`)
 
-No AWS Academy, baixe o arquivo `vockey.pem` (ou `labsuser.pem`) e salve-o no diretório `~/.ssh/` do seu WSL:
+No AWS Academy, baixe o arquivo `vockey.pem` (ou `labsuser.pem`) e salve-o no diretorio `~/.ssh/` do seu WSL:
 
 ```bash
 # No terminal WSL:
 mkdir -p ~/.ssh
-# Copie o arquivo vockey.pem que você baixou na pasta Downloads do Windows:
-# (substitua $USER pelo seu usuário real, ex: /mnt/c/Users/joao/Downloads/vockey.pem)
+# Copie o arquivo vockey.pem que voce baixou na pasta Downloads do Windows:
 cp /mnt/c/Users/$USER/Downloads/vockey.pem ~/.ssh/vockey.pem
-# Ajuste as permissões de segurança obrigatórias do SSH:
+# Ajuste as permissoes de seguranca obrigatorias do SSH:
 chmod 400 ~/.ssh/vockey.pem
 ```
 
 ---
 
-### Passo 2.2 — Configurar as Variáveis do Terraform (`terraform.tfvars`)
+### Passo 2.2 -- Configurar as Variaveis do Terraform (`terraform.tfvars`)
 
-Dentro da pasta `infra/terraform/`, existe um arquivo de exemplo. Crie a sua cópia local:
+Dentro da pasta `infra/terraform/`, existe um arquivo de exemplo. Crie a sua copia local:
 
 ```bash
 cd infra/terraform
@@ -96,18 +100,18 @@ cp terraform.tfvars.example terraform.tfvars
 
 Abra o `terraform.tfvars` e preencha os valores:
 
-| Variável | Descrição | Exemplo |
+| Variavel | Descricao | Exemplo |
 |---|---|---|
 | `Key-All` | Nome do par de chaves na AWS | `"vockey"` |
-| `auto_run_ansible` | Rodar Ansible automaticamente após `apply` | `true` |
-| `enable_observability` | Subir instância Grafana/Prometheus | `false` |
+| `auto_run_ansible` | Rodar Ansible automaticamente apos `apply` | `true` |
+| `enable_observability` | Subir instancia Grafana/Prometheus | `false` |
 
 > [!NOTE]
-> O arquivo `terraform.tfvars` está no `.gitignore` — ele nunca será commitado. Cada membro do grupo precisa criar o seu próprio a partir do `.example`.
+> O arquivo `terraform.tfvars` esta no `.gitignore`. Cada membro do grupo precisa criar o seu proprio a partir do `.example`.
 
 ---
 
-### Passo 2.3 — Configurar os Segredos da Aplicação (`secrets.yml`)
+### Passo 2.3 -- Configurar os Segredos da Aplicacao (`secrets.yml`)
 
 Dentro de `infra/ansible/`, crie o arquivo de segredos a partir do exemplo fornecido:
 
@@ -116,29 +120,19 @@ cd infra/ansible
 cp secrets.yml.example secrets.yml
 ```
 
-Abra o `secrets.yml` e preencha todas as variáveis:
-
-| Campo | Descrição |
-|---|---|
-| `jwt_secret` | Chave secreta para assinar tokens JWT (mínimo 32 caracteres) |
-| `azure_client_id` | Client ID do aplicativo Azure AD (OAuth Google/Microsoft) |
-| `azure_client_secret` | Client Secret do Azure AD |
-| `azure_tenant_id` | Tenant ID do Azure AD |
-| `mail_username` | E-mail do Gmail usado para notificações |
-| `mail_password` | Senha de aplicativo do Gmail (não a senha da conta) |
-| `llm_api_key` | Chave da API Gemini (Google AI Studio) |
+Abra o `secrets.yml` e preencha todas as variaveis sensiveis (JWT, Azure AD OAuth, Gmail App Password, Gemini LLM API Key).
 
 > [!CAUTION]
-> **Nunca** commite o `secrets.yml` real. Ele está no `.gitignore`. Se acidentalmente commitar, revogue as chaves imediatamente.
+> **Nunca** commite o `secrets.yml` real. Ele esta no `.gitignore`.
 
 ---
 
-### Passo 2.4 — Configurar Credenciais da AWS no Terminal
+### Passo 2.4 -- Configurar Credenciais da AWS no Terminal
 
 > [!WARNING]
-> As credenciais do AWS Academy **expiram a cada ~4 horas**. Repita este passo toda vez que abrir uma nova sessão no Vocareum.
+> As credenciais do AWS Academy **expiram a cada ~4 horas**. Repita este passo toda vez que abrir uma nova sessao no Vocareum.
 
-1. Vá em **AWS Details** ➔ **AWS CLI** ➔ copie o bloco de credenciais.
+1. Va em **AWS Details** -> **AWS CLI** -> copie o bloco de credenciais.
 2. Cole no seu terminal PowerShell ou WSL:
 
 ```bash
@@ -155,10 +149,10 @@ aws sts get-caller-identity
 
 ---
 
-## 3. Primeira Vez — Criando os Repositórios ECR e Toda a Infraestrutura
+## 3. Primeira Vez -- Criando os Repositorios ECR e Toda a Infraestrutura
 
 > [!NOTE]
-> Execute esta seção apenas se for a **primeira vez** que o grupo está rodando o projeto. Os repositórios ECR ainda não existem na sua conta AWS.
+> Execute esta secao apenas se for a **primeira vez** que o grupo esta rodando o projeto e os repositorios ECR ainda nao existem na sua conta AWS.
 
 ```bash
 cd infra/terraform
@@ -168,32 +162,38 @@ terraform apply -auto-approve
 
 ### O que o Terraform faz automaticamente:
 
-1. **Cria os repositórios ECR:** `sgpj-backend`, `sgpj-frontend`, `sgpj-agent`
-2. **Cria a rede completa na AWS:** VPC, Subnets Públicas e Privadas, Internet Gateway, NAT Gateway, Route Tables e Security Groups (incluindo NACLs).
-3. **Cria o armazenamento:** Sistema de Arquivos EFS compartilhado e Buckets S3 do Data Lake (Bronze, Silver, Gold).
-4. **Cria as instâncias EC2:**
-   - `ec2-app-a` e `ec2-app-b` (Nginx / Frontend).
-   - `ec2-backend-a` e `ec2-backend-b` (Spring Boot + RabbitMQ + Agent Python).
-   - `ec2-db` (Banco MySQL).
-5. **Gera os arquivos do Ansible:** Monta dinamicamente os IPs reais no `production.ini` e as variáveis no `all.yml`.
-6. **Executa o Ansible (se `auto_run_ansible = true`):** Entra nas máquinas, instala o Docker, monta o EFS, sobe o MySQL e inicia os containers.
+1. **Cria os repositorios ECR:** `sgpj-backend`, `sgpj-frontend`, `sgpj-agent`.
+2. **Sincroniza Secrets & Dispara Builds no GitHub:** Dispara o script `sync-aws-secrets.ps1` que atualiza as credenciais da AWS nos 3 repositorios (Backend, Frontend, Agent) e aciona os workflows de CD para compilar e subir as imagens iniciais no ECR.
+3. **Cria a rede completa na AWS:** VPC, Subnets Publicas e Privadas, Internet Gateway, NAT Gateway, Route Tables e Security Groups (incluindo regras para Swarm).
+4. **Cria as instancias EC2:**
+   - `ec2-app-a` e `ec2-app-b` (Nginx + Frontend React via Docker).
+   - `ec2-backend-a` e `ec2-backend-b` (Docker Swarm Manager - Spring Boot + Agent + RabbitMQ).
+   - `ec2-db` (MySQL Docker).
+5. **Gera os arquivos do Ansible:** Monta dinamicamente os IPs reais no `production.ini` e as variaveis no `all.yml`.
+6. **Executa o Ansible (se `auto_run_ansible = true`):**
+   - Aguarda o SSH e o `cloud-init` terminarem completamente (sem erros de boot/race conditions).
+   - Instala Docker em todas as EC2s.
+   - Sobe o MySQL com persistencia e schema.
+   - Inicializa o cluster Docker Swarm local no backend e executa `docker stack deploy`.
+   - Instala AWS CLI v2 e autentica o Nginx no ECR para rodar o container do frontend React.
+   - Configura o Fluent Bit para envio de logs estruturados ao S3 Bronze.
 
 ---
 
-## 4. Dia a Dia — Destruir e Recriar a Infraestrutura
+## 4. Dia a Dia -- Destruir e Recriar a Infraestrutura
 
 > [!IMPORTANT]
-> Os repositórios ECR têm `prevent_destroy = true` para proteger as imagens Docker. Isso significa que `terraform destroy` **vai falhar** se tentar deletar os ECRs. Siga **obrigatoriamente** o fluxo abaixo.
+> Os repositorios ECR tem `prevent_destroy = true` para proteger as imagens Docker. Isso significa que `terraform destroy` **vai falhar** se tentar deletar os ECRs. Siga **obrigatoriamente** o fluxo abaixo.
 
 ---
 
-### 4.1 — Para DESTRUIR (fim do dia / economizar créditos)
+### 4.1 -- Para DESTRUIR (fim do dia / economizar creditos)
 
 ```powershell
 cd infra/terraform
 
 # PASSO 1: Remover os ECRs do estado do Terraform
-# (isso NÃO apaga os repositórios na AWS, apenas desvincula do estado local)
+# (isso NAO apaga os repositorios na AWS, apenas desvincula do estado local)
 terraform state rm `
   aws_ecr_lifecycle_policy.agent `
   aws_ecr_lifecycle_policy.frontend `
@@ -207,17 +207,17 @@ terraform destroy -auto-approve
 ```
 
 > [!NOTE]
-> Após o destroy, os repositórios ECR **continuam existindo** na AWS com todas as imagens intactas. Apenas as EC2s, VPC, EFS, etc., são destruídos.
+> Apos o destroy, os repositorios ECR **continuam existindo** na AWS com todas as imagens intactas. Apenas as EC2s, VPC, etc., sao destruidos.
 
 ---
 
-### 4.2 — Para RECRIAR (início de nova sessão)
+### 4.2 -- Para RECRIAR (inicio de nova sessao)
 
 ```powershell
 cd infra/terraform
 
-# PASSO 1: Atualizar credenciais AWS (veja Seção 2.4)
-# aws configure set aws_access_key_id "..."  (etc.)
+# PASSO 1: Atualizar credenciais AWS no terminal (veja Secao 2.4)
+# aws configure set aws_access_key_id "..." (etc)
 
 # PASSO 2: Reconectar o Terraform aos ECRs existentes na AWS
 terraform import aws_ecr_repository.frontend sgpj-frontend
@@ -231,203 +231,98 @@ terraform import aws_ecr_lifecycle_policy.agent sgpj-agent
 terraform apply -auto-approve
 ```
 
-> [!WARNING]
-> Se você pular o `terraform import` e rodar direto o `apply`, o Terraform vai tentar **criar novos repositórios ECR** com o mesmo nome e vai dar erro de conflito, pois eles já existem na AWS.
+> [!TIP]
+> Caso voce queira rodar apenas a sincronizacao de secrets do GitHub e acionar os builds das imagens manualmente a qualquer momento, execute:
+> ```powershell
+> cd infra/scripts
+> .\sync-aws-secrets.ps1
+> ```
 
 ---
 
-## 5. O Novo Fluxo com CI/CD (GitHub Actions)
+## 5. Fluxo de CI/CD (GitHub Actions)
 
-Agora que o CI/CD está implementado, **ninguém mais precisa fazer deploy manual**:
+O deploy de qualquer alteracao no codigo e 100% automatizado:
 
 ```mermaid
 flowchart LR
     Dev[Desenvolvedor] -->|git push branch| PR[Abre Pull Request]
-    PR -->|Gatilho CI| Testes[CI: Roda Testes Automáticos]
+    PR -->|Gatilho CI| Testes[CI: Roda Testes Automaticos]
     Testes -->|Aprovado| Merge[Merge na branch main]
     Merge -->|Gatilho CD| Build[CD: Build Docker]
     Build --> ECR[Push para Amazon ECR]
     ECR --> SSM[Deploy via AWS SSM nas EC2s]
 ```
 
-### Como atualizar código no dia a dia:
-
-1. Crie uma branch para sua funcionalidade: `git checkout -b feat/minha-feature`
-2. Desenvolva seu código e faça commit.
-3. Abra um **Pull Request** para a `main`.
-4. Os testes unitários vão rodar sozinhos na nuvem (CI).
-5. Ao aprovar o PR e fazer o **Merge** (use **Squash and Merge**), o GitHub Actions:
-   - Gera a nova imagem Docker.
-   - Envia para o Amazon ECR.
-   - Atualiza os containers nas EC2s automaticamente via AWS SSM.
-
-### Configuração dos Segredos no GitHub (por repositório)
-
-> [!IMPORTANT]
-> As credenciais AWS precisam estar configuradas como **Secrets** (não Variables) em **cada repositório** separadamente. Acesse: `Settings → Secrets and variables → Actions → New repository secret`
->
-> Como as credenciais do Vocareum expiram a cada ~4h, **atualize os 3 secrets** no início de cada sessão:
-> - `AWS_ACCESS_KEY_ID`
-> - `AWS_SECRET_ACCESS_KEY`
-> - `AWS_SESSION_TOKEN`
+### O que acontece no CD de cada aplicacao:
+- **Frontend:** Build do Vite -> Constroi imagem Docker Nginx contendo os estaticos compilados -> Push no ECR `sgpj-frontend:latest` -> Notifica `ec2-app-a` e `ec2-app-b` via SSM para puxar a nova imagem e reiniciar o container Docker.
+- **Backend:** Build Maven (Spring Boot) -> Docker Build -> Push no ECR `sgpj-backend:latest` -> Notifica `ec2-backend-a` e `ec2-backend-b` via SSM para rodar `docker stack deploy` mantendo alta disponibilidade.
+- **Agent MarIA:** Docker Build (Python FastAPI) -> Push no ECR `sgpj-agent:latest` -> Notifica os managers do Swarm via SSM.
 
 ---
 
-## 6. Observabilidade (Grafana + Prometheus + Loki)
+## 6. Observabilidade e Logs
 
-> [!NOTE]
-> A observabilidade só está disponível se `enable_observability = true` no `terraform.tfvars`.
-
-Obtenha o IP público da instância de observabilidade:
-
+### 6.1 -- Observabilidade (Grafana + Prometheus + Loki)
+Se `enable_observability = true`, consulte o IP com:
 ```bash
-cd infra/terraform
 terraform output observability_public_ip
 ```
+- **Grafana:** `http://<IP>:3001` (admin / admin)
+- **Prometheus:** `http://<IP>:9090`
+- **Alertmanager:** `http://<IP>:9093`
 
-| Serviço | URL | Credenciais |
-|---|---|---|
-| **Grafana** | `http://<IP>:3001` | admin / admin |
-| **Prometheus** | `http://<IP>:9090` | — |
-| **Alertmanager** | `http://<IP>:9093` | — |
-
-- **Loki** coleta logs de todos os containers Docker das EC2s.
-- **Prometheus** coleta métricas via Node Exporter (CPU, memória, disco) de todas as instâncias.
-- Os dashboards do Grafana já estão pré-configurados via provisionamento automático do Ansible.
-
----
-
-## 7. Pipeline de Logs com Fluent Bit + Athena
-
-O Fluent Bit é instalado automaticamente pelo Ansible em todas as EC2s e coleta:
-
-- Logs de containers Docker
-- Logs do Nginx
-- Logs de acesso SSH (auditoria)
-
-Os logs são enviados para o **S3 Bronze Bucket** (`sgpj-bronze-<account-id>`).
-
-### Configuração do Athena
-
-| Item | Valor |
-|---|---|
-| **Workgroup** | `sgpj-logs-analytics` |
-| **Database** | `sgpj_logs_bronze` |
-| **Script de criação das tabelas** | `infra/scripts/athena/create_tables.sql` |
-
-### Queries pré-construídas disponíveis:
-
-- Erros de aplicação (últimas 24h)
-- Estatísticas de acesso Nginx (top rotas, status codes)
-- Auditoria de SSH (logins, tentativas falhas)
-
-Para criar as tabelas pela primeira vez, execute o script no console Athena da AWS ou via CLI:
-
+### 6.2 -- Pipeline de Logs no AWS Athena
+Os logs das aplicacoes, Nginx e SO sao coletados pelo Fluent Bit e gravados no S3 Bronze.
+- **Workgroup:** `sgpj-logs-analytics`
+- **Database:** `sgpj_logs_bronze`
+- Para atualizar particoes no Athena apos subir o ambiente:
 ```bash
 aws athena start-query-execution \
-  --query-string file://infra/scripts/athena/create_tables.sql \
+  --query-string "MSCK REPAIR TABLE sgpj_logs_bronze.application_logs;" \
   --work-group sgpj-logs-analytics \
   --region us-east-1
 ```
 
 ---
 
-## 8. Verificação e Troubleshooting
+## 7. Verificacao e Troubleshooting
 
-### 8.1 — Verificar o estado das EC2s após o `apply`
-
+### 7.1 -- Obter informacoes da infraestrutura
 ```bash
-# Listar instâncias em execução
-aws ec2 describe-instances \
-  --filters "Name=instance-state-name,Values=running" \
-  --query "Reservations[*].Instances[*].{Name:Tags[?Key=='Name']|[0].Value,IP:PublicIpAddress,PrivateIP:PrivateIpAddress}" \
-  --output table
+cd infra/terraform
+terraform output
 ```
 
-### 8.2 — Acessar as EC2s via SSH
-
-As EC2s de backend ficam em **sub-rede privada** — acesse via bastion (ec2-app-a):
-
+### 7.2 -- Acessar as EC2s via SSH
 ```bash
-# 1. Primeiro, conecte ao bastion (ec2-app-a — sub-rede pública)
+# Conectar no Frontend (App A - IP publico):
 ssh -i ~/.ssh/vockey.pem ubuntu@<IP_PUBLICO_APP_A>
 
-# 2. De dentro do bastion, conecte ao backend
+# Conectar no Backend (IP privado a partir do App A):
 ssh -i ~/.ssh/vockey.pem ubuntu@<IP_PRIVADO_BACKEND>
 ```
 
-> [!TIP]
-> Os IPs das instâncias mudam a cada sessão do laboratório. Use `terraform output` ou o console AWS para obter os IPs atuais:
-> ```bash
-> cd infra/terraform
-> terraform output
-> ```
-
-### 8.3 — Verificar containers em execução
-
+### 7.3 -- Comandos uteis nas EC2s
 ```bash
-# Dentro de qualquer EC2:
+# Na EC2 de Backend (Swarm):
+docker service ls
+docker stack ps sgpj_backend
+docker service logs -f sgpj_backend_backend
+docker service logs -f sgpj_backend_agent
+
+# Na EC2 de App (Frontend):
 docker ps
-
-# Ver logs do Agent MarIA:
-docker logs -f --tail 50 sgpj-agent
-
-# Verificar saúde do Agent:
-curl -s http://localhost:8000/health
-
-# Ver logs do backend Spring Boot:
-docker logs -f --tail 50 sgpj-backend
-
-# Ver logs do RabbitMQ:
-docker logs -f --tail 50 rabbitmq
+docker logs -f nginx
+curl -I http://localhost
 ```
 
-### 8.4 — Reiniciar containers manualmente (se necessário)
+### 7.4 -- Problemas Comuns e Solucoes
 
-```bash
-# No backend EC2:
-cd /opt/app-backend
-docker compose down
-docker compose pull   # baixa a imagem mais recente do ECR
-docker compose up -d
-```
-
-### 8.5 — Problemas comuns
-
-| Problema | Causa Provável | Solução |
+| Problema | Causa Provavel | Solucao |
 |---|---|---|
-| `terraform apply` falha com "ECR already exists" | ECR já existe na AWS mas não está no estado local | Execute os `terraform import` da Seção 4.2 |
-| `terraform destroy` falha com "prevent_destroy" | O Terraform está tentando destruir o ECR | Execute o `terraform state rm` da Seção 4.1 primeiro |
-| CI/CD falha com "Credentials could not be loaded" | Secrets AWS expirados ou configurados como Variables | Atualize os 3 Secrets no GitHub (ver Seção 5) |
-| SSM `InvalidInstanceId` | IDs das EC2s mudaram (nova sessão Vocareum) | O pipeline já faz descoberta dinâmica por tag — verifique se as EC2s estão em execução |
-| `docker pull` falha nas EC2s | Credenciais ECR expiradas | O Ansible/CI roda `aws ecr get-login-password` automaticamente |
-
----
-
-## 9. Integração com OneDrive (Nota de Ambiente)
-
-> [!NOTE]
-> Esta nota é relevante para membros que têm o repositório clonado dentro de uma pasta sincronizada com OneDrive.
-
-- **Localmente (localhost):** O projeto funciona normalmente mesmo com o repositório dentro do OneDrive.
-- **Na AWS (produção):** A comunicação entre os serviços usa HTTPS e nomes de domínio — não há dependência de caminhos locais.
-- **Variáveis de ambiente:** Todas as configurações sensíveis estão nos arquivos `secrets.yml` e `terraform.tfvars` que ficam **fora** do controle de versão. Nunca deixe esses arquivos serem sincronizados com o OneDrive de outros membros — cada pessoa tem os seus próprios.
-
----
-
-## Resumo do Fluxo Completo
-
-```mermaid
-flowchart TD
-    A["git clone do repositório infra"] --> B["Preencher terraform.tfvars e secrets.yml"]
-    B --> C["Configurar credenciais AWS"]
-    C --> D{"ECR já existe na AWS?"}
-    D -->|Não - 1ª vez| E["terraform init + terraform apply"]
-    D -->|Sim - sessão anterior| F["terraform import x6 ECRs"]
-    F --> G["terraform apply -auto-approve"]
-    E --> H["Infraestrutura no ar!"]
-    G --> H
-    H --> I["CI/CD ativo - deployar via PR + Merge"]
-    I --> J["Fim do dia: terraform state rm + terraform destroy"]
-    J --> K["Próxima sessão: voltar ao passo C"]
-```
+| `terraform apply` falha com "ECR already exists" | ECR ja existe na AWS mas nao esta no state | Execute os comandos de `terraform import` da Secao 4.2 |
+| `terraform destroy` falha com "prevent_destroy" | Terraform tentando deletar os ECRs protegidos | Execute o `terraform state rm` da Secao 4.1 antes do destroy |
+| `ec2-app-a: UNREACHABLE!` ou erro de SSH no Ansible | Instancia recem-criada ainda em fase de boot | O `docker.yml` agora possui wait automatico para SSH e cloud-init, e o `run_ansible.sh` retenta automaticamente |
+| `aws: not found` na EC2 de App | AWS CLI nao estava instalado na imagem base | Ja corrigido no role `nginx`, que instala o AWS CLI v2 dinamicamente |
+| 502 Bad Gateway no ALB | Backend inicializando ou container reiniciando | Aguarde 1-2 minutos para o Spring Boot subir e validar `/actuator/health` |
