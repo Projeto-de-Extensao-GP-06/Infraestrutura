@@ -24,8 +24,34 @@ echo "=========================================================="
 echo " Inicio do Deploy Automatizado via Ansible (SGPJ)"
 echo "=========================================================="
 
-ansible-playbook -i inventories/production.ini playbooks/site.yml
+MAX_ATTEMPTS=2
+ATTEMPT=1
 
-echo "=========================================================="
-echo " Deploy via Ansible concluido com sucesso!"
-echo "=========================================================="
+while [[ $ATTEMPT -le $MAX_ATTEMPTS ]]; do
+  echo ""
+  echo "[Ansible] Tentativa $ATTEMPT de $MAX_ATTEMPTS..."
+  echo ""
+
+  if ansible-playbook -i inventories/production.ini playbooks/site.yml; then
+    echo ""
+    echo "=========================================================="
+    echo " Deploy via Ansible concluido com sucesso! (tentativa $ATTEMPT)"
+    echo "=========================================================="
+    exit 0
+  fi
+
+  EXIT_CODE=$?
+
+  if [[ $ATTEMPT -lt $MAX_ATTEMPTS ]]; then
+    echo ""
+    echo "[Ansible] Tentativa $ATTEMPT falhou (exit $EXIT_CODE)."
+    echo "[Ansible] Aguardando 30s antes de tentar novamente..."
+    sleep 30
+  fi
+
+  ATTEMPT=$((ATTEMPT + 1))
+done
+
+echo ""
+echo "[Ansible] ERRO: todas as $MAX_ATTEMPTS tentativas falharam." >&2
+exit 1
