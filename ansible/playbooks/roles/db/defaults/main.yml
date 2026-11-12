@@ -9,3 +9,16 @@ mysql_database: "sgpj"
 mysql_user: "admin"
 mysql_password: "ChangeMe123!"
 mysql_root_password: "ChangeMe123!"
+
+# -- Backup diario para S3 --
+backup_script_path: "/opt/mysql/backup_diario.sh"
+backup_log_file: "/var/log/backup_diario_cron.log"
+backup_tmp_dir: "/var/backups/mysql"
+backup_cron_tz: "America/Sao_Paulo"
+# Roda de 12 em 12 horas (00:00 e 12:00 no timezone backup_cron_tz)
+backup_cron_minute: "0"
+backup_cron_hour: "*/12"
+# Sobrescrito por group_vars/all.yml (gerado pelo Terraform)
+backup_sns_topic_arn: ""
+# Sobrescrito por group_vars/all.yml (gerado pelo Terraform)
+database_backup_bucket: ""

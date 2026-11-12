@@ -1,0 +1,5 @@
+# Gerado pelo Ansible. Backup diario do banco de dados para o S3.
+SHELL=/bin/bash
+PATH=/usr/local/bin:/usr/bin:/bin
+CRON_TZ={{ backup_cron_tz }}
+{{ backup_cron_minute }} {{ backup_cron_hour }} * * * root /bin/bash {{ backup_script_path }} >> {{ backup_log_file }} 2>&1
