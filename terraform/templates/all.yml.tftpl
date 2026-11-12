@@ -30,6 +30,10 @@ ecr_agent_image: "${ecr_agent_url}:latest"
 bronze_bucket: "${bronze_bucket}"
 s3_bronze_bucket: "${bronze_bucket}"
 
+# -- Backup do Banco de Dados (S3) ------------------------------------------
+database_backup_bucket: "${database_backup_bucket}"
+backup_sns_topic_arn: "${backup_sns_topic_arn}"
+
 # -- Configuracao de Observabilidade (Opcional) -----------------------------
 enable_observability: ${enable_observability}
 observability_host: "${observability_ip}"

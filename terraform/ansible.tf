@@ -40,6 +40,9 @@ resource "local_file" "ansible_vars" {
     enable_observability = var.enable_observability
     observability_ip     = var.enable_observability ? module.compute.observability_private_ip : ""
     bronze_bucket        = local.bronze_bucket
+
+    database_backup_bucket = local.database_backup_bucket
+    backup_sns_topic_arn   = aws_sns_topic.database_backup.arn
   })
 }
 
