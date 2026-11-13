@@ -48,6 +48,7 @@ variable "observability_config" {
   type = object({
     subnet_id              = string
     vpc_security_group_ids = list(string)
+    instance_type          = optional(string, null)
     iam_instance_profile   = string
     tags                   = map(string)
   })

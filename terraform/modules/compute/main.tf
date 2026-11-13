@@ -23,7 +23,7 @@ resource "aws_instance" "observability" {
   count = var.enable_observability && var.observability_config != null ? 1 : 0
 
   ami                         = var.ami_id
-  instance_type               = var.instance_type
+  instance_type               = coalesce(var.observability_config.instance_type, var.instance_type)
   key_name                    = var.key_name
   subnet_id                   = var.observability_config.subnet_id
   vpc_security_group_ids      = var.observability_config.vpc_security_group_ids

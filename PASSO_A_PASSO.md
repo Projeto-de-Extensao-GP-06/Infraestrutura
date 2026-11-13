@@ -194,13 +194,7 @@ cd infra/terraform
 
 # PASSO 1: Remover os ECRs do estado do Terraform
 # (isso NAO apaga os repositorios na AWS, apenas desvincula do estado local)
-terraform state rm `
-  aws_ecr_lifecycle_policy.agent `
-  aws_ecr_lifecycle_policy.frontend `
-  aws_ecr_lifecycle_policy.backend `
-  aws_ecr_repository.frontend `
-  aws_ecr_repository.backend `
-  aws_ecr_repository.agent
+terraform state rm aws_ecr_lifecycle_policy.frontend aws_ecr_lifecycle_policy.backend aws_ecr_lifecycle_policy.agent aws_ecr_repository.frontend aws_ecr_repository.backend aws_ecr_repository.agent 
 
 # PASSO 2: Destruir toda a infraestrutura restante
 terraform destroy -auto-approve

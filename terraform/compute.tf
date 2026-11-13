@@ -66,6 +66,7 @@ module "compute" {
   observability_config = var.enable_observability ? {
     subnet_id              = aws_subnet.public_obs[0].id
     vpc_security_group_ids = [aws_security_group.observability[0].id]
+    instance_type          = var.observability_instance_type
     iam_instance_profile   = try(aws_iam_instance_profile.observability_ec2_profile[0].name, var.observability_existing_instance_profile_name)
     tags = {
       Name        = "ec2-observability"

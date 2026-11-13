@@ -105,6 +105,8 @@
       GF_INSTALL_PLUGINS: "grafana-athena-datasource"
       GF_UNIFIED_ALERTING_ENABLED: "true"
       GF_ALERTING_ENABLED: "false"
+      GF_SERVER_ENABLE_GZIP: "true"
+      GF_DATABASE_WAL: "true"
       GF_SMTP_ENABLED: "{{ grafana_smtp_enabled }}"
       GF_SMTP_HOST: "{{ grafana_smtp_host }}"
       GF_SMTP_USER: "{{ grafana_smtp_user }}"
