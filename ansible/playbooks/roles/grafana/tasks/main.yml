@@ -65,6 +65,12 @@
     dest: "{{ grafana_dashboards_dir }}/athena-logs.json"
     mode: "0644"
 
+- name: Renderizar dashboard AWS Athena (Analise de Inadimplencia Gold)
+  ansible.builtin.template:
+    src: carteira-inadimplencia.json.j2
+    dest: "{{ grafana_dashboards_dir }}/carteira-inadimplencia.json"
+    mode: "0644"
+
 - name: Criar diretorio de provisioning de alerting do Grafana
   ansible.builtin.file:
     path: "{{ grafana_provisioning_dir }}/alerting"

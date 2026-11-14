@@ -453,6 +453,30 @@ output "silver_database_name" {
   value       = aws_glue_catalog_database.silver_db.name
 }
 
+# -- Pipeline Medalhao Automatizado (Bronze -> Silver -> Gold -> Athena) -------
+# Executa apenas se enable_datalake_pipeline = true (configuravel no terraform.tfvars)
+resource "null_resource" "run_datalake_pipeline" {
+  count = var.enable_datalake_pipeline ? 1 : 0
+
+  depends_on = [
+    null_resource.s3_data_lake,
+    aws_glue_catalog_database.bronze_db,
+    aws_glue_catalog_database.silver_db,
+    aws_glue_catalog_database.gold_db
+  ]
+
+  triggers = {
+    pipeline_script = filemd5("${path.module}/../scripts/datalake/pipeline_medalhao.py")
+    dataset_file    = filemd5("${path.module}/../data/processos_carteira.csv")
+    account_id      = local.account_id
+  }
+
+  provisioner "local-exec" {
+    command     = "python ../scripts/datalake/pipeline_medalhao.py --account-id ${local.account_id}"
+    working_dir = path.module
+  }
+}
+
 output "bronze_crawler_name" {
   description = "Nome do crawler bronze (null se enable_data_lake_iam=false)"
   value       = var.enable_data_lake_iam ? aws_glue_crawler.bronze_crawler[0].name : null

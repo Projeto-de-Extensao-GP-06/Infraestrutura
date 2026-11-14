@@ -98,6 +98,12 @@ variable "enable_observability" {
   default     = true
 }
 
+variable "enable_datalake_pipeline" {
+  description = "Define se o pipeline analitico Medalhao (upload de dados, ETL Silver/Gold e catalogo Athena) deve ser executado"
+  type        = bool
+  default     = true
+}
+
 variable "auto_run_ansible" {
   description = "Dispara a execucao do Ansible Playbook automaticamente apos provisionar o Terraform"
   type        = bool
