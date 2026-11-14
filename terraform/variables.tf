@@ -62,6 +62,11 @@ variable "backend_instance_type" {
   default     = "t3.medium"
 }
 
+variable "observability_instance_type" {
+  description = "Tipo da instancia de observabilidade (Grafana + Prometheus + Loki)"
+  default     = "t3.medium"
+}
+
 variable "observability_allowed_cidr" {
   description = "CIDR autorizado para acessar Prometheus (9090) e Grafana (3001), ex: 0.0.0.0/0 ou 203.0.113.10/32"
   type        = string
@@ -89,6 +94,12 @@ variable "force_observability_aws_integrations" {
 
 variable "enable_observability" {
   description = "Define se a infraestrutura de observabilidade (EC2 Grafana/Prometheus/Loki) deve ser provisionada"
+  type        = bool
+  default     = true
+}
+
+variable "enable_datalake_pipeline" {
+  description = "Define se o pipeline analitico Medalhao (upload de dados, ETL Silver/Gold e catalogo Athena) deve ser executado"
   type        = bool
   default     = true
 }

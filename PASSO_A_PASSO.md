@@ -59,16 +59,32 @@ flowchart TD
 Para executar este projeto, a sua maquina precisa ter instalado:
 
 1. **Git**
-2. **AWS CLI v2** configurado com as credenciais do seu laboratorio Vocareum.
-3. **GitHub CLI (`gh`)** autenticado (`gh auth login`).
-4. **Terraform** (versao 1.5.0 ou superior).
-5. **WSL (Ubuntu)** com **Ansible** instalado:
+2. **Configuração de quebra de linha (CRLF vs LF)**:
+   > [!IMPORTANT]
+   > No Windows, o Git por padrão pode clonar arquivos convertendo as quebras de linha para **CRLF** (`\r\n`). No entanto, scripts shell Linux (`.sh`) e arquivos de inventário/ansible falham no WSL/Linux com erros crípticos como:
+   > `\r: command not found` ou `syntax error near unexpected token $'\r'`.
+   >
+   > Para evitar isso de uma vez por todas, execute no terminal antes de clonar:
+   > ```bash
+   > git config --global core.autocrlf false
+   > ```
+   > Caso já tenha clonado e algum script `.sh` dê erro, execute no terminal WSL:
+   > ```bash
+   > sudo apt install -y dos2unix
+   > dos2unix infra/ansible/run_ansible.sh
+   > # ou em todos os scripts:
+   > find . -name "*.sh" -exec dos2unix {} +
+   > ```
+3. **AWS CLI v2** configurado com as credenciais do seu laboratorio Vocareum.
+4. **GitHub CLI (`gh`)** autenticado (`gh auth login`).
+5. **Terraform** (versao 1.5.0 ou superior).
+6. **WSL (Ubuntu)** com **Ansible** instalado:
    ```bash
    # Dentro do WSL (Ubuntu):
    sudo apt update
-   sudo apt install -y ansible python3-pip
+   sudo apt install -y ansible python3-pip dos2unix
    ```
-6. A chave privada do laboratorio AWS Academy (`vockey.pem`).
+7. A chave privada do laboratorio AWS Academy (`vockey.pem`).
 
 ---
 
@@ -194,13 +210,7 @@ cd infra/terraform
 
 # PASSO 1: Remover os ECRs do estado do Terraform
 # (isso NAO apaga os repositorios na AWS, apenas desvincula do estado local)
-terraform state rm `
-  aws_ecr_lifecycle_policy.agent `
-  aws_ecr_lifecycle_policy.frontend `
-  aws_ecr_lifecycle_policy.backend `
-  aws_ecr_repository.frontend `
-  aws_ecr_repository.backend `
-  aws_ecr_repository.agent
+terraform state rm aws_ecr_lifecycle_policy.frontend aws_ecr_lifecycle_policy.backend aws_ecr_lifecycle_policy.agent aws_ecr_repository.frontend aws_ecr_repository.backend aws_ecr_repository.agent 
 
 # PASSO 2: Destruir toda a infraestrutura restante
 terraform destroy -auto-approve
@@ -272,7 +282,24 @@ terraform output observability_public_ip
 - **Prometheus:** `http://<IP>:9090`
 - **Alertmanager:** `http://<IP>:9093`
 
-### 6.2 -- Pipeline de Logs no AWS Athena
+Dashboards pré-carregados automaticamente:
+1. **SGPJ - Observabilidade Geral:** Métricas de containers, uso de CPU/RAM, logs Fluent Bit.
+2. **Analise de Inadimplencia PF/PJ vs Carteira (`sgpj-gold-analytics`):** Dashboard executivo conectado ao Athena/Data Lakehouse comparando séries históricas do Banco Central do Brasil (Bacen) com a volumetria e tickets médios da carteira da beneficiária.
+
+### 6.2 -- Pipeline Data Lakehouse & Athena (Bronze -> Silver -> Gold)
+O pipeline medalhão roda de forma automatizada pelo Terraform (ou via script manual):
+- **Script:** `scripts/datalake/pipeline_medalhao.py`
+- **Buckets criados:** `sgpj-bronze-<ACCOUNT_ID>`, `sgpj-silver-<ACCOUNT_ID>`, `sgpj-gold-<ACCOUNT_ID>`
+- **Catalog Glue/Athena:**
+  - `sgpj_bronze`: Dados brutos em CSV.
+  - `sgpj_silver`: Séries macroeconômicas do Bacen e processos em formato colunar Apache Parquet particionados.
+  - `sgpj_gold`: Tabela agregada analítica `carteira_inadimplencia_analytics` pronta para consultas no Athena e painéis no Grafana.
+- Para rodar ou atualizar o pipeline medalhão manualmente:
+```bash
+python scripts/datalake/pipeline_medalhao.py
+```
+
+### 6.3 -- Pipeline de Logs no AWS Athena
 Os logs das aplicacoes, Nginx e SO sao coletados pelo Fluent Bit e gravados no S3 Bronze.
 - **Workgroup:** `sgpj-logs-analytics`
 - **Database:** `sgpj_logs_bronze`

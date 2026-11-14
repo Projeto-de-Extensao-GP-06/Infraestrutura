@@ -10,7 +10,7 @@ aws_region: "{{ aws_region | default('us-east-1') }}"
 s3_bronze_bucket: "{{ bronze_bucket | default('sgpj-bronze') }}"
 
 # Flush e buffers
-fluentbit_flush_seconds: 5
+fluentbit_flush_seconds: 10
 fluentbit_log_level: "info"
 fluentbit_s3_upload_timeout: "1m"
 fluentbit_s3_total_file_size: "5M"
