@@ -1,5 +1,0 @@
----
-# role: app
-# A sincronizacao de arquivos estaticos para o EFS foi removida.
-# O frontend agora e servido via imagem Docker no ECR (role nginx).
-# Esta role nao executa tarefas e existe apenas para compatibilidade com o site.yml.

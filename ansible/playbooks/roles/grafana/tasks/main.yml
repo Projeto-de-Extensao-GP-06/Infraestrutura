@@ -65,6 +65,12 @@
     dest: "{{ grafana_dashboards_dir }}/athena-logs.json"
     mode: "0644"
 
+- name: Renderizar dashboard AWS Athena (Analise de Inadimplencia Gold)
+  ansible.builtin.template:
+    src: carteira-inadimplencia.json.j2
+    dest: "{{ grafana_dashboards_dir }}/carteira-inadimplencia.json"
+    mode: "0644"
+
 - name: Criar diretorio de provisioning de alerting do Grafana
   ansible.builtin.file:
     path: "{{ grafana_provisioning_dir }}/alerting"
@@ -105,6 +111,8 @@
       GF_INSTALL_PLUGINS: "grafana-athena-datasource"
       GF_UNIFIED_ALERTING_ENABLED: "true"
       GF_ALERTING_ENABLED: "false"
+      GF_SERVER_ENABLE_GZIP: "true"
+      GF_DATABASE_WAL: "true"
       GF_SMTP_ENABLED: "{{ grafana_smtp_enabled }}"
       GF_SMTP_HOST: "{{ grafana_smtp_host }}"
       GF_SMTP_USER: "{{ grafana_smtp_user }}"

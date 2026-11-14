@@ -1,0 +1,387 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "id": 1,
+      "title": "KPIs Gerais -- Impacto Macro na Carteira Juridica",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "grafana-athena-datasource", "uid": "athena" },
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 1 },
+      "id": 2,
+      "title": "Taxa Inadimplencia PF (Atual)",
+      "type": "stat",
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 4.0 },
+              { "color": "red", "value": 5.0 }
+            ]
+          }
+        }
+      },
+      "targets": [
+        {
+          "connectionArgs": {
+            "catalog": "AwsDataCatalog",
+            "database": "sgpj_gold",
+            "resultReuseEnabled": false
+          },
+          "datasource": { "type": "grafana-athena-datasource", "uid": "athena" },
+          "format": "1",
+          "rawSQL": "SELECT parse_datetime(data_referencia, 'yyyy-MM-dd') as time, inadimplencia_pf_perc as taxa_pf FROM sgpj_gold.carteira_inadimplencia_analytics ORDER BY time ASC",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "grafana-athena-datasource", "uid": "athena" },
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 1 },
+      "id": 3,
+      "title": "Taxa Inadimplencia PJ (Atual)",
+      "type": "stat",
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 3.0 },
+              { "color": "red", "value": 3.5 }
+            ]
+          }
+        }
+      },
+      "targets": [
+        {
+          "connectionArgs": {
+            "catalog": "AwsDataCatalog",
+            "database": "sgpj_gold",
+            "resultReuseEnabled": false
+          },
+          "datasource": { "type": "grafana-athena-datasource", "uid": "athena" },
+          "format": "1",
+          "rawSQL": "SELECT parse_datetime(data_referencia, 'yyyy-MM-dd') as time, inadimplencia_pj_perc as taxa_pj FROM sgpj_gold.carteira_inadimplencia_analytics ORDER BY time ASC",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "grafana-athena-datasource", "uid": "athena" },
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 1 },
+      "id": 4,
+      "title": "Taxa Selic a.a. (Atual)",
+      "type": "stat",
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 10.0 },
+              { "color": "red", "value": 13.0 }
+            ]
+          }
+        }
+      },
+      "targets": [
+        {
+          "connectionArgs": {
+            "catalog": "AwsDataCatalog",
+            "database": "sgpj_gold",
+            "resultReuseEnabled": false
+          },
+          "datasource": { "type": "grafana-athena-datasource", "uid": "athena" },
+          "format": "1",
+          "rawSQL": "SELECT parse_datetime(data_referencia, 'yyyy-MM-dd') as time, taxa_selic_aa as selic FROM sgpj_gold.carteira_inadimplencia_analytics ORDER BY time ASC",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "grafana-athena-datasource", "uid": "athena" },
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 1 },
+      "id": 5,
+      "title": "% Processos com Penhora / Bloqueio",
+      "type": "stat",
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "blue", "value": null },
+              { "color": "purple", "value": 35.0 }
+            ]
+          }
+        }
+      },
+      "targets": [
+        {
+          "connectionArgs": {
+            "catalog": "AwsDataCatalog",
+            "database": "sgpj_gold",
+            "resultReuseEnabled": false
+          },
+          "datasource": { "type": "grafana-athena-datasource", "uid": "athena" },
+          "format": "1",
+          "rawSQL": "SELECT parse_datetime(data_referencia, 'yyyy-MM-dd') as time, taxa_penhoras_bloqueios_perc as penhoras FROM sgpj_gold.carteira_inadimplencia_analytics ORDER BY time ASC",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 5 },
+      "id": 6,
+      "title": "Evolucao Temporal: Inadimplencia Bacen vs Novos Clientes da Beneficiaria",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "grafana-athena-datasource", "uid": "athena" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 6 },
+      "id": 7,
+      "title": "PF: Taxa Inadimplencia Bacen (%) vs Novos Processos PF",
+      "type": "timeseries",
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull", "mean"] },
+        "tooltip": { "mode": "multi" }
+      },
+      "fieldConfig": {
+        "defaults": { "custom": { "drawStyle": "line", "lineInterpolation": "smooth" } },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "taxa_inadimplencia_pf" },
+            "properties": [
+              { "id": "custom.axisPlacement", "value": "right" },
+              { "id": "unit", "value": "percent" },
+              { "id": "color", "value": { "fixedColor": "red", "mode": "fixed" } }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "novos_processos_pf" },
+            "properties": [
+              { "id": "custom.axisPlacement", "value": "left" },
+              { "id": "unit", "value": "short" },
+              { "id": "color", "value": { "fixedColor": "green", "mode": "fixed" } }
+            ]
+          }
+        ]
+      },
+      "targets": [
+        {
+          "connectionArgs": {
+            "catalog": "AwsDataCatalog",
+            "database": "sgpj_gold",
+            "resultReuseEnabled": false
+          },
+          "datasource": { "type": "grafana-athena-datasource", "uid": "athena" },
+          "format": "1",
+          "rawSQL": "SELECT parse_datetime(data_referencia, 'yyyy-MM-dd') as time, inadimplencia_pf_perc as taxa_inadimplencia_pf, volume_processos_pf as novos_processos_pf FROM sgpj_gold.carteira_inadimplencia_analytics ORDER BY time ASC",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "grafana-athena-datasource", "uid": "athena" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 6 },
+      "id": 8,
+      "title": "PJ: Taxa Inadimplencia Bacen (%) vs Novos Processos PJ",
+      "type": "timeseries",
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull", "mean"] },
+        "tooltip": { "mode": "multi" }
+      },
+      "fieldConfig": {
+        "defaults": { "custom": { "drawStyle": "line", "lineInterpolation": "smooth" } },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "taxa_inadimplencia_pj" },
+            "properties": [
+              { "id": "custom.axisPlacement", "value": "right" },
+              { "id": "unit", "value": "percent" },
+              { "id": "color", "value": { "fixedColor": "dark-red", "mode": "fixed" } }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "novos_processos_pj" },
+            "properties": [
+              { "id": "custom.axisPlacement", "value": "left" },
+              { "id": "unit", "value": "short" },
+              { "id": "color", "value": { "fixedColor": "blue", "mode": "fixed" } }
+            ]
+          }
+        ]
+      },
+      "targets": [
+        {
+          "connectionArgs": {
+            "catalog": "AwsDataCatalog",
+            "database": "sgpj_gold",
+            "resultReuseEnabled": false
+          },
+          "datasource": { "type": "grafana-athena-datasource", "uid": "athena" },
+          "format": "1",
+          "rawSQL": "SELECT parse_datetime(data_referencia, 'yyyy-MM-dd') as time, inadimplencia_pj_perc as taxa_inadimplencia_pj, volume_processos_pj as novos_processos_pj FROM sgpj_gold.carteira_inadimplencia_analytics ORDER BY time ASC",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 14 },
+      "id": 9,
+      "title": "Estrategia Operacional e Ticket Medio (Decisao Executiva)",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "grafana-athena-datasource", "uid": "athena" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 15 },
+      "id": 10,
+      "title": "Selic e Ticket Medio das Causas (R$)",
+      "type": "timeseries",
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull", "mean"] },
+        "tooltip": { "mode": "multi" }
+      },
+      "fieldConfig": {
+        "defaults": { "custom": { "drawStyle": "line" } },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "selic" },
+            "properties": [
+              { "id": "custom.axisPlacement", "value": "right" },
+              { "id": "unit", "value": "percent" },
+              { "id": "color", "value": { "fixedColor": "yellow", "mode": "fixed" } }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "ticket_medio_pf" },
+            "properties": [
+              { "id": "custom.axisPlacement", "value": "left" },
+              { "id": "unit", "value": "currencyBRL" },
+              { "id": "color", "value": { "fixedColor": "green", "mode": "fixed" } }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "ticket_medio_pj" },
+            "properties": [
+              { "id": "custom.axisPlacement", "value": "left" },
+              { "id": "unit", "value": "currencyBRL" },
+              { "id": "color", "value": { "fixedColor": "purple", "mode": "fixed" } }
+            ]
+          }
+        ]
+      },
+      "targets": [
+        {
+          "connectionArgs": {
+            "catalog": "AwsDataCatalog",
+            "database": "sgpj_gold",
+            "resultReuseEnabled": false
+          },
+          "datasource": { "type": "grafana-athena-datasource", "uid": "athena" },
+          "format": "1",
+          "rawSQL": "SELECT parse_datetime(data_referencia, 'yyyy-MM-dd') as time, taxa_selic_aa as selic, ticket_medio_pf, ticket_medio_pj FROM sgpj_gold.carteira_inadimplencia_analytics ORDER BY time ASC",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "grafana-athena-datasource", "uid": "athena" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 15 },
+      "id": 11,
+      "title": "Perfil das Acoes: % Penhora Dura (SISBAJUD/SNIPER) vs Acordos",
+      "type": "timeseries",
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull", "mean"] },
+        "tooltip": { "mode": "multi" }
+      },
+      "fieldConfig": {
+        "defaults": { "unit": "percent", "custom": { "drawStyle": "bars", "fillOpacity": 40 } },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "taxa_penhoras_bloqueios" },
+            "properties": [
+              { "id": "color", "value": { "fixedColor": "orange", "mode": "fixed" } }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "taxa_acordos" },
+            "properties": [
+              { "id": "color", "value": { "fixedColor": "light-blue", "mode": "fixed" } }
+            ]
+          }
+        ]
+      },
+      "targets": [
+        {
+          "connectionArgs": {
+            "catalog": "AwsDataCatalog",
+            "database": "sgpj_gold",
+            "resultReuseEnabled": false
+          },
+          "datasource": { "type": "grafana-athena-datasource", "uid": "athena" },
+          "format": "1",
+          "rawSQL": "SELECT parse_datetime(data_referencia, 'yyyy-MM-dd') as time, taxa_penhoras_bloqueios_perc as taxa_penhoras_bloqueios, taxa_acordos_perc as taxa_acordos FROM sgpj_gold.carteira_inadimplencia_analytics ORDER BY time ASC",
+          "refId": "A"
+        }
+      ]
+    }
+  ],
+  "refresh": "",
+  "schemaVersion": 38,
+  "style": "dark",
+  "tags": ["analytics", "athena", "bacen", "gold", "inadimplencia", "sgpj"],
+  "time": {
+    "from": "2023-01-01T00:00:00.000Z",
+    "to": "2026-06-30T23:59:59.000Z"
+  },
+  "timezone": "browser",
+  "title": "Analise de Inadimplencia PF/PJ vs Carteira",
+  "uid": "sgpj-gold-analytics",
+  "version": 1
+}

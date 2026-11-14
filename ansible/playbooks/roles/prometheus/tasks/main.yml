@@ -9,6 +9,14 @@
     state: directory
     mode: "0755"
 
+- name: Criar diretorio de dados do Prometheus
+  ansible.builtin.file:
+    path: "{{ prometheus_data_dir }}"
+    state: directory
+    mode: "0777"
+    owner: "65534"
+    group: "65534"
+
 - name: Renderizar configuracao do Prometheus
   ansible.builtin.template:
     src: prometheus.yml.j2
@@ -33,6 +41,13 @@
       - name: "{{ prometheus_network }}"
     ports:
       - "{{ prometheus_host_port }}:{{ prometheus_container_port }}"
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time={{ prometheus_retention_time }}
+      - --storage.tsdb.retention.size={{ prometheus_retention_size }}
+      - --web.enable-lifecycle
     volumes:
       - "{{ prometheus_config_dir }}/prometheus.yml:/etc/prometheus/prometheus.yml:ro"
       - "{{ prometheus_config_dir }}/alert-rules.yml:/etc/prometheus/alert-rules.yml:ro"
+      - "{{ prometheus_data_dir }}:/prometheus"
