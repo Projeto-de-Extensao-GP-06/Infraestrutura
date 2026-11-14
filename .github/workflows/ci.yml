@@ -24,7 +24,19 @@ jobs:
         working-directory: terraform
         run: terraform fmt -check -recursive
 
+      - name: Verificar presenca de credenciais AWS
+        id: check-aws
+        run: |
+          if [ -n "${{ secrets.AWS_ACCESS_KEY_ID }}" ] && [ -n "${{ secrets.AWS_SECRET_ACCESS_KEY }}" ]; then
+            echo "has_credentials=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_credentials=false" >> $GITHUB_OUTPUT
+            echo "Aviso: Credenciais AWS ausentes nos secrets. terraform validate rodara sem chamadas externas."
+          fi
+
       - name: Configurar credenciais AWS (para validate)
+        if: steps.check-aws.outputs.has_credentials == 'true'
+        continue-on-error: true
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
