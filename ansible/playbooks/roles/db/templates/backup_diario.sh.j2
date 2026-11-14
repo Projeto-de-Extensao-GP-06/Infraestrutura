@@ -1,0 +1,47 @@
+  #!/bin/bash
+# Gerado pelo Ansible (role db). Dump do MySQL enviado ao S3 com data e hora,
+# com notificacao por e-mail (SNS) de sucesso ou falha.
+set -uo pipefail
+
+CONTAINER="{{ mysql_container_name }}"
+DATABASE="{{ mysql_database }}"
+BUCKET="{{ database_backup_bucket }}"
+TOPIC_ARN="{{ backup_sns_topic_arn }}"
+REGION="{{ aws_region | default('us-east-1') }}"
+TMP_DIR="{{ backup_tmp_dir }}"
+TIMESTAMP=$(date +%Y-%m-%d_%H-%M-%S)
+ARQUIVO="$TMP_DIR/${DATABASE}_${TIMESTAMP}.sql.gz"
+HOST=$(hostname)
+
+notify() {
+  # $1 = assunto, $2 = mensagem
+  if [ -n "$TOPIC_ARN" ]; then
+    aws sns publish --region "$REGION" --topic-arn "$TOPIC_ARN" \
+      --subject "$1" --message "$2" || echo "Falha ao enviar notificacao SNS"
+  fi
+}
+
+run_backup() {
+  mkdir -p "$TMP_DIR" || return 1
+  echo "[$(date '+%F %T')] Gerando dump de $DATABASE..."
+  # pipefail faz o pipeline falhar se o mysqldump falhar
+  docker exec -e MYSQL_PWD='{{ mysql_root_password }}' "$CONTAINER" \
+    mysqldump -u root --single-transaction --routines --triggers --default-character-set=utf8mb4 \
+    --databases "$DATABASE" | gzip > "$ARQUIVO" || return 1
+  [ -s "$ARQUIVO" ] || return 1
+  echo "[$(date '+%F %T')] Enviando para s3://$BUCKET/ ..."
+  aws s3 cp "$ARQUIVO" "s3://$BUCKET/$(basename "$ARQUIVO")" --region "$REGION" || return 1
+}
+
+if run_backup; then
+  rm -f "$ARQUIVO"
+  echo "[$(date '+%F %T')] Backup concluido: $(basename "$ARQUIVO")"
+  notify "[SUCESSO] Backup do banco $DATABASE" \
+    "Backup concluido em $(date '+%F %T') no host $HOST. Arquivo: s3://$BUCKET/$(basename "$ARQUIVO")"
+else
+  rm -f "$ARQUIVO"
+  echo "[$(date '+%F %T')] ERRO no backup de $DATABASE"
+  notify "[FALHA] Backup do banco $DATABASE" \
+    "O backup FALHOU em $(date '+%F %T') no host $HOST. Verifique o log {{ backup_log_file }} na instancia."
+  exit 1
+fi
