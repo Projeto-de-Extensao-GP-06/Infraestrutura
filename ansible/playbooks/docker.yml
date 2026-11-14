@@ -31,6 +31,16 @@
       changed_when: false
       failed_when: false   # nao falhar se cloud-init nao estiver presente
 
+    - name: Configurar timezone para Horario de Brasilia (America/Sao_Paulo)
+      community.general.timezone:
+        name: America/Sao_Paulo
+      ignore_errors: true
+
+    - name: Garantir timezone America/Sao_Paulo via timedatectl (fallback)
+      ansible.builtin.command: timedatectl set-timezone America/Sao_Paulo
+      changed_when: false
+      failed_when: false
+
     - name: Forcar IPv4 no apt para evitar falha de conexao IPv6
       ansible.builtin.copy:
         dest: /etc/apt/apt.conf.d/99force-ipv4
